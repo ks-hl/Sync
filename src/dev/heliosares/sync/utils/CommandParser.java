@@ -8,8 +8,13 @@ public class CommandParser {
 		String args[] = cmd.split(" ");
 		String value = null;
 		String out = "";
-		for (int i = 0; i < args.length; i++) {
-			if (value == null && args[i].equalsIgnoreCase(key) && i < args.length - 1) {
+		boolean escape = false;
+		int i = 0;
+		for (; i < args.length; i++) {
+			if (i > 0 && (args[i].equalsIgnoreCase("psync") || args[i].equalsIgnoreCase("msync"))) {
+				escape = true; // Prevents parsing out parts of the command which are parts of a sub-command
+			}
+			if (!escape && value == null && args[i].equalsIgnoreCase(key) && i < args.length - 1) {
 				value = args[++i];
 				continue;
 			}
@@ -18,6 +23,7 @@ public class CommandParser {
 				out += " ";
 			}
 		}
+
 		return new Result(out, value);
 	}
 

@@ -41,7 +41,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 		sync = new SyncServer(this);
 		loadConfig();
 		try {
-			sync.start(config.getInt("port"));
+			sync.start(config.getInt("port", 8001));
 		} catch (IOException e1) {
 			warning("Error while enabling.");
 			print(e1);
