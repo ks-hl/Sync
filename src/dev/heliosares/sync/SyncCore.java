@@ -6,4 +6,5 @@ public interface SyncCore {
 	public void print(String msg);
 	public void print(Throwable t);
 	public void debug(String msg);
+	public boolean debug();
 }

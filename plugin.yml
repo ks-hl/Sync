@@ -9,3 +9,6 @@ commands:
     psync:
         usage: /psync
         description: Base command
+    if:
+        usage: /if
+        description: Base command

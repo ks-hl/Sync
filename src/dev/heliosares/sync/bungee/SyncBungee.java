@@ -161,4 +161,9 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	public void warning(String msg) {
 		getLogger().warning(msg);
 	}
+
+	@Override
+	public boolean debug() {
+		return debug;
+	}
 }

@@ -14,6 +14,7 @@ public class SyncClient extends NetEventHandler {
 	private SocketConnection connection;
 	private final SyncCore plugin;
 	private boolean closed;
+	private int unableToConnectCount = 0;
 
 	public SyncClient(SyncCore plugin) {
 		this.plugin = plugin;
@@ -32,7 +33,9 @@ public class SyncClient extends NetEventHandler {
 			@Override
 			public void run() {
 				while (!closed) {
-					plugin.print("Client connecting on port " + port + "...");
+					if (unableToConnectCount < 3 || plugin.debug()) {
+						plugin.print("Client connecting on port " + port + "...");
+					}
 					try {
 						connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
 						connection.connect();
@@ -52,6 +55,7 @@ public class SyncClient extends NetEventHandler {
 								}
 								connection.setName(packet.getPayload().getString("name"));
 								plugin.print("Connected as " + connection.getName());
+								unableToConnectCount = 0;
 								continue;
 							}
 							if (noname) {
@@ -64,7 +68,11 @@ public class SyncClient extends NetEventHandler {
 							execute("proxy", packet);
 						}
 					} catch (ConnectException e) {
-						plugin.print("Server not available. Retrying...");
+						if (!plugin.debug() && ++unableToConnectCount == 3) {
+							plugin.print("Server not available. Continuing to attempt silently...");
+						} else if (plugin.debug() || unableToConnectCount < 3) {
+							plugin.print("Server not available. Retrying...");
+						}
 					} catch (NullPointerException | SocketException e) {
 						plugin.print("Server closed." + (closed ? "" : " Retrying..."));
 						if (closed) {

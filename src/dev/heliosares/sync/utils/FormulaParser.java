@@ -26,11 +26,11 @@ public class FormulaParser {
 		return false;
 	}
 
-	public double solve() {
+	public double solve() throws RuntimeException {
 		pos = -1;
 		ch = -1;
 		nextChar();
-		double x = parseExpression();
+		double x = parsePM();
 		if (pos < equation.length())
 			throw new RuntimeException("Unexpected: " + (char) ch);
 		variables.clear();
@@ -50,19 +50,33 @@ public class FormulaParser {
 	// | functionName `(` expression `)` | functionName factor
 	// | factor `^` factor
 
-	private double parseExpression() {
-		double x = parseTerm();
+	private double parsePM() {
+		double x = parseMD();
 		for (;;) {
-			if (eat('+'))
-				x += parseTerm(); // addition
+			boolean lessthan = false;
+			boolean greaterthan = false;
+			if (eat('='))
+				x = (x == parsePM()) ? 1 : 0;
+			else if ((greaterthan = eat('>')) || (lessthan = eat('<'))) {
+				boolean orequal = eat('=');
+				double other = parsePM();
+				if (orequal && x == other) {
+					x = 1;
+				} else if (greaterthan) {
+					x = (x > other) ? 1 : 0;
+				} else if (lessthan) {
+					x = (x < other) ? 1 : 0;
+				}
+			} else if (eat('+'))
+				x += parseMD(); // addition
 			else if (eat('-'))
-				x -= parseTerm(); // subtraction
+				x -= parseMD(); // subtraction
 			else
 				return x;
 		}
 	}
 
-	private double parseTerm() {
+	private double parseMD() {
 		double x = parseFactor();
 		for (;;) {
 			if (eat('*'))
@@ -74,9 +88,9 @@ public class FormulaParser {
 		}
 	}
 
-	private String parseParameter() {
+	private Object parseParameter() {
 		int start = pos;
-		while (ch != ')' && ch != ',') {
+		while (ch != ')' && ch != ',' && ch != -1) {
 			nextChar();
 		}
 		int end = pos;
@@ -92,8 +106,17 @@ public class FormulaParser {
 
 		double x = 0;
 		int startPos = this.pos;
-		if (eat('(')) { // parentheses
-			x = parseExpression();
+		if (eat('!')) {
+			x = parsePM();
+			if (x == 1) {
+				x = 0;
+			} else if (x == 0) {
+				x = 1;
+			} else {
+				throw new RuntimeException("Cannot invert " + equation.substring(startPos, pos));
+			}
+		} else if (eat('(')) { // parentheses
+			x = parsePM();
 			if (!eat(')'))
 				throw new RuntimeException("Missing ')'");
 		} else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
@@ -109,20 +132,28 @@ public class FormulaParser {
 			} else if (func.equalsIgnoreCase("len")) {
 				if (!eat('('))
 					throw new RuntimeException("Missing '(' for function " + func);
-				x = parseParameter().length();
+				x = parseParameter().toString().length();
 				if (!eat(')'))
 					throw new RuntimeException("Missing ')' after argument to " + func);
 			} else if (func.equalsIgnoreCase("matches")) {
 				if (!eat('('))
 					throw new RuntimeException("Missing '(' for function " + func);
-				String arg1 = parseParameter();
-				String arg2 = parseParameter();
+				String arg1 = parseParameter().toString();
+				String arg2 = parseParameter().toString();
+				x = arg1.matches(arg2) ? 1 : 0;
+				if (!eat(')'))
+					throw new RuntimeException("Missing ')' after argument to " + func);
+			} else if (func.equalsIgnoreCase("equals")) {
+				if (!eat('('))
+					throw new RuntimeException("Missing '(' for function " + func);
+				String arg1 = parseParameter().toString();
+				String arg2 = parseParameter().toString();
 				x = arg1.matches(arg2) ? 1 : 0;
 				if (!eat(')'))
 					throw new RuntimeException("Missing ')' after argument to " + func);
 			} else {
 				if (eat('(')) {
-					x = parseExpression();
+					x = parsePM();
 					if (!eat(')'))
 						throw new RuntimeException("Missing ')' after argument to " + func);
 				} else {
@@ -137,7 +168,7 @@ public class FormulaParser {
 				else if (func.equals("tan"))
 					x = Math.tan(Math.toRadians(x));
 				else
-					throw new RuntimeException("Unknown function: " + func);
+					throw new RuntimeException("Unknown function or variable: " + func);
 			}
 		} else {
 			throw new RuntimeException(
@@ -151,7 +182,7 @@ public class FormulaParser {
 	}
 
 	public static void main(String args[]) {
-		FormulaParser parse = new FormulaParser("matches(test,t.gst)");
+		FormulaParser parse = new FormulaParser("matches(test,t.st)=0.5+0.5");
 		long start = System.nanoTime();
 		double d = parse.solve();
 		start = System.nanoTime() - start;
