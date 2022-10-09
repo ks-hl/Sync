@@ -30,6 +30,7 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 		this.saveDefaultConfig();
 
 		this.getCommand("psync").setExecutor(this);
+		this.getCommand("if").setExecutor(this);
 
 		sync = new SyncClient(this);
 		try {
@@ -151,8 +152,9 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 					then = true;
 					continue;
 				}
+				part += " ";
 				if (then) {
-					if (part.equalsIgnoreCase("else")) {
+					if (part.equalsIgnoreCase("else ")) {
 						el = true;
 						continue;
 					}
@@ -175,6 +177,10 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			}
 			FormulaParser parser = new FormulaParser(condition);
 
+			parser.setVariable("$online-players", () -> Bukkit.getOnlinePlayers().size());
+			parser.setVariable("$sender", () -> sender.getName());
+			parser.setVariable("$server", () -> sync.getName());
+
 			String command;
 			boolean state;
 			try {
@@ -189,7 +195,11 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 				command = commandElse;
 			}
 			if (command.length() > 0) {
-				Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+				try {
+					Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parser.replaceVariables(command.trim()));
+				} catch (RuntimeException e) {
+					sender.sendMessage("§c" + e.getMessage());
+				}
 			}
 			return true;
 		}

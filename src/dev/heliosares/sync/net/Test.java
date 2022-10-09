@@ -7,7 +7,7 @@ public class Test {
 
 	public static void main(String[] args) {
 		Object o = "test";
-		if(o instanceof String str) {
+		if (o instanceof String str) {
 			System.out.println(str);
 		}
 		System.exit(0);
@@ -71,6 +71,11 @@ public class Test {
 		@Override
 		public void debug(String msg) {
 			print(msg);
+		}
+
+		@Override
+		public boolean debug() {
+			return true;
 		}
 
 	}

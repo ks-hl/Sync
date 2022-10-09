@@ -1,6 +1,41 @@
 package dev.heliosares.sync.utils;
 
+import dev.heliosares.sync.MySender;
+import dev.heliosares.sync.SyncCore;
+
 public class CommandParser {
+	public static void handle(SyncCore plugin, MySender sender, String command, String[] args) {
+//		if (args == null) {
+//			int firstspace = command.indexOf(" ");
+//			if (firstspace > 0) {
+//				command = command.substring(0, firstspace);
+//				args = command.substring(firstspace + 1, command.length()).split(" ");
+//			} else {
+//				args = new String[0];
+//			}
+//		}
+		if (sender != null) {
+			if (!sender.hasPermissionExplicit("sync." + command)) {
+				sender.sendMessage("§cNo permission");
+				return;
+			}
+		}
+	}
+
+	public static void handleIncoming(SyncCore plugin, String command) {
+		Result playerR = CommandParser.parse("-p", command);
+		MySender sender = null;
+		if (playerR.value() != null) {
+			sender = plugin.getSender(playerR.value());
+			command = playerR.remaining();
+			if (sender == null) {
+				plugin.print("Player not found: " + playerR.value());
+				return;
+			}
+		}
+		plugin.dispatchCommand(sender, command);
+	}
+
 	public static record Result(String remaining, String value) {
 	};
 

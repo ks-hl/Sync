@@ -1,13 +1,15 @@
 package dev.heliosares.sync.utils;
 
 import java.util.HashMap;
+import java.util.function.Supplier;
 
 //https://stackoverflow.com/questions/3422673/how-to-evaluate-a-math-expression-given-in-string-form
 public class FormulaParser {
-	public final String equation;
+	public final String originalEquation;
+	public String equation;
 
 	public FormulaParser(String equation) {
-		this.equation = equation;
+		this.originalEquation = equation.toLowerCase();
 	}
 
 	private int pos = -1, ch;
@@ -26,20 +28,53 @@ public class FormulaParser {
 		return false;
 	}
 
+	public String replaceVariables(String str) {
+		String out = "";
+		String var = "";
+		for (int i = 0; i < str.length(); i++) {
+			char c = str.charAt(i);
+			if (c == '$') {
+				var = "$";
+			} else if (var.length() > 0) {
+				if (c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+					var += c;
+					if (i < str.length() - 1) {
+						continue;
+					}
+				}
+				if (variables.containsKey(var)) {
+					out += variables.get(var).get();
+				} else {
+					throw new RuntimeException("Unknown variable: " + var);
+				}
+				var = "";
+			} else {
+				out += c;
+			}
+		}
+		return out;
+	}
+
 	public double solve() throws RuntimeException {
 		pos = -1;
 		ch = -1;
+		equation = replaceVariables(originalEquation);
 		nextChar();
 		double x = parsePM();
 		if (pos < equation.length())
 			throw new RuntimeException("Unexpected: " + (char) ch);
-		variables.clear();
 		return x;
 	}
+	
+	public void reset() {
+		pos = -1;
+		ch = -1;
+		variables.clear();
+	}
 
-	private HashMap<String, Double> variables = new HashMap<>();
+	private HashMap<String, Supplier<Object>> variables = new HashMap<>();
 
-	public void setVariable(String name, double value) {
+	public void setVariable(String name, Supplier<Object> value) {
 		variables.put(name, value);
 	}
 
@@ -52,10 +87,22 @@ public class FormulaParser {
 
 	private double parsePM() {
 		double x = parseMD();
+		int startPos = pos;
 		for (;;) {
+			boolean and = false;
 			boolean lessthan = false;
 			boolean greaterthan = false;
-			if (eat('='))
+			if (and = eat('&') || eat('|')) {
+				double other = parsePM();
+				if ((x != 1 && x != 0) || (other != 1 && other != 0)) {
+					throw new RuntimeException("Can't and/or non-boolean value: " + equation.substring(startPos, pos));
+				}
+				if (and) {
+					x = other == 1 && x == 1 ? 1 : 0;
+				} else {
+					x = other == 1 || x == 1 ? 1 : 0;
+				}
+			} else if (eat('='))
 				x = (x == parsePM()) ? 1 : 0;
 			else if ((greaterthan = eat('>')) || (lessthan = eat('<'))) {
 				boolean orequal = eat('=');
@@ -107,6 +154,10 @@ public class FormulaParser {
 		double x = 0;
 		int startPos = this.pos;
 		if (eat('!')) {
+			if (eat('=')) {
+				pos = startPos;
+				return x;
+			}
 			x = parsePM();
 			if (x == 1) {
 				x = 0;
@@ -127,9 +178,7 @@ public class FormulaParser {
 			while (ch >= 'a' && ch <= 'z')
 				nextChar();
 			String func = equation.substring(startPos, this.pos);
-			if (variables.containsKey(func)) {
-				x = variables.get(func);
-			} else if (func.equalsIgnoreCase("len")) {
+			if (func.equalsIgnoreCase("len")) {
 				if (!eat('('))
 					throw new RuntimeException("Missing '(' for function " + func);
 				x = parseParameter().toString().length();
@@ -168,7 +217,7 @@ public class FormulaParser {
 				else if (func.equals("tan"))
 					x = Math.tan(Math.toRadians(x));
 				else
-					throw new RuntimeException("Unknown function or variable: " + func);
+					throw new RuntimeException("Unknown function: " + func);
 			}
 		} else {
 			throw new RuntimeException(
