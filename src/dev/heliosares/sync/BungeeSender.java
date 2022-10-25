@@ -1,14 +1,15 @@
 package dev.heliosares.sync;
 
 import dev.heliosares.sync.bungee.SyncBungee;
-import net.md_5.bungee.BungeeCord;
 import net.md_5.bungee.api.CommandSender;
 
 public class BungeeSender implements MySender {
 
+	private final SyncBungee plugin;
 	private final CommandSender sender;
 
-	public BungeeSender(CommandSender sender) {
+	public BungeeSender(SyncBungee plugin, CommandSender sender) {
+		this.plugin = plugin;
 		this.sender = sender;
 	}
 
@@ -39,7 +40,12 @@ public class BungeeSender implements MySender {
 
 	@Override
 	public void execute(String command) {
-		BungeeCord.getInstance().getPluginManager().dispatchCommand(sender, command);
+		plugin.dispatchCommand(this, command);
+	}
+
+	@Override
+	public Object getSender() {
+		return sender;
 	}
 
 }

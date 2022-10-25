@@ -6,4 +6,5 @@ public interface MySender {
 	public boolean hasPermission(String node);
 	public boolean hasPermissionExplicit(String node);
 	public void execute(String command);
+	public Object getSender();
 }

@@ -41,4 +41,9 @@ public class SpigotSender implements MySender {
 	public void execute(String command) {
 		Bukkit.dispatchCommand(sender, command);
 	}
+
+	@Override
+	public Object getSender() {
+		return sender;
+	}
 }

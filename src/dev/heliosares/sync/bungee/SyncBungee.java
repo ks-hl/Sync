@@ -173,11 +173,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public MySender getSender(String name) {
 		ProxiedPlayer player = getProxy().getPlayer(name);
-		return player == null ? null : new BungeeSender(player);
+		return player == null ? null : new BungeeSender(this, player);
 	}
 
 	@Override
 	public void dispatchCommand(MySender sender, String command) {
-		sender.execute(command);
+		getProxy().getPluginManager().dispatchCommand((CommandSender) sender.getSender(), command);
 	}
 }
