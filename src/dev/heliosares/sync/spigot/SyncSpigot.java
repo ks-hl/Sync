@@ -7,10 +7,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.json.JSONObject;
 
+import dev.heliosares.sync.MySender;
+import dev.heliosares.sync.SpigotSender;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
@@ -42,7 +45,7 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			return;
 		}
 
-		dispatchCommand(new SpigotSender(), "list");
+		dispatchCommand(new SpigotConsoleSender(), "list");
 
 		sync.registerListener(new NetListener(Packets.COMMAND.id, null) {
 			@Override
@@ -124,10 +127,9 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 				return true;
 			}
 
-<<<<<<< Updated upstream
 			try {
 				sync.send(new Packet(null, Packets.COMMAND.id,
-						new JSONObject().put("command", CommandParser.concat(args))));
+						new JSONObject().put("command", CommandParser.concat(0, args))));
 			} catch (Exception e) {
 				sender.sendMessage("§cAn error occured");
 				print(e);
@@ -204,14 +206,13 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 					sender.sendMessage("§c" + e.getMessage());
 				}
 			}
-=======
-		try {
-			sync.send(new Packet(null, Packets.COMMAND.id,
-					new JSONObject().put("command", CommandParser.concat(0, args))));
-		} catch (Exception e) {
-			sender.sendMessage("§cAn error occured");
-			print(e);
->>>>>>> Stashed changes
+			try {
+				sync.send(new Packet(null, Packets.COMMAND.id,
+						new JSONObject().put("command", CommandParser.concat(0, args))));
+			} catch (Exception e) {
+				sender.sendMessage("§cAn error occured");
+				print(e);
+			}
 			return true;
 		}
 		return false;
@@ -244,5 +245,17 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 	@Override
 	public boolean debug() {
 		return debug;
+	}
+
+	@Override
+	public MySender getSender(String name) {
+		Player player = getServer().getPlayer(name);
+		return player == null ? null : new SpigotSender(player);
+	}
+
+	@Override
+	public void dispatchCommand(MySender sender, String command) {
+		// TODO Auto-generated method stub
+
 	}
 }

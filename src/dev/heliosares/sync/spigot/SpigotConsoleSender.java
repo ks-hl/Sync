@@ -16,7 +16,7 @@ import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
 
-public class SpigotSender implements ConsoleCommandSender {
+public class SpigotConsoleSender implements ConsoleCommandSender {
 
 	private ArrayList<String> output = new ArrayList<>();
 

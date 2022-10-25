@@ -11,6 +11,8 @@ import java.util.logging.Level;
 
 import org.json.JSONObject;
 
+import dev.heliosares.sync.BungeeSender;
+import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
@@ -22,6 +24,7 @@ import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
@@ -165,5 +168,16 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public boolean debug() {
 		return debug;
+	}
+
+	@Override
+	public MySender getSender(String name) {
+		ProxiedPlayer player = getProxy().getPlayer(name);
+		return player == null ? null : new BungeeSender(player);
+	}
+
+	@Override
+	public void dispatchCommand(MySender sender, String command) {
+		sender.execute(command);
 	}
 }

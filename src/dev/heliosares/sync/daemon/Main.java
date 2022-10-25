@@ -2,6 +2,7 @@ package dev.heliosares.sync.daemon;
 
 import org.json.JSONObject;
 
+import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
@@ -73,5 +74,19 @@ public class Main implements SyncCore {
 	@Override
 	public void debug(String msg) {
 		print(msg);
+	}
+
+	@Override
+	public boolean debug() {
+		return true;
+	}
+
+	@Override
+	public MySender getSender(String name) {
+		return null;
+	}
+
+	@Override
+	public void dispatchCommand(MySender sender, String command) {
 	}
 }

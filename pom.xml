@@ -117,6 +117,13 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<groupId>net.md-5</groupId>
+			<artifactId>bungeecord-proxy</artifactId>
+			<version>1.19-R0.1-SNAPSHOT</version>
+			<type>jar</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
 			<version>20190722</version>
