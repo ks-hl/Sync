@@ -31,6 +31,7 @@
 				<version>3.4.0</version>
 				<executions>
 					<execution>
+						<id>shade-json</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -41,6 +42,20 @@
 									<include>org.json:json</include>
 								</includes>
 							</artifactSet>
+						</configuration>
+					</execution>
+					<execution>
+						<id>pack</id>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>dev.heliosares.sync.daemon.Main</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
@@ -99,20 +114,6 @@
 			<artifactId>bungeecord-api</artifactId>
 			<version>1.19-R0.1-SNAPSHOT</version>
 			<type>javadoc</type>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>net.md-5</groupId>
-			<artifactId>bungeecord-proxy</artifactId>
-			<version>1.19-R0.1-SNAPSHOT</version>
-			<type>jar</type>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>net.md-5</groupId>
-			<artifactId>bungeecord-protocol</artifactId>
-			<version>1.19-R0.1-SNAPSHOT</version>
-			<type>jar</type>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

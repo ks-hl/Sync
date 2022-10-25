@@ -63,7 +63,7 @@ public class ProxyCommandListener extends Command {
 			}
 		}
 
-		String message = CommandParser.concat(args);
+		String message = CommandParser.concat(0, args);
 		Result serverR = CommandParser.parse("-s", message);
 		if (plugin.sync.send(serverR.value(),
 				new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", serverR.remaining())))) {

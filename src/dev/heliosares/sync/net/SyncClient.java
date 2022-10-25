@@ -74,7 +74,7 @@ public class SyncClient extends NetEventHandler {
 							plugin.print("Server not available. Retrying...");
 						}
 					} catch (NullPointerException | SocketException e) {
-						plugin.print("Server closed." + (closed ? "" : " Retrying..."));
+						plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
 						if (closed) {
 							return;
 						}

@@ -62,9 +62,9 @@ public class CommandParser {
 		return new Result(out, value);
 	}
 
-	public static String concat(String... args) {
+	public static String concat(int start, String... args) {
 		String out = "";
-		for (int i = 0; i < args.length; i++) {
+		for (int i = start; i < args.length; i++) {
 			if (out.length() > 0) {
 				out += " ";
 			}

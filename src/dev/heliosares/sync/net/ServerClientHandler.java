@@ -34,7 +34,8 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 						return;
 					}
 					int port = packet.getPayload().getInt("serverport");
-					String name = plugin.getServerNameByPort(port);
+					String name = port == -1 ? ("daemon" + (System.currentTimeMillis() % 1000000))
+							: plugin.getServerNameByPort(port);
 					setName(name);
 
 					plugin.print(name + " connected.");

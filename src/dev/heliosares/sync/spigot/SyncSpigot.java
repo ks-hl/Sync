@@ -42,6 +42,8 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			return;
 		}
 
+		dispatchCommand(new SpigotSender(), "list");
+
 		sync.registerListener(new NetListener(Packets.COMMAND.id, null) {
 			@Override
 			public void execute(String server, Packet packet) {
@@ -122,6 +124,7 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 				return true;
 			}
 
+<<<<<<< Updated upstream
 			try {
 				sync.send(new Packet(null, Packets.COMMAND.id,
 						new JSONObject().put("command", CommandParser.concat(args))));
@@ -201,6 +204,14 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 					sender.sendMessage("§c" + e.getMessage());
 				}
 			}
+=======
+		try {
+			sync.send(new Packet(null, Packets.COMMAND.id,
+					new JSONObject().put("command", CommandParser.concat(0, args))));
+		} catch (Exception e) {
+			sender.sendMessage("§cAn error occured");
+			print(e);
+>>>>>>> Stashed changes
 			return true;
 		}
 		return false;
