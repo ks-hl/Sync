@@ -36,8 +36,15 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	SyncServer sync;
 	boolean debug;
 
+	private static SyncBungee instance;
+
+	public static SyncBungee getInstance() {
+		return instance;
+	}
+
 	@Override
 	public void onEnable() {
+		instance = this;
 		print("Enabling");
 		getProxy().getPluginManager().registerCommand(this, new ProxyCommandListener("msync", this));
 
@@ -179,5 +186,19 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public void dispatchCommand(MySender sender, String command) {
 		getProxy().getPluginManager().dispatchCommand((CommandSender) sender.getSender(), command);
+	}
+
+	public SyncServer getSync() {
+		return sync;
+	}
+
+	@Override
+	public void send(Packet packet) throws IOException {
+		sync.send(packet);
+	}
+
+	@Override
+	public void register(NetListener listen) {
+		sync.registerListener(listen);
 	}
 }

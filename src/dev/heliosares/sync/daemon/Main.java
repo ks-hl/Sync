@@ -1,9 +1,12 @@
 package dev.heliosares.sync.daemon;
 
+import java.io.IOException;
+
 import org.json.JSONObject;
 
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.SyncClient;
@@ -88,5 +91,13 @@ public class Main implements SyncCore {
 
 	@Override
 	public void dispatchCommand(MySender sender, String command) {
+	}
+
+	@Override
+	public void send(Packet packet) throws IOException {
+	}
+
+	@Override
+	public void register(NetListener listen) {
 	}
 }

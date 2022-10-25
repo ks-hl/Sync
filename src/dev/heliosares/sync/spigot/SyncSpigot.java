@@ -26,9 +26,15 @@ import dev.heliosares.sync.utils.FormulaParser;
 public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore {
 	private SyncClient sync;
 	private boolean debug;
+	private static SyncSpigot instance;
+
+	public static SyncSpigot getInstance() {
+		return instance;
+	}
 
 	@Override
 	public void onEnable() {
+		instance = this;
 		this.getConfig().options().copyDefaults(true);
 		this.saveDefaultConfig();
 
@@ -255,7 +261,22 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 
 	@Override
 	public void dispatchCommand(MySender sender, String command) {
-		// TODO Auto-generated method stub
+		getServer().getScheduler().runTask(this, () -> {
+			sender.execute(command);
+		});
+	}
+	
+	public SyncClient getSync() {
+		return sync;
+	}
 
+	@Override
+	public void send(Packet packet) throws IOException {
+		sync.send(packet);
+	}
+
+	@Override
+	public void register(NetListener listen) {
+		sync.registerListener(listen);
 	}
 }
