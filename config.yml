@@ -1,2 +1,5 @@
 # This must be the same throughout all servers you want to connect
 port: 8001
+
+publickey:
+privatekey:

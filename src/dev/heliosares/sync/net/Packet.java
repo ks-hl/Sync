@@ -5,12 +5,19 @@ import org.json.JSONObject;
 public class Packet {
 	private final String channel;
 	private final int packetid;
-	private JSONObject payload;
+	private final JSONObject payload;
+	private byte[] blob;
+	private String forward;
 
 	public Packet(String channel, int packetid, JSONObject payload) {
 		this.channel = channel;
 		this.packetid = packetid;
 		this.payload = payload;
+	}
+
+	public Packet(String channel, int packetid, JSONObject payload, byte[] blob) {
+		this(channel, packetid, payload);
+		this.blob = blob;
 	}
 
 	Packet(JSONObject packet) {
@@ -24,6 +31,9 @@ public class Packet {
 			payload = packet.getJSONObject("pl");
 		} else {
 			payload = null;
+		}
+		if (packet.has("fw")) {
+			forward = packet.getString("fw");
 		}
 	}
 
@@ -49,6 +59,25 @@ public class Packet {
 		if (payload != null) {
 			json.put("pl", payload);
 		}
+		if (forward != null) {
+			json.put("fw", forward);
+		}
 		return json.toString();
+	}
+
+	public byte[] getBlob() {
+		return blob;
+	}
+
+	public void setBlob(byte[] blob) {
+		this.blob = blob;
+	}
+
+	public String getForward() {
+		return forward;
+	}
+
+	public void setForward(String forward) {
+		this.forward = forward;
 	}
 }

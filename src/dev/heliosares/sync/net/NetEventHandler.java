@@ -2,9 +2,16 @@ package dev.heliosares.sync.net;
 
 import java.util.ArrayList;
 
-public class NetEventHandler {
+import dev.heliosares.sync.SyncCore;
+
+public final class NetEventHandler {
 
 	private final ArrayList<NetListener> listeners = new ArrayList<>();
+	private final SyncCore plugin;
+
+	public NetEventHandler(SyncCore plugin) {
+		this.plugin = plugin;
+	}
 
 	public void registerListener(NetListener listen) {
 		synchronized (listeners) {
@@ -14,7 +21,7 @@ public class NetEventHandler {
 
 	public void unregisterListener(NetListener listen) {
 		synchronized (listeners) {
-			listeners.add(listen);
+			listeners.remove(listen);
 		}
 	}
 
@@ -31,7 +38,12 @@ public class NetEventHandler {
 					}
 				}
 				if (packet.getPacketId() == listen.getPacketId()) {
-					listen.execute(server, packet);
+					try {
+						listen.execute(server, packet);
+					} catch (Throwable t) {
+						plugin.warning("Failed to pass " + packet + " to " + listen.getChannel());
+						plugin.print(t);
+					}
 				}
 			}
 		}

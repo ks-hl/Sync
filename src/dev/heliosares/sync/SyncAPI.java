@@ -1,6 +1,7 @@
 package dev.heliosares.sync;
 
 import java.io.IOException;
+import java.util.List;
 
 import dev.heliosares.sync.bungee.SyncBungee;
 import dev.heliosares.sync.net.NetListener;
@@ -14,27 +15,52 @@ public class SyncAPI {
 		if (instance != null) {
 			return instance;
 		}
-		if ((instance = SyncSpigot.getInstance()) != null) {
-			return instance;
+		try {
+			if ((instance = SyncSpigot.getInstance()) != null) {
+				return instance;
+			}
+		} catch (Throwable ignored) {
 		}
-		if ((instance = SyncBungee.getInstance()) != null) {
-			return instance;
+		try {
+			if ((instance = SyncBungee.getInstance()) != null) {
+				return instance;
+			}
+		} catch (Throwable ignored) {
 		}
 		return instance;
 	}
 
-	public static void send(String server, Packet packet) {
-		if (getInstance() instanceof SyncBungee bungee) {
-			bungee.getSync().send(server, packet);
-		}
+	/**
+	 * Sends a packet to a specific server.
+	 * 
+	 * @param server The server to target. Must be contained within
+	 *               SyncAPI.getServers()
+	 * @param packet
+	 */
+	public static boolean send(String server, Packet packet) throws IOException {
+		return getInstance().getSync().send(server, packet);
 	}
 
-	public static void send(Packet packet) throws IOException {
-		getInstance().send(packet);
+	/**
+	 * Sends a packet to the other endpoint. If executed from a server, goes to the
+	 * proxy. If executed from the proxy, goes to all servers.
+	 * 
+	 * @param packet
+	 * @throws IOException
+	 */
+	public static boolean send(Packet packet) throws IOException {
+		return getInstance().getSync().send(packet);
 	}
 
-	public void register(NetListener listen) {
-		getInstance().register(listen);
+	public static void register(NetListener listen) {
+		getInstance().getSync().getEventHandler().registerListener(listen);
 	}
 
+	public static void unregister(NetListener listen) {
+		getInstance().getSync().getEventHandler().unregisterListener(listen);
+	}
+
+	public static List<String> getServers() {
+		return getInstance().getSync().getServers();
+	}
 }

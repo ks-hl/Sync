@@ -1,15 +1,17 @@
 package dev.heliosares.sync.daemon;
 
-import java.io.IOException;
+import java.io.File;
+import java.util.Scanner;
 
 import org.json.JSONObject;
 
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.net.NetListener;
+import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.SyncClient;
+import dev.heliosares.sync.net.SyncNetCore;
 import dev.heliosares.sync.utils.CommandParser;
 
 public class Main implements SyncCore {
@@ -17,6 +19,15 @@ public class Main implements SyncCore {
 	public static void main(String[] args) {
 		if (args == null || args.length == 0) {
 			System.err.println("You must specify arguments");
+			return;
+		}
+		try {
+			Scanner sc = new Scanner(new File("key"));
+			EncryptionManager.setKey(sc.nextLine(), false);
+		} catch (Exception e2) {
+			System.err.println("Invalid key");
+			e2.printStackTrace();
+			System.exit(1);
 			return;
 		}
 		int port = 8001;
@@ -27,6 +38,7 @@ public class Main implements SyncCore {
 				portTerm = true;
 			} catch (NumberFormatException e) {
 				System.err.println("Invalid parameter: " + args[0]);
+				System.exit(1);
 				return;
 			}
 		}
@@ -42,9 +54,9 @@ public class Main implements SyncCore {
 			sync.send(new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", command)));
 			sync.close();
 		} catch (Exception e1) {
-			System.err.println("Error while enabling.");
+			System.err.println("Unable to connect");
 			e1.printStackTrace();
-			System.exit(1);
+			System.exit(2);
 			return;
 		}
 		System.out.println("Command sent.");
@@ -94,10 +106,7 @@ public class Main implements SyncCore {
 	}
 
 	@Override
-	public void send(Packet packet) throws IOException {
-	}
-
-	@Override
-	public void register(NetListener listen) {
+	public SyncNetCore getSync() {
+		return null;
 	}
 }

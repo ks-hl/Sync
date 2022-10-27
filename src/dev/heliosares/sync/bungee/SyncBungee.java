@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.security.KeyPair;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -14,6 +15,7 @@ import org.json.JSONObject;
 import dev.heliosares.sync.BungeeSender;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
@@ -45,11 +47,32 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public void onEnable() {
 		instance = this;
+		loadConfig();
+
+		if (config.getString("privatekey", null) == null) {
+			print("Generating new keys...");
+			KeyPair pair = EncryptionManager.generateRSAKkeyPair();
+			config.set("privatekey", EncryptionManager.encode(pair.getPrivate().getEncoded()));
+			config.set("publickey", EncryptionManager.encode(pair.getPublic().getEncoded()));
+			saveConfig();
+			print("Done.");
+		}
+
+		try {
+			EncryptionManager.setKey(config.getString("privatekey"), true);
+		} catch (Throwable t) {
+			warning("Invalid key. Disabling.");
+			if (debug) {
+				print(t);
+			}
+			this.onDisable();
+			return;
+		}
+
 		print("Enabling");
 		getProxy().getPluginManager().registerCommand(this, new ProxyCommandListener("msync", this));
 
 		sync = new SyncServer(this);
-		loadConfig();
 		try {
 			sync.start(config.getInt("port", 8001));
 		} catch (IOException e1) {
@@ -59,7 +82,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 			return;
 		}
 
-		sync.registerListener(new NetListener(Packets.COMMAND.id, null) {
+		sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
 			@Override
 			public void execute(String server, Packet packet) {
 				try {
@@ -108,7 +131,9 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public void onDisable() {
 		print("Closing");
-		sync.close();
+		if (sync != null) {
+			sync.close();
+		}
 	}
 
 	public void loadConfig() {
@@ -132,18 +157,30 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 		}
 	}
 
+	public void saveConfig() {
+		try {
+			ConfigurationProvider.getProvider(YamlConfiguration.class).save(config,
+					new File(getDataFolder(), "config.yml"));
+		} catch (IOException e) {
+			print(e);
+		}
+	}
+
 	public static void tell(CommandSender sender, String msg) {
 		sender.sendMessage(TextComponent.fromLegacyText(ChatColor.translateAlternateColorCodes('&', msg)));
 	}
 
+	@Override
 	public void print(String msg) {
 		getLogger().info(msg);
 	}
 
+	@Override
 	public void print(Throwable t) {
 		getLogger().log(Level.WARNING, t.getMessage(), t);
 	}
 
+	@Override
 	public void debug(String msg) {
 		if (debug) {
 			print(msg);
@@ -188,17 +225,8 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 		getProxy().getPluginManager().dispatchCommand((CommandSender) sender.getSender(), command);
 	}
 
+	@Override
 	public SyncServer getSync() {
 		return sync;
-	}
-
-	@Override
-	public void send(Packet packet) throws IOException {
-		sync.send(packet);
-	}
-
-	@Override
-	public void register(NetListener listen) {
-		sync.registerListener(listen);
 	}
 }

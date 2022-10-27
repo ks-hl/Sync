@@ -1,23 +1,30 @@
 package dev.heliosares.sync.net;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.json.JSONObject;
 
 import dev.heliosares.sync.SyncCore;
 
-public class SyncClient extends NetEventHandler {
+public class SyncClient implements SyncNetCore {
 	private SocketConnection connection;
 	private final SyncCore plugin;
 	private boolean closed;
 	private int unableToConnectCount = 0;
+	private List<String> servers;
+	private final NetEventHandler eventhandler;
 
 	public SyncClient(SyncCore plugin) {
 		this.plugin = plugin;
+		this.eventhandler = new NetEventHandler(plugin);
 	}
 
 	/**
@@ -29,6 +36,9 @@ public class SyncClient extends NetEventHandler {
 	 * @throws IOException
 	 */
 	public void start(String ip, int port, int serverport) throws IOException {
+		if (connection != null) {
+			throw new IllegalStateException("Client already started");
+		}
 		plugin.runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -41,11 +51,14 @@ public class SyncClient extends NetEventHandler {
 						connection.connect();
 
 						plugin.debug("Sending handshake");
-						send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
+						connection.send(
+								new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
 
 						while (!closed) { // Listen for packets
 							Packet packet = connection.listen();
-							plugin.debug("received: " + packet.toString());
+							if (packet.getPacketId() != Packets.KEEPALIVE.id) {
+								plugin.debug("received: " + packet.toString());
+							}
 							boolean isHandshake = packet.getPacketId() == Packets.HANDSHAKE.id;
 							boolean noname = connection.getName() == null;
 							if (isHandshake) {
@@ -56,16 +69,25 @@ public class SyncClient extends NetEventHandler {
 								connection.setName(packet.getPayload().getString("name"));
 								plugin.print("Connected as " + connection.getName());
 								unableToConnectCount = 0;
+
 								continue;
 							}
 							if (noname) {
 								plugin.warning("Server tried to send packet without handshake. Reconnecting...");
 								break;
 							}
+							if (packet.getPacketId() == Packets.SERVER_LIST.id) {
+								List<String> newservers = new ArrayList<>();
+								packet.getPayload().getJSONArray("servers").toList().forEach((s) -> {
+									newservers.add((String) s);
+								});
+								;
+								servers = Collections.unmodifiableList(newservers);
+							}
 
 							// TODO parse
 
-							execute("proxy", packet);
+							eventhandler.execute("proxy", packet);
 						}
 					} catch (ConnectException e) {
 						if (!plugin.debug() && ++unableToConnectCount == 3) {
@@ -73,19 +95,19 @@ public class SyncClient extends NetEventHandler {
 						} else if (plugin.debug() || unableToConnectCount < 3) {
 							plugin.print("Server not available. Retrying...");
 						}
-					} catch (NullPointerException | SocketException e) {
+					} catch (NullPointerException | SocketException | EOFException e) {
 						plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
 						if (closed) {
 							return;
 						}
-					} catch (IOException e) {
+					} catch (Exception e) {
 						plugin.warning("Client crashed. Restarting...");
 						plugin.print(e);
 					} finally {
 						closeTemporary();
 					}
 					try {
-						Thread.sleep(5000);
+						Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
 					} catch (InterruptedException e) {
 						plugin.warning("Failed to delay");
 						plugin.print(e);
@@ -103,9 +125,12 @@ public class SyncClient extends NetEventHandler {
 	 * @throws IOException
 	 */
 	public void keepalive() throws IOException {
+		if (closed || connection == null || !connection.isConnected()) {
+			return;
+		}
 		connection.sendKeepalive();
 		if (System.currentTimeMillis() - connection.getTimeOfLastPacketReceived() > 10000) {
-			connection.close();
+			closeTemporary();
 			plugin.warning("timed out from proxy");
 		}
 	}
@@ -116,8 +141,12 @@ public class SyncClient extends NetEventHandler {
 	 * @param packet
 	 * @throws IOException
 	 */
-	public void send(Packet packet) throws IOException {
+	public boolean send(Packet packet) throws IOException {
+		if (connection.getName() == null) {
+			throw new IllegalStateException("Can not send packets before handshake.");
+		}
 		connection.send(packet);
+		return true;
 	}
 
 	/**
@@ -135,7 +164,7 @@ public class SyncClient extends NetEventHandler {
 	 * Will terminate the current connection to the server and cause the client to
 	 * attempt to reconnect.
 	 */
-	private void closeTemporary() {
+	public void closeTemporary() {
 		if (connection == null) {
 			return;
 		}
@@ -154,5 +183,22 @@ public class SyncClient extends NetEventHandler {
 			return false;
 		}
 		return connection.isConnected();
+	}
+
+	public List<String> getServers() {
+		return servers;
+	}
+
+	public boolean send(String server, Packet packet) throws IOException {
+		if (!servers.contains(server)) {
+			return false;
+		}
+		packet.setForward(server);
+		return send(packet);
+	}
+
+	@Override
+	public NetEventHandler getEventHandler() {
+		return eventhandler;
 	}
 }

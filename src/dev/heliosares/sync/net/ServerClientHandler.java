@@ -1,5 +1,6 @@
 package dev.heliosares.sync.net;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
@@ -24,7 +25,9 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 		while (isConnected()) {
 			try {
 				Packet packet = listen();
-				plugin.debug("received from " + getName() + ": " + packet.toString());
+				if (packet.getPacketId() != Packets.KEEPALIVE.id) {
+					plugin.debug("received from " + getName() + ": " + packet.toString());
+				}
 				boolean noname = getName() == null;
 				if (packet.getPacketId() == Packets.HANDSHAKE.id) {
 					if (!noname) {
@@ -41,15 +44,23 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 					plugin.print(name + " connected.");
 
 					send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("name", name)));
+
+					server.updateClientsWithServerList();
 					continue;
 				} else if (noname) {
 					plugin.warning("Client tried to send packet without handshake. Disconnecting");
 					close();
 					return;
 				} else if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-					server.execute(getName(), packet);
+					if (packet.getForward() == null) {
+						server.getEventHandler().execute(getName(), packet);
+					} else {
+						String forward = packet.getForward();
+						packet.setForward(getName());
+						server.send(forward, packet);
+					}
 				}
-			} catch (NullPointerException | SocketException e1) {
+			} catch (NullPointerException | SocketException | EOFException e1) {
 				break;
 			} catch (IOException e) {
 				plugin.print(e);

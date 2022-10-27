@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SpigotSender;
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
@@ -38,6 +39,17 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 		this.getConfig().options().copyDefaults(true);
 		this.saveDefaultConfig();
 
+		try {
+			EncryptionManager.setKey(getConfig().getString("publickey"), false);
+		} catch (Throwable t) {
+			warning("Invalid key. Disabling.");
+			if (debug) {
+				print(t);
+			}
+			this.setEnabled(false);
+			return;
+		}
+
 		this.getCommand("psync").setExecutor(this);
 		this.getCommand("if").setExecutor(this);
 
@@ -51,13 +63,21 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			return;
 		}
 
-		dispatchCommand(new SpigotConsoleSender(), "list");
-
-		sync.registerListener(new NetListener(Packets.COMMAND.id, null) {
+		sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
 			@Override
 			public void execute(String server, Packet packet) {
 				try {
 					String message = packet.getPayload().getString("command");
+
+					if (message.equals("-kill")) {
+						print("Killing");
+						System.exit(0);
+						return;
+					}
+					if (message.equals("-halt")) {
+						print("Halting");
+						Runtime.getRuntime().halt(0);
+					}
 
 					print("Executing: " + message);
 
@@ -109,7 +129,9 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 
 	@Override
 	public void onDisable() {
-		sync.close();
+		if (sync != null) {
+			sync.close();
+		}
 	}
 
 	@Override
@@ -224,14 +246,17 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 		return false;
 	}
 
+	@Override
 	public void print(String msg) {
 		getLogger().info(msg);
 	}
 
+	@Override
 	public void print(Throwable t) {
 		getLogger().log(Level.WARNING, t.getMessage(), t);
 	}
 
+	@Override
 	public void debug(String msg) {
 		if (debug) {
 			print(msg);
@@ -265,18 +290,9 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			sender.execute(command);
 		});
 	}
-	
+
+	@Override
 	public SyncClient getSync() {
 		return sync;
-	}
-
-	@Override
-	public void send(Packet packet) throws IOException {
-		sync.send(packet);
-	}
-
-	@Override
-	public void register(NetListener listen) {
-		sync.registerListener(listen);
 	}
 }

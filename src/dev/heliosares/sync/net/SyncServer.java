@@ -10,15 +10,20 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import dev.heliosares.sync.SyncCoreProxy;
 
-public class SyncServer extends NetEventHandler {
+public class SyncServer implements SyncNetCore {
 	private ServerSocket serverSocket;
 	private ArrayList<ServerClientHandler> clients = new ArrayList<>();
 	final SyncCoreProxy plugin;
+	private final NetEventHandler eventhandler;
 
 	public SyncServer(SyncCoreProxy plugin) {
 		this.plugin = plugin;
+		this.eventhandler = new NetEventHandler(plugin);
 	}
 
 	/**
@@ -78,6 +83,9 @@ public class SyncServer extends NetEventHandler {
 	 * @throws IOException
 	 */
 	public void start(int port) throws IOException {
+		if (serverSocket != null) {
+			throw new IllegalStateException("Server already started");
+		}
 		plugin.runAsync(new Runnable() {
 			@Override
 			public void run() {
@@ -147,7 +155,7 @@ public class SyncServer extends NetEventHandler {
 					try {
 						ch.sendKeepalive();
 					} catch (IOException e) {
-						plugin.print(e);
+						plugin.print(ch.getName() + " timed out");
 						remove = true;
 					}
 				}
@@ -159,11 +167,16 @@ public class SyncServer extends NetEventHandler {
 		}
 	}
 
+	public void updateClientsWithServerList() throws IOException {
+		send(new Packet(null, Packets.SERVER_LIST.id, new JSONObject().put("servers", new JSONArray(getServers()))));
+	}
+
 	private boolean closed = false;
 
 	/**
 	 * Permanently closes this server. Call only onDisable
 	 */
+	@Override
 	public void close() {
 		if (closed) {
 			return;
@@ -175,6 +188,7 @@ public class SyncServer extends NetEventHandler {
 	/**
 	 * Temporarily closes this server. This will cause the server to restart.
 	 */
+	@Override
 	public void closeTemporary() {
 		synchronized (clients) {
 			for (SocketConnection ch : this.clients) {
@@ -201,12 +215,45 @@ public class SyncServer extends NetEventHandler {
 		synchronized (clients) {
 			clients.remove(ch);
 		}
+		try {
+			updateClientsWithServerList();
+		} catch (IOException ignored) {
+		}
 	}
 
 	/**
 	 * @return an unmodifiableList of all clients currently connected
 	 */
 	public List<ServerClientHandler> getClients() {
-		return Collections.unmodifiableList(clients);
+		synchronized (clients) {
+			return Collections.unmodifiableList(clients);
+		}
+	}
+
+	/**
+	 * 
+	 * @return a list of all actively connected servers
+	 */
+	@Override
+	public List<String> getServers() {
+		List<String> out = new ArrayList<>();
+		synchronized (clients) {
+			clients.forEach((c) -> {
+				if (c != null && c.isConnected() && c.getName() != null) {
+					out.add(c.getName());
+				}
+			});
+		}
+		return out;
+	}
+
+	@Override
+	public NetEventHandler getEventHandler() {
+		return eventhandler;
+	}
+
+	@Override
+	public String getName() {
+		return "proxy";
 	}
 }
