@@ -69,15 +69,17 @@ public class Packet {
 		return blob;
 	}
 
-	public void setBlob(byte[] blob) {
+	public Packet setBlob(byte[] blob) {
 		this.blob = blob;
+		return this;
 	}
 
 	public String getForward() {
 		return forward;
 	}
 
-	public void setForward(String forward) {
+	public Packet setForward(String forward) {
 		this.forward = forward;
+		return this;
 	}
 }

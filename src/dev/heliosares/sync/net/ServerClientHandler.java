@@ -57,7 +57,11 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 					} else {
 						String forward = packet.getForward();
 						packet.setForward(getName());
-						server.send(forward, packet);
+						if (forward.equalsIgnoreCase("all")) {
+							server.getServers().forEach((c) -> server.send(c, packet));
+						} else {
+							server.send(forward, packet);
+						}
 					}
 				}
 			} catch (NullPointerException | SocketException | EOFException e1) {
