@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import dev.heliosares.sync.SyncCore;
 
@@ -22,6 +23,24 @@ public final class NetEventHandler {
 	public void unregisterListener(NetListener listen) {
 		synchronized (listeners) {
 			listeners.remove(listen);
+		}
+	}
+
+	public void unregisterChannel(String channel) {
+		synchronized (listeners) {
+			Iterator<NetListener> it = listeners.iterator();
+			for (NetListener listen; it.hasNext();) {
+				listen = it.next();
+				if (channel == null) {
+					if (listen.getChannel() == null) {
+						it.remove();
+					}
+					continue;
+				}
+				if (!channel.equalsIgnoreCase(listen.getChannel())) {
+					it.remove();
+				}
+			}
 		}
 	}
 

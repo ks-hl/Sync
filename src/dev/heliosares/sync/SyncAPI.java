@@ -60,6 +60,15 @@ public class SyncAPI {
 		getInstance().getSync().getEventHandler().unregisterListener(listen);
 	}
 
+	/**
+	 * Unregisters all listeners on this channel
+	 * 
+	 * @param channel
+	 */
+	public static void unregister(String channel) {
+		getInstance().getSync().getEventHandler().unregisterChannel(channel);
+	}
+
 	public static List<String> getServers() {
 		return getInstance().getSync().getServers();
 	}

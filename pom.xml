@@ -141,7 +141,7 @@
 	<properties>
 		<jars>${env.USERPROFILE}/eclipse-workspace/jars</jars>
 		<testserver>${env.USERPROFILE}/Documents/TestServer/</testserver>
-		<encoding>Cp1252</encoding>
+		<project.build.sourceEncoding>Cp1252</project.build.sourceEncoding>
 		<maven.compiler.source>17</maven.compiler.source>
 		<maven.compiler.target>17</maven.compiler.target>
 	</properties>
