@@ -91,12 +91,14 @@ public class SocketConnection {
 
 	public Packet listen() throws IOException, JSONException, EOFException {
 		synchronized (in) {
-			Packet out = new Packet(new JSONObject(EncryptionManager.decryptString(read())));
-			if (out.getPacketId() == Packets.BLOB.id) {
-				out.setBlob(read());
+			Packet packet = new Packet(new JSONObject(EncryptionManager.decryptString(read())));
+			if (packet.getPacketId() != Packets.KEEPALIVE.id)
+				System.out.println("REC: " + packet.toString());// TODO remove
+			if (packet.getPacketId() == Packets.BLOB.id) {
+				packet.setBlob(read());
 			}
 			this.lastPacketReceived = System.currentTimeMillis();
-			return out;
+			return packet;
 		}
 	}
 
@@ -116,7 +118,10 @@ public class SocketConnection {
 			return;
 		}
 		synchronized (out) {
-			send(EncryptionManager.encrypt(packet.toString()));
+			String plain = packet.toString();
+			if (packet.getPacketId() != Packets.KEEPALIVE.id)
+				System.out.println("SEND: " + plain);// TODO remove
+			send(EncryptionManager.encrypt(plain));
 			if (packet.getPacketId() == Packets.BLOB.id) {
 				send(packet.getBlob());
 			}

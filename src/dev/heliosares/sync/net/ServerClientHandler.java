@@ -52,16 +52,21 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 					close();
 					return;
 				} else if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-					if (packet.getForward() == null) {
-						server.getEventHandler().execute(getName(), packet);
-					} else {
-						String forward = packet.getForward();
+					final String forward = packet.getForward();
+					if (packet.getForward() != null) {
 						packet.setForward(getName());
 						if (forward.equalsIgnoreCase("all")) {
-							server.getServers().forEach((c) -> server.send(c, packet));
+							server.getServers().forEach((c) -> {
+								if (!c.equals(getName())) {
+									server.send(c, packet);
+								}
+							});
 						} else {
 							server.send(forward, packet);
 						}
+					}
+					if (forward == null || forward.equalsIgnoreCase("all")) {
+						server.getEventHandler().execute(getName(), packet);
 					}
 				}
 			} catch (NullPointerException | SocketException | EOFException e1) {

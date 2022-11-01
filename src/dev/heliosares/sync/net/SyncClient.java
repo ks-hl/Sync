@@ -6,9 +6,8 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.json.JSONObject;
 
@@ -21,10 +20,13 @@ public class SyncClient implements SyncNetCore {
 	private int unableToConnectCount = 0;
 	private List<String> servers;
 	private final NetEventHandler eventhandler;
+	private final UserManager usermanager;
 
 	public SyncClient(SyncCore plugin) {
 		this.plugin = plugin;
 		this.eventhandler = new NetEventHandler(plugin);
+		this.usermanager = new UserManager(plugin, this);
+		eventhandler.registerListener(usermanager);
 	}
 
 	/**
@@ -70,6 +72,8 @@ public class SyncClient implements SyncNetCore {
 								plugin.print("Connected as " + connection.getName());
 								unableToConnectCount = 0;
 
+								usermanager.sendPlayers("all");
+
 								continue;
 							}
 							if (noname) {
@@ -77,15 +81,9 @@ public class SyncClient implements SyncNetCore {
 								break;
 							}
 							if (packet.getPacketId() == Packets.SERVER_LIST.id) {
-								List<String> newservers = new ArrayList<>();
-								packet.getPayload().getJSONArray("servers").toList().forEach((s) -> {
-									newservers.add((String) s);
-								});
-								;
-								servers = Collections.unmodifiableList(newservers);
+								servers = packet.getPayload().getJSONArray("servers").toList().stream()
+										.map(o -> (String) o).collect(Collectors.toUnmodifiableList());
 							}
-
-							// TODO parse
 
 							eventhandler.execute("proxy", packet);
 						}
@@ -97,6 +95,9 @@ public class SyncClient implements SyncNetCore {
 						}
 					} catch (NullPointerException | SocketException | EOFException e) {
 						plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
+						if (plugin.debug()) {
+							plugin.print(e);
+						}
 						if (closed) {
 							return;
 						}
@@ -190,8 +191,10 @@ public class SyncClient implements SyncNetCore {
 	}
 
 	public boolean send(String server, Packet packet) throws IOException {
-		if (!servers.contains(server)) {
-			return false;
+		if (server != null && !server.equals("all")) {
+			if (servers == null || !servers.contains(server)) {
+				return false;
+			}
 		}
 		packet.setForward(server);
 		return send(packet);
@@ -200,5 +203,9 @@ public class SyncClient implements SyncNetCore {
 	@Override
 	public NetEventHandler getEventHandler() {
 		return eventhandler;
+	}
+
+	public UserManager getUserManager() {
+		return usermanager;
 	}
 }

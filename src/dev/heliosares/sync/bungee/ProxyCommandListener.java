@@ -1,5 +1,6 @@
 package dev.heliosares.sync.bungee;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -13,8 +14,9 @@ import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.plugin.Command;
+import net.md_5.bungee.api.plugin.TabExecutor;
 
-public class ProxyCommandListener extends Command {
+public class ProxyCommandListener extends Command implements TabExecutor {
 	private final SyncBungee plugin;
 
 	public ProxyCommandListener(String name, SyncBungee plugin) {
@@ -41,7 +43,7 @@ public class ProxyCommandListener extends Command {
 				else
 					SyncBungee.tell(sender, "§cDebug disabled");
 				return;
-			} else if (args[0].equalsIgnoreCase("-list")) {
+			} else if (args[0].equalsIgnoreCase("-serverlist")) {
 				String out = "Server statuses: ";
 				List<ServerClientHandler> clients = plugin.sync.getClients();
 				for (Entry<String, ServerInfo> entry : plugin.getProxy().getServers().entrySet()) {
@@ -60,6 +62,9 @@ public class ProxyCommandListener extends Command {
 				}
 				SyncBungee.tell(sender, out);
 				return;
+			} else if (args[0].equalsIgnoreCase("-playerlist")) {
+				SyncBungee.tell(sender, plugin.sync.getUserManager().toFormattedString());
+				return;
 			}
 		}
 
@@ -71,5 +76,26 @@ public class ProxyCommandListener extends Command {
 		} else {
 			SyncBungee.tell(sender, "No servers found matching this name: " + serverR.value());
 		}
+	}
+
+	@Override
+	public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
+		List<String> out = new ArrayList<>();
+		if (args.length == 0) {
+			return out;
+		}
+		if (sender.hasPermission("sync.msync")) {
+			if (args.length == 1) {
+				out.add("-playerlist");
+				out.add("-serverlist");
+			}
+			if (args.length > 1 && args[args.length - 2].equalsIgnoreCase("-s")) {
+				plugin.sync.getClients().forEach(c -> out.add(c.getName()));
+			} else {
+				out.add("-s");
+				out.add("-p");
+			}
+		}
+		return CommandParser.tab(out, args[args.length - 1]);
 	}
 }

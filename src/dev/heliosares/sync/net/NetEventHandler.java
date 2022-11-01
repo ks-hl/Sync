@@ -45,6 +45,7 @@ public final class NetEventHandler {
 	}
 
 	void execute(String server, Packet packet) {
+		packet = packet.unmodifiable();
 		synchronized (listeners) {
 			for (NetListener listen : listeners) {
 				if (packet.getChannel() == null) {

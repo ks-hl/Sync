@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.security.KeyPair;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -19,6 +20,7 @@ import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
@@ -228,5 +230,15 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public SyncServer getSync() {
 		return sync;
+	}
+
+	@Override
+	public List<PlayerData> getPlayers() {
+		return null;
+	}
+
+	@Override
+	public void setDebug(boolean debug) {
+		this.debug = debug;
 	}
 }

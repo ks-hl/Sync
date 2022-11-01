@@ -1,6 +1,7 @@
 package dev.heliosares.sync.daemon;
 
 import java.io.File;
+import java.util.List;
 import java.util.Scanner;
 
 import org.json.JSONObject;
@@ -10,6 +11,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.net.SyncNetCore;
 import dev.heliosares.sync.utils.CommandParser;
@@ -108,5 +110,14 @@ public class Main implements SyncCore {
 	@Override
 	public SyncNetCore getSync() {
 		return null;
+	}
+
+	@Override
+	public List<PlayerData> getPlayers() {
+		return null;
+	}
+
+	@Override
+	public void setDebug(boolean debug) {
 	}
 }

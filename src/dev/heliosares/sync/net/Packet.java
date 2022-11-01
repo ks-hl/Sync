@@ -82,4 +82,12 @@ public class Packet {
 		this.forward = forward;
 		return this;
 	}
+
+	public Packet unmodifiable() {
+		return new UnmodifiablePacket(this);
+	}
+
+	public Packet clone() {
+		return new Packet(channel, packetid, new JSONObject(payload.toString()), blob).setForward(forward);
+	}
 }

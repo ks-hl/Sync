@@ -1,15 +1,23 @@
 package dev.heliosares.sync.spigot;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import dev.heliosares.sync.MySender;
@@ -19,12 +27,12 @@ import dev.heliosares.sync.net.EncryptionManager;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
-import dev.heliosares.sync.utils.FormulaParser;
 
-public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore {
+public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 	private SyncClient sync;
 	private boolean debug;
 	private static SyncSpigot instance;
@@ -50,8 +58,16 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 			return;
 		}
 
-		this.getCommand("psync").setExecutor(this);
+		SpigotCommandListener cmd = new SpigotCommandListener(this);
+		this.getCommand("psync").setExecutor(cmd);
+		this.getCommand("psync").setTabCompleter(cmd);
 		this.getCommand("if").setExecutor(this);
+		this.getServer().getPluginManager().registerEvents(this, this);
+		try {
+			this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
+		} catch (Throwable t) {
+
+		}
 
 		sync = new SyncClient(this);
 		try {
@@ -73,8 +89,7 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 						print("Killing");
 						System.exit(0);
 						return;
-					}
-					if (message.equals("-halt")) {
+					} else if (message.equals("-halt")) {
 						print("Halting");
 						Runtime.getRuntime().halt(0);
 					}
@@ -135,118 +150,6 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 	}
 
 	@Override
-	public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args) {
-		if (cmd.getLabel().equalsIgnoreCase("psync")) {
-			if (!sender.hasPermission("sync.psync")) {
-				sender.sendMessage("§cNo permission");
-				return true;
-			}
-			if (args.length == 0) {
-				sender.sendMessage("§cInvalid syntax");
-				return true;
-			}
-
-			if (args.length == 1 && args[0].equalsIgnoreCase("-debug")) {
-				debug = !debug;
-				if (debug)
-					sender.sendMessage("§aDebug enabled");
-				else
-					sender.sendMessage("§cDebug disabled");
-				return true;
-			}
-
-			try {
-				sync.send(new Packet(null, Packets.COMMAND.id,
-						new JSONObject().put("command", CommandParser.concat(0, args))));
-			} catch (Exception e) {
-				sender.sendMessage("§cAn error occured");
-				print(e);
-				return true;
-			}
-			sender.sendMessage("§aCommand sent.");
-			return true;
-		} else if (cmd.getLabel().equalsIgnoreCase("if")) {
-			if (!sender.hasPermission("sync.if")) {
-				sender.sendMessage("§cNo permission");
-				return true;
-			}
-			String condition = "";
-			String commandIf = "";
-			String commandElse = "";
-			boolean then = false;
-			boolean el = false;
-			for (int i = 0; i < args.length; i++) {
-				String part = args[i];
-				if (part.equalsIgnoreCase("then")) {
-					if (condition.length() == 0) {
-						sender.sendMessage("§cNo condition provided");
-						return true;
-					}
-					then = true;
-					continue;
-				}
-				part += " ";
-				if (then) {
-					if (part.equalsIgnoreCase("else ")) {
-						el = true;
-						continue;
-					}
-					if (el) {
-						commandElse += part;
-					} else {
-						commandIf += part;
-					}
-				} else {
-					condition += part;
-				}
-			}
-			if (!then) {
-				sender.sendMessage("§cNo 'then' provided.");
-				return true;
-			}
-			if (commandIf.length() == 0) {
-				sender.sendMessage("§cNo command provided.");
-				return true;
-			}
-			FormulaParser parser = new FormulaParser(condition);
-
-			parser.setVariable("$online-players", () -> Bukkit.getOnlinePlayers().size());
-			parser.setVariable("$sender", () -> sender.getName());
-			parser.setVariable("$server", () -> sync.getName());
-
-			String command;
-			boolean state;
-			try {
-				state = parser.solve() == 1;
-			} catch (RuntimeException e) {
-				sender.sendMessage("§c" + e.getMessage());
-				return true;
-			}
-			if (state) {
-				command = commandIf;
-			} else {
-				command = commandElse;
-			}
-			if (command.length() > 0) {
-				try {
-					Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parser.replaceVariables(command.trim()));
-				} catch (RuntimeException e) {
-					sender.sendMessage("§c" + e.getMessage());
-				}
-			}
-			try {
-				sync.send(new Packet(null, Packets.COMMAND.id,
-						new JSONObject().put("command", CommandParser.concat(0, args))));
-			} catch (Exception e) {
-				sender.sendMessage("§cAn error occured");
-				print(e);
-			}
-			return true;
-		}
-		return false;
-	}
-
-	@Override
 	public void print(String msg) {
 		getLogger().info(msg);
 	}
@@ -294,5 +197,63 @@ public class SyncSpigot extends JavaPlugin implements CommandExecutor, SyncCore 
 	@Override
 	public SyncClient getSync() {
 		return sync;
+	}
+
+	@Override
+	public List<PlayerData> getPlayers() {
+		return getServer().getOnlinePlayers().stream().map(p -> getPlayerData(p, isVanished(p)))
+				.collect(Collectors.toList());
+	}
+
+	public PlayerData getPlayerData(Player p, boolean vanished) {
+		return new PlayerData(this.sync.getName(), p.getName(), p.getUniqueId().toString(), vanished);
+	}
+
+	public static boolean isVanished(Player player) {
+		for (MetadataValue meta : player.getMetadata("vanished")) {
+			if (meta.asBoolean())
+				return true;
+		}
+		return false;
+	}
+
+	protected void updatePlayer(PlayerData data) {
+		debug("Sending update for " + data.getName());
+		try {
+			sync.send("all", new Packet(null, Packets.PLAYER_DATA.id,
+					new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
+							getPlayers().stream()
+									.map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
+									.reduce((a, b) -> a + b).get())));
+		} catch (JSONException | IOException e) {
+			print(e);
+		}
+	}
+
+	protected void quitPlayer(UUID uuid) {
+		debug("Sending quit for " + uuid.toString());
+		try {
+			Optional<Integer> hash = getPlayers().stream().filter(p -> !p.getUUID().equals(uuid)).map(p -> p.hashData())
+					.reduce((a, b) -> a + b);
+			sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, new JSONObject()
+					.put("quit", new JSONArray().put(uuid.toString())).put("hash", hash.isPresent() ? hash.get() : 0)));
+		} catch (JSONException | IOException e) {
+			print(e);
+		}
+	}
+
+	@EventHandler
+	public void onJoin(PlayerJoinEvent e) {
+		updatePlayer(getPlayerData(e.getPlayer(), isVanished(e.getPlayer())));
+	}
+
+	@EventHandler
+	public void onQuit(PlayerQuitEvent e) {
+		quitPlayer(e.getPlayer().getUniqueId());
+	}
+
+	@Override
+	public void setDebug(boolean debug) {
+		this.debug = debug;
 	}
 }

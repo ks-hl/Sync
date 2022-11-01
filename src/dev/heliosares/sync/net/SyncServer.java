@@ -20,10 +20,14 @@ public class SyncServer implements SyncNetCore {
 	private ArrayList<ServerClientHandler> clients = new ArrayList<>();
 	final SyncCoreProxy plugin;
 	private final NetEventHandler eventhandler;
+	private UserManager usermanager;
+	private boolean closed = false;
 
 	public SyncServer(SyncCoreProxy plugin) {
 		this.plugin = plugin;
 		this.eventhandler = new NetEventHandler(plugin);
+		this.usermanager = new UserManager(plugin, this);
+		eventhandler.registerListener(usermanager);
 	}
 
 	/**
@@ -171,8 +175,6 @@ public class SyncServer implements SyncNetCore {
 		send(new Packet(null, Packets.SERVER_LIST.id, new JSONObject().put("servers", new JSONArray(getServers()))));
 	}
 
-	private boolean closed = false;
-
 	/**
 	 * Permanently closes this server. Call only onDisable
 	 */
@@ -255,5 +257,9 @@ public class SyncServer implements SyncNetCore {
 	@Override
 	public String getName() {
 		return "proxy";
+	}
+
+	public UserManager getUserManager() {
+		return usermanager;
 	}
 }

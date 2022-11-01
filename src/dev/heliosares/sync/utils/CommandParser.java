@@ -1,5 +1,8 @@
 package dev.heliosares.sync.utils;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
 
@@ -34,6 +37,10 @@ public class CommandParser {
 			}
 		}
 		plugin.dispatchCommand(sender, command);
+	}
+
+	public static List<String> tab(List<String> out, String currentArg) {
+		return out.stream().filter((s) -> s.toLowerCase().startsWith(currentArg)).collect(Collectors.toList());
 	}
 
 	public static record Result(String remaining, String value) {

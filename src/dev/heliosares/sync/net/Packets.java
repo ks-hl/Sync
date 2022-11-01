@@ -1,7 +1,13 @@
 package dev.heliosares.sync.net;
 
 public enum Packets {
-	HANDSHAKE(0), KEEPALIVE(1), COMMAND(2), API(3), BLOB(4), SERVER_LIST(5);
+	HANDSHAKE(0), //
+	KEEPALIVE(1), //
+	COMMAND(2), //
+	API(3), //
+	BLOB(4), //
+	SERVER_LIST(5), //
+	PLAYER_DATA(6);//
 
 	public final int id;
 
