@@ -2,13 +2,14 @@ package dev.heliosares.sync.net;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.GeneralSecurityException;
 
-import org.json.JSONException;
 import org.json.JSONObject;
+
+import dev.heliosares.sync.SyncAPI;
 
 public class SocketConnection {
 	private final Socket socket;
@@ -89,20 +90,24 @@ public class SocketConnection {
 		}
 	}
 
-	public Packet listen() throws IOException, JSONException, EOFException {
-		synchronized (in) {
-			Packet packet = new Packet(new JSONObject(EncryptionManager.decryptString(read())));
-			if (packet.getPacketId() != Packets.KEEPALIVE.id)
-				System.out.println("REC: " + packet.toString());// TODO remove
-			if (packet.getPacketId() == Packets.BLOB.id) {
-				packet.setBlob(read());
+	public Packet listen() throws Exception {
+		try {
+			synchronized (in) {
+				Packet packet = new Packet(new JSONObject(new String(read())));
+				if (packet.getPacketId() != Packets.KEEPALIVE.id)
+					SyncAPI.getInstance().debug("RECV: " + packet.toString());
+				if (packet.getPacketId() == Packets.BLOB.id) {
+					packet.setBlob(read());
+				}
+				this.lastPacketReceived = System.currentTimeMillis();
+				return packet;
 			}
-			this.lastPacketReceived = System.currentTimeMillis();
-			return packet;
+		} catch (NullPointerException e) {
+			throw new IOException("null packet received");
 		}
 	}
 
-	private void send(byte b[]) throws IOException {
+	private void send(byte b[]) throws IOException, GeneralSecurityException {
 		synchronized (out) {
 			for (int i = 0; i < 8; i++)
 				out.write(i);
@@ -113,15 +118,15 @@ public class SocketConnection {
 		}
 	}
 
-	public void send(Packet packet) throws IOException {
+	public void send(Packet packet) throws IOException, GeneralSecurityException {
 		if (closed) {
 			return;
 		}
 		synchronized (out) {
 			String plain = packet.toString();
 			if (packet.getPacketId() != Packets.KEEPALIVE.id)
-				System.out.println("SEND: " + plain);// TODO remove
-			send(EncryptionManager.encrypt(plain));
+				SyncAPI.getInstance().debug("SEND: " + plain);
+			send(plain.getBytes());
 			if (packet.getPacketId() == Packets.BLOB.id) {
 				send(packet.getBlob());
 			}
@@ -138,7 +143,7 @@ public class SocketConnection {
 		return lastPacketReceived;
 	}
 
-	public void sendKeepalive() throws IOException {
+	public void sendKeepalive() throws IOException, GeneralSecurityException {
 		if (System.currentTimeMillis() - getTimeOfLastPacketSent() < 750) {
 			return;
 		}

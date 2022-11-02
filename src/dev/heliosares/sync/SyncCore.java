@@ -8,6 +8,8 @@ import dev.heliosares.sync.net.SyncNetCore;
 public interface SyncCore {
 	public void runAsync(Runnable run);
 
+	public void scheduleAsync(Runnable run, long delay, long period);
+
 	public void warning(String msg);
 
 	public void print(String msg);

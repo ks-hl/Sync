@@ -1,12 +1,14 @@
 package dev.heliosares.sync.net;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,68 +31,92 @@ public class UserManager extends NetListener {
 		super(Packets.PLAYER_DATA.id, null);
 		this.sync = client;
 		this.plugin = plugin;
+
+		if (sync instanceof SyncClient)
+			plugin.scheduleAsync(() -> sendCurrentHash(), 10000, 10000);
+	}
+
+	private int lasthash;
+
+	private void sendCurrentHash() {
+		List<PlayerData> pl = plugin.getPlayers();
+		if (pl.size() == 0) {
+			return;
+		}
+		int hash = hash(pl);
+		if (hash == lasthash) {
+			return;
+		}
+		try {
+			sync.send(new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("hash", lasthash = hash)));
+		} catch (Exception e) {
+			plugin.print(e);
+		}
 	}
 
 	@Override
 	public void execute(String server, Packet packet) {
-		System.out.println("USERMAN: " + packet.toString());
 		if (packet.getPayload().has("request")) {
 			if (packet.getPayload().getString("request").equalsIgnoreCase("all")) {
 				try {
 					sendPlayers(packet.getForward());
-				} catch (IOException e) {
+				} catch (IOException | GeneralSecurityException e) {
 					plugin.print(e);
 					return;
 				}
 			}
+		} else if (packet.getPayload().has("players")) {
+			synchronized (players) {
+				players.put(packet.getForward(),
+						getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("players")));
+			}
 		} else {
-			if (packet.getPayload().has("players")) {
+			if (packet.getPayload().has("join")) {
+				List<PlayerData> add = getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("join"));
+				List<PlayerData> current = players.get(packet.getForward());
+				if (current == null) {
+					current = add;
+				} else {
+					add.forEach(p -> quit(p.getServer(), p.getUUID()));
+					current.addAll(add);
+				}
 				synchronized (players) {
-					players.put(packet.getForward(),
-							getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("players")));
+					players.put(packet.getForward(), current);
 				}
+			} else if (packet.getPayload().has("quit")) {
+				packet.getPayload().getJSONArray("quit").toList().stream().map(o -> (String) o)
+						.forEach(uuid -> quit(packet.getForward(), UUID.fromString(uuid)));
 			} else {
-				if (packet.getPayload().has("join")) {
-					List<PlayerData> add = getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("join"));
-					List<PlayerData> current = players.get(packet.getForward());
-					if (current == null) {
-						current = add;
-					} else {
-						add.forEach(p -> quit(p.getServer(), p.getUUID()));
-						current.addAll(add);
-					}
-					synchronized (players) {
-						players.put(packet.getForward(), current);
-					}
-				} else if (packet.getPayload().has("quit")) {
-					packet.getPayload().getJSONArray("quit").toList().stream().map(o -> (String) o)
-							.forEach(uuid -> quit(packet.getForward(), UUID.fromString(uuid)));
-				}
+				return;
+			}
 
-				if (packet.getPayload().has("hash")) {
-					int hash = packet.getPayload().getInt("hash");
-					int otherhash = 0;
-					try {
-						synchronized (players) {
-							otherhash = hash(players.get(packet.getForward()));
-						}
-					} catch (NullPointerException e) {
+			if (packet.getPayload().has("hash")) {
+				int hash = packet.getPayload().getInt("hash");
+				int otherhash = 0;
+				try {
+					synchronized (players) {
+						otherhash = hash(players.get(packet.getForward()));
 					}
-					if (hash != otherhash) {
-						try {
-							sync.send(packet.getForward(),
-									new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", "all")));
-							plugin.warning("Hash mismatch! " + hash + "!=" + otherhash);
-						} catch (JSONException | IOException e) {
-							plugin.print(e);
-						}
-					}
+				} catch (NullPointerException e) {
+				}
+				if (hash != otherhash) {
+					plugin.warning("Hash mismatch! " + hash + "!=" + otherhash);
+					request(packet.getForward());
 				}
 			}
 		}
 	}
 
-	public void sendPlayers(@Nullable String server) throws IOException {
+	protected void request(String server) {
+		try {
+			sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", "all"))
+					.setForward(sync.getName()));
+		} catch (JSONException | IOException | GeneralSecurityException e) {
+			plugin.print(e);
+		}
+	}
+
+	public void sendPlayers(@Nullable String server) throws IOException, GeneralSecurityException {
 		if (sync instanceof SyncServer) {
 			return;
 		}
@@ -112,7 +138,6 @@ public class UserManager extends NetListener {
 	}
 
 	private boolean quit(String server, UUID uuid) {
-		System.out.println("QUIT: " + uuid + " (" + server + ")");
 		List<PlayerData> current = players.get(server);
 		if (current != null) {
 			Iterator<PlayerData> it = current.iterator();
@@ -146,9 +171,6 @@ public class UserManager extends NetListener {
 	}
 
 	public Map<String, List<PlayerData>> getPlayers() {
-		if (sync instanceof SyncServer) {
-			return null;
-		}
 		Map<String, List<PlayerData>> out = new HashMap<>();
 		synchronized (players) {
 			players.forEach((k, v) -> out.put(k, Collections.unmodifiableList(v)));
@@ -185,7 +207,30 @@ public class UserManager extends NetListener {
 		}
 	}
 
-	public void periodic() {
+	public void updatePlayer(PlayerData data) {
+		plugin.debug("Sending update for " + data.getName());
+		try {
+			sync.send("all", new Packet(null, Packets.PLAYER_DATA.id,
+					new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
+							lasthash = plugin.getPlayers().stream()
+									.map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
+									.reduce((a, b) -> a + b).get())));
+		} catch (JSONException | IOException | GeneralSecurityException e) {
+			plugin.print(e);
+		}
+	}
 
+	public void quitPlayer(UUID uuid) {
+		plugin.debug("Sending quit for " + uuid.toString());
+		try {
+			Optional<Integer> hash = plugin.getPlayers().stream().filter(p -> !p.getUUID().equals(uuid))
+					.map(p -> p.hashData()).reduce((a, b) -> a + b);
+			sync.send("all",
+					new Packet(null, Packets.PLAYER_DATA.id,
+							new JSONObject().put("quit", new JSONArray().put(uuid.toString())).put("hash",
+									hash.isPresent() ? (lasthash = hash.get()) : 0)));
+		} catch (JSONException | IOException | GeneralSecurityException e) {
+			plugin.print(e);
+		}
 	}
 }

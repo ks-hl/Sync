@@ -6,6 +6,7 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,6 +59,10 @@ public class SyncClient implements SyncNetCore {
 
 						while (!closed) { // Listen for packets
 							Packet packet = connection.listen();
+							if (packet == null) {
+								plugin.warning("Null packet received");
+								continue;
+							}
 							if (packet.getPacketId() != Packets.KEEPALIVE.id) {
 								plugin.debug("received: " + packet.toString());
 							}
@@ -73,6 +78,7 @@ public class SyncClient implements SyncNetCore {
 								unableToConnectCount = 0;
 
 								usermanager.sendPlayers("all");
+								usermanager.request("all");
 
 								continue;
 							}
@@ -125,7 +131,7 @@ public class SyncClient implements SyncNetCore {
 	 * 
 	 * @throws IOException
 	 */
-	public void keepalive() throws IOException {
+	public void keepalive() throws Exception {
 		if (closed || connection == null || !connection.isConnected()) {
 			return;
 		}
@@ -142,7 +148,7 @@ public class SyncClient implements SyncNetCore {
 	 * @param packet
 	 * @throws IOException
 	 */
-	public boolean send(Packet packet) throws IOException {
+	public boolean send(Packet packet) throws IOException, GeneralSecurityException {
 		if (connection.getName() == null) {
 			throw new IllegalStateException("Can not send packets before handshake.");
 		}
@@ -190,7 +196,7 @@ public class SyncClient implements SyncNetCore {
 		return servers;
 	}
 
-	public boolean send(String server, Packet packet) throws IOException {
+	public boolean send(String server, Packet packet) throws IOException, GeneralSecurityException {
 		if (server != null && !server.equals("all")) {
 			if (servers == null || !servers.contains(server)) {
 				return false;

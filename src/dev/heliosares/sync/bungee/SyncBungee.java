@@ -53,7 +53,14 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 
 		if (config.getString("privatekey", null) == null) {
 			print("Generating new keys...");
-			KeyPair pair = EncryptionManager.generateRSAKkeyPair();
+			KeyPair pair;
+			try {
+				pair = EncryptionManager.generateRSAKkeyPair();
+			} catch (Exception e) {
+				warning("Failed to generate keys");
+				print(e);
+				return;
+			}
 			config.set("privatekey", EncryptionManager.encode(pair.getPrivate().getEncoded()));
 			config.set("publickey", EncryptionManager.encode(pair.getPublic().getEncoded()));
 			saveConfig();
@@ -61,7 +68,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 		}
 
 		try {
-			EncryptionManager.setKey(config.getString("privatekey"), true);
+			EncryptionManager.setRSAkey(config.getString("privatekey"), true);
 		} catch (Throwable t) {
 			warning("Invalid key. Disabling.");
 			if (debug) {
@@ -192,6 +199,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 	@Override
 	public void runAsync(Runnable run) {
 		new Thread(run).start();
+	}
+
+	@Override
+	public void scheduleAsync(Runnable run, long delay, long period) {
+		getProxy().getScheduler().schedule(this, run, delay, period, TimeUnit.MILLISECONDS);
 	}
 
 	@Override

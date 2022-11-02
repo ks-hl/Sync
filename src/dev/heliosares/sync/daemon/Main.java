@@ -25,7 +25,7 @@ public class Main implements SyncCore {
 		}
 		try {
 			Scanner sc = new Scanner(new File("key"));
-			EncryptionManager.setKey(sc.nextLine(), false);
+			EncryptionManager.setRSAkey(sc.nextLine(), false);
 		} catch (Exception e2) {
 			System.err.println("Invalid key");
 			e2.printStackTrace();
@@ -119,5 +119,9 @@ public class Main implements SyncCore {
 
 	@Override
 	public void setDebug(boolean debug) {
+	}
+
+	@Override
+	public void scheduleAsync(Runnable run, long delay, long period) {
 	}
 }

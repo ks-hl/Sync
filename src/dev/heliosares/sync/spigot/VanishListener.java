@@ -16,11 +16,11 @@ public class VanishListener implements Listener {
 
 	@EventHandler
 	public void onPlayerVanish(PlayerHideEvent e) {
-		plugin.updatePlayer(plugin.getPlayerData(e.getPlayer(), true));
+		plugin.getSync().getUserManager().updatePlayer(plugin.getPlayerData(e.getPlayer(), true));
 	}
 
 	@EventHandler
 	public void onPlayerShow(PlayerShowEvent e) {
-		plugin.updatePlayer(plugin.getPlayerData(e.getPlayer(), false));
+		plugin.getSync().getUserManager().updatePlayer(plugin.getPlayerData(e.getPlayer(), false));
 	}
 }

@@ -1,7 +1,6 @@
 package dev.heliosares.sync.net;
 
 import java.io.EOFException;
-import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -25,13 +24,16 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 		while (isConnected()) {
 			try {
 				Packet packet = listen();
+				if (packet == null) {
+					plugin.warning("Null packet received");
+					continue;
+				}
 				if (packet.getPacketId() != Packets.KEEPALIVE.id) {
 					plugin.debug("received from " + getName() + ": " + packet.toString());
 				}
 				boolean noname = getName() == null;
 				if (packet.getPacketId() == Packets.HANDSHAKE.id) {
 					if (!noname) {
-						// TODO verbose
 						plugin.warning("Client tried to handshake after connected. Disconnecting");
 						close();
 						return;
@@ -70,8 +72,11 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 					}
 				}
 			} catch (NullPointerException | SocketException | EOFException e1) {
+				if (plugin.debug()) {
+					plugin.print(e1);
+				}
 				break;
-			} catch (IOException e) {
+			} catch (Exception e) {
 				plugin.print(e);
 			}
 		}

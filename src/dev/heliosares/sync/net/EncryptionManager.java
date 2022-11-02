@@ -1,5 +1,6 @@
 package dev.heliosares.sync.net;
 
+import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -10,61 +11,74 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 public class EncryptionManager {
 
 	private static final String RSA = "RSA";
-	private static Key KEY;
+	private static Key RSA_KEY;
 
-	public static void setKey(String key, boolean priv) throws InvalidKeySpecException, NoSuchAlgorithmException {
+	public static void setRSAkey(String key, boolean priv) throws InvalidKeySpecException, NoSuchAlgorithmException {
 		if (priv) {
-			KEY = KeyFactory.getInstance(RSA).generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(key)));
+			RSA_KEY = KeyFactory.getInstance(RSA)
+					.generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(key)));
 		} else {
-			KEY = KeyFactory.getInstance(RSA).generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(key)));
+			RSA_KEY = KeyFactory.getInstance(RSA)
+					.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(key)));
 		}
 	}
 
-	public static KeyPair generateRSAKkeyPair() {
-		try {
-			SecureRandom secureRandom = new SecureRandom();
-			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(RSA);
+	public static KeyPair generateRSAKkeyPair() throws GeneralSecurityException {
+		SecureRandom secureRandom = new SecureRandom();
+		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(RSA);
 
-			keyPairGenerator.initialize(2048, secureRandom);
-			return keyPairGenerator.generateKeyPair();
-		} catch (Exception ignored) {
-		}
-		return null;
+		keyPairGenerator.initialize(2048, secureRandom);
+		return keyPairGenerator.generateKeyPair();
 	}
 
-	protected static byte[] encrypt(String str) {
-		return encrypt(str.getBytes());
+	protected static byte[] encryptRSA(String str) throws GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance(RSA);
+		cipher.init(Cipher.ENCRYPT_MODE, RSA_KEY);
+		return cipher.doFinal(str.getBytes());
 	}
 
-	protected static byte[] encrypt(byte[] plainText) {
-		try {
-			Cipher cipher = Cipher.getInstance(RSA);
-			cipher.init(Cipher.ENCRYPT_MODE, KEY);
-			return cipher.doFinal(plainText);
-		} catch (Exception e) {
-		}
-		return null;
+	protected static String decryptRSA(byte[] cipherText) throws GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance(RSA);
+		cipher.init(Cipher.DECRYPT_MODE, RSA_KEY);
+		return new String(cipher.doFinal(cipherText));
 	}
 
-	protected static byte[] decryptByte(byte[] cipherText) {
-		try {
-			Cipher cipher = Cipher.getInstance(RSA);
-			cipher.init(Cipher.DECRYPT_MODE, KEY);
-			byte[] result = cipher.doFinal(cipherText);
-			return result;
-		} catch (Exception e) {
-		}
-		return null;
+	private static IvParameterSpec iv;
+	private static final String AES = "AES/CBC/PKCS5Padding";
+	private static SecretKey AES_KEY;
+
+	public static SecretKey generateAESkey() throws GeneralSecurityException {
+		KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+		keyGenerator.init(256);
+		return AES_KEY = keyGenerator.generateKey();
 	}
 
-	protected static String decryptString(byte[] cipherText) {
-		return new String(decryptByte(cipherText));
+	public static void generateIV() {
+		byte[] bytes = new byte[16];
+		new SecureRandom().nextBytes(bytes);
+		iv = new IvParameterSpec(bytes);
+	}
+
+	public static String encryptAES(String input) throws GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance(AES);
+		cipher.init(Cipher.ENCRYPT_MODE, AES_KEY, iv);
+		byte[] cipherText = cipher.doFinal(input.getBytes());
+		return encode(cipherText);
+	}
+
+	public static String decryptAES(String cipherText) throws GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance(AES);
+		cipher.init(Cipher.DECRYPT_MODE, AES_KEY, iv);
+		byte[] plainText = cipher.doFinal(decode(cipherText));
+		return new String(plainText);
 	}
 
 	public static String encode(byte[] bytes) {
@@ -73,5 +87,31 @@ public class EncryptionManager {
 
 	public static byte[] decode(String str) {
 		return Base64.getDecoder().decode(str);
+	}
+
+	@SuppressWarnings("unused")
+	private static byte[][] split(byte[] in) {
+		byte[] iv = new byte[16];
+		byte[] cipher = new byte[in.length - 16];
+		for (int i = 0; i < in.length; i++) {
+			if (i < 16)
+				iv[i] = in[i];
+			else
+				cipher[i - 16] = in[i];
+		}
+		return new byte[][] { iv, cipher };
+	}
+
+	@SuppressWarnings("unused")
+	private static byte[] combine(byte[] one, byte[] two) {
+		byte[] out = new byte[one.length + two.length];
+		for (int i = 0; i < out.length; i++) {
+			if (i < one.length) {
+				out[i] = one[i];
+			} else {
+				out[i] = two[i - one.length];
+			}
+		}
+		return out;
 	}
 }

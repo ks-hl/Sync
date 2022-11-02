@@ -2,8 +2,6 @@ package dev.heliosares.sync.spigot;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -16,10 +14,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SpigotSender;
 import dev.heliosares.sync.SyncCore;
@@ -48,7 +42,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 		this.saveDefaultConfig();
 
 		try {
-			EncryptionManager.setKey(getConfig().getString("publickey"), false);
+			EncryptionManager.setRSAkey(getConfig().getString("publickey"), false);
 		} catch (Throwable t) {
 			warning("Invalid key. Disabling.");
 			if (debug) {
@@ -217,43 +211,23 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 		return false;
 	}
 
-	protected void updatePlayer(PlayerData data) {
-		debug("Sending update for " + data.getName());
-		try {
-			sync.send("all", new Packet(null, Packets.PLAYER_DATA.id,
-					new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
-							getPlayers().stream()
-									.map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
-									.reduce((a, b) -> a + b).get())));
-		} catch (JSONException | IOException e) {
-			print(e);
-		}
-	}
-
-	protected void quitPlayer(UUID uuid) {
-		debug("Sending quit for " + uuid.toString());
-		try {
-			Optional<Integer> hash = getPlayers().stream().filter(p -> !p.getUUID().equals(uuid)).map(p -> p.hashData())
-					.reduce((a, b) -> a + b);
-			sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, new JSONObject()
-					.put("quit", new JSONArray().put(uuid.toString())).put("hash", hash.isPresent() ? hash.get() : 0)));
-		} catch (JSONException | IOException e) {
-			print(e);
-		}
-	}
-
 	@EventHandler
 	public void onJoin(PlayerJoinEvent e) {
-		updatePlayer(getPlayerData(e.getPlayer(), isVanished(e.getPlayer())));
+		sync.getUserManager().updatePlayer(getPlayerData(e.getPlayer(), isVanished(e.getPlayer())));
 	}
 
 	@EventHandler
 	public void onQuit(PlayerQuitEvent e) {
-		quitPlayer(e.getPlayer().getUniqueId());
+		sync.getUserManager().quitPlayer(e.getPlayer().getUniqueId());
 	}
 
 	@Override
 	public void setDebug(boolean debug) {
 		this.debug = debug;
+	}
+
+	@Override
+	public void scheduleAsync(Runnable run, long delay, long period) {
+		getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50, period / 50);
 	}
 }

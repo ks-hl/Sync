@@ -37,7 +37,7 @@ public class SyncAPI {
 	 *               SyncAPI.getServers()
 	 * @param packet
 	 */
-	public static boolean send(String server, Packet packet) throws IOException {
+	public static boolean send(String server, Packet packet) throws Exception {
 		return getInstance().getSync().send(server, packet);
 	}
 
@@ -48,7 +48,7 @@ public class SyncAPI {
 	 * @param packet
 	 * @throws IOException
 	 */
-	public static boolean send(Packet packet) throws IOException {
+	public static boolean send(Packet packet) throws Exception {
 		return getInstance().getSync().send(packet);
 	}
 

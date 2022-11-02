@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -69,7 +70,7 @@ public class SyncServer implements SyncNetCore {
 				try {
 					ch.send(packet);
 					any = true;
-				} catch (IOException e) {
+				} catch (IOException | GeneralSecurityException e) {
 					plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");
 					plugin.print(e);
 					ch.close();
@@ -158,7 +159,7 @@ public class SyncServer implements SyncNetCore {
 				} else {
 					try {
 						ch.sendKeepalive();
-					} catch (IOException e) {
+					} catch (GeneralSecurityException | IOException e) {
 						plugin.print(ch.getName() + " timed out");
 						remove = true;
 					}
