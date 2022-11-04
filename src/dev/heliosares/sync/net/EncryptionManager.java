@@ -114,4 +114,12 @@ public class EncryptionManager {
 		}
 		return out;
 	}
+
+	public static long hash(String str) {
+		long out = 0;
+		for (int i = 0; i < str.length(); i++) {
+			out += str.charAt(0) * Math.pow(31, str.length() - 1);
+		}
+		return out;
+	}
 }

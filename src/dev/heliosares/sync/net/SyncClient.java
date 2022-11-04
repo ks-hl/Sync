@@ -182,6 +182,9 @@ public class SyncClient implements SyncNetCore {
 	 * @return The name of this server according to the proxy
 	 */
 	public String getName() {
+		if (connection == null) {
+			return null;
+		}
 		return connection.getName();
 	}
 
