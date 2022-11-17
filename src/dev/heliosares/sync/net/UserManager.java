@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class UserManager extends NetListener {
@@ -170,8 +171,16 @@ public class UserManager extends NetListener {
     }
 
     public PlayerData getPlayer(String name) {
+        return getPlayer(d -> d.getName().equalsIgnoreCase(name));
+    }
+
+    public PlayerData getPlayer(UUID uuid) {
+        return getPlayer(d -> d.getUUID().equals(uuid));
+    }
+
+    public PlayerData getPlayer(Predicate<PlayerData> predicate) {
         for (List<PlayerData> list : getPlayers().values()) {
-            Optional<PlayerData> o = list.stream().filter(d -> d.getName().equals(name)).findAny();
+            Optional<PlayerData> o = list.stream().filter(predicate).findAny();
             if (o.isPresent()) return o.get();
         }
         return null;

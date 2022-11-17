@@ -3,10 +3,12 @@ package dev.heliosares.sync;
 import dev.heliosares.sync.bungee.SyncBungee;
 import dev.heliosares.sync.net.NetListener;
 import dev.heliosares.sync.net.Packet;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.spigot.SyncSpigot;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 public class SyncAPI {
     private static SyncCore instance;
@@ -58,6 +60,14 @@ public class SyncAPI {
 
     public static void unregister(NetListener listen) {
         getInstance().getSync().getEventHandler().unregisterListener(listen);
+    }
+
+    public static PlayerData getPlayer(String name) {
+        return getInstance().getSync().getUserManager().getPlayer(name);
+    }
+
+    public static PlayerData getPlayer(UUID uuid) {
+        return getInstance().getSync().getUserManager().getPlayer(uuid);
     }
 
     /**
