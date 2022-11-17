@@ -8,7 +8,7 @@ public abstract class NetListener {
 	public NetListener(int packetid, String channel) {
 		this.packetid = packetid;
 		this.channel = channel;
-		if (channel != null && !channel.matches("\\w+:\\w")) {
+		if (channel != null && !channel.matches("\\w+:\\w+")) {
 			throw new IllegalArgumentException("Channel name must conform to 'PluginName:Channel'");
 		}
 	}
