@@ -1,17 +1,21 @@
 package dev.heliosares.sync.net;
 
 public enum Packets {
-	HANDSHAKE(0), //
-	KEEPALIVE(1), //
-	COMMAND(2), //
-	API(3), //
-	BLOB(4), //
-	SERVER_LIST(5), //
-	PLAYER_DATA(6);//
+    HANDSHAKE(0), //
+    KEEPALIVE(1), //
+    COMMAND(2), //
+    API(3), //
+    BLOB(4), //
+    SERVER_LIST(5), //
+    PLAYER_DATA(6),//
 
-	public final int id;
+    MESSAGE(7),//
 
-	private Packets(int id) {
-		this.id = id;
-	}
+    PLAY_SOUND(8);//
+
+    public final int id;
+
+    private Packets(int id) {
+        this.id = id;
+    }
 }
