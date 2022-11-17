@@ -55,7 +55,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 		SpigotCommandListener cmd = new SpigotCommandListener(this);
 		this.getCommand("psync").setExecutor(cmd);
 		this.getCommand("psync").setTabCompleter(cmd);
-		this.getCommand("if").setExecutor(this);
+		this.getCommand("if").setExecutor(cmd);
 		this.getServer().getPluginManager().registerEvents(this, this);
 		try {
 			this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
