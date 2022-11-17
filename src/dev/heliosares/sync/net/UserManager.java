@@ -170,6 +170,14 @@ public class UserManager extends NetListener {
         return Collections.unmodifiableMap(out);
     }
 
+    public List<PlayerData> getAllPlayers() {
+        List<PlayerData> out = new ArrayList<>();
+        synchronized (players) {
+            players.forEach((k, v) -> out.addAll(v));
+        }
+        return out;
+    }
+
     public PlayerData getPlayer(String name) {
         return getPlayer(d -> d.getName().equalsIgnoreCase(name));
     }
@@ -179,11 +187,23 @@ public class UserManager extends NetListener {
     }
 
     public PlayerData getPlayer(Predicate<PlayerData> predicate) {
-        for (List<PlayerData> list : getPlayers().values()) {
-            Optional<PlayerData> o = list.stream().filter(predicate).findAny();
-            if (o.isPresent()) return o.get();
+        synchronized (players) {
+            for (List<PlayerData> list : players.values()) {
+                Optional<PlayerData> o = list.stream().filter(predicate).findAny();
+                if (o.isPresent()) return o.get();
+            }
         }
         return null;
+    }
+
+    public List<PlayerData> getPlayers(Predicate<PlayerData> predicate) {
+        List<PlayerData> out = new ArrayList<>();
+        synchronized (players) {
+            for (List<PlayerData> list : players.values()) {
+               out.addAll(list.stream().filter(predicate).toList());
+            }
+        }
+        return out;
     }
 
     public String toFormattedString() {
