@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import java.io.EOFException;
+import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -13,7 +14,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 	private final SyncCoreProxy plugin;
 	private final SyncServer server;
 
-	public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) {
+	public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException {
 		super(socket);
 		this.plugin = plugin;
 		this.server = server;

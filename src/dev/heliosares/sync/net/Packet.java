@@ -87,6 +87,7 @@ public class Packet {
 		return new UnmodifiablePacket(this);
 	}
 
+	@Override
 	public Packet clone() {
 		return new Packet(channel, packetid, new JSONObject(payload.toString()), blob).setForward(forward);
 	}

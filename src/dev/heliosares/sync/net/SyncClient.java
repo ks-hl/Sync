@@ -51,7 +51,6 @@ public class SyncClient implements SyncNetCore {
 					}
 					try {
 						connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
-						connection.connect();
 
 						plugin.debug("Sending handshake");
 						connection.send(

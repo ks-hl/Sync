@@ -104,7 +104,6 @@ public class SyncServer implements SyncNetCore {
 						while (!closed) {
 							Socket socket = serverSocket.accept();
 							ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
-							ch.connect();
 
 							plugin.debug("Connection accepted on port " + socket.getPort());
 
