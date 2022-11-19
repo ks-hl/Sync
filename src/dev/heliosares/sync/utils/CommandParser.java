@@ -1,13 +1,13 @@
 package dev.heliosares.sync.utils;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class CommandParser {
-	public static void handle(SyncCore plugin, MySender sender, String command, String[] args) {
+    public static void handle(SyncCore plugin, MySender sender, String command, String[] args) {
 //		if (args == null) {
 //			int firstspace = command.indexOf(" ");
 //			if (firstspace > 0) {
@@ -17,66 +17,68 @@ public class CommandParser {
 //				args = new String[0];
 //			}
 //		}
-		if (sender != null) {
-			if (!sender.hasPermissionExplicit("sync." + command)) {
-				sender.sendMessage("§cNo permission");
-				return;
-			}
-		}
-	}
+        if (sender != null) {
+            if (!sender.hasPermissionExplicit("sync." + command)) {
+                sender.sendMessage("§cNo permission");
+                return;
+            }
+        }
+    }
 
-	public static void handleIncoming(SyncCore plugin, String command) {
-		Result playerR = CommandParser.parse("-p", command);
-		MySender sender = null;
-		if (playerR.value() != null) {
-			sender = plugin.getSender(playerR.value());
-			command = playerR.remaining();
-			if (sender == null) {
-				plugin.print("Player not found: " + playerR.value());
-				return;
-			}
-		}
-		plugin.dispatchCommand(sender, command);
-	}
+    public static void handleIncoming(SyncCore plugin, String command) {
+        Result playerR = CommandParser.parse("-p", command);
+        MySender sender = null;
+        if (playerR.value() != null) {
+            sender = plugin.getSender(playerR.value());
+            command = playerR.remaining();
+            if (sender == null) {
+                plugin.print("Player not found: " + playerR.value());
+                return;
+            }
+        }
+        plugin.dispatchCommand(sender, command);
+    }
 
-	public static List<String> tab(List<String> out, String currentArg) {
-		return out.stream().filter((s) -> s.toLowerCase().startsWith(currentArg)).collect(Collectors.toList());
-	}
+    public static List<String> tab(List<String> out, String currentArg) {
+        return out.stream().filter((s) -> s.toLowerCase().startsWith(currentArg)).collect(Collectors.toList());
+    }
 
-	public static record Result(String remaining, String value) {
-	};
+    public static Result parse(String key, String cmd) {
+        String args[] = cmd.split(" ");
+        String value = null;
+        String out = "";
+        boolean escape = false;
+        int i = 0;
+        for (; i < args.length; i++) {
+            if (i > 0 && (args[i].equalsIgnoreCase("psync") || args[i].equalsIgnoreCase("msync"))) {
+                escape = true; // Prevents parsing out parts of the command which are parts of a sub-command
+            }
+            if (!escape && value == null && args[i].equalsIgnoreCase(key) && i < args.length - 1) {
+                value = args[++i];
+                continue;
+            }
+            out += args[i];
+            if (i < args.length - 1) {
+                out += " ";
+            }
+        }
 
-	public static Result parse(String key, String cmd) {
-		String args[] = cmd.split(" ");
-		String value = null;
-		String out = "";
-		boolean escape = false;
-		int i = 0;
-		for (; i < args.length; i++) {
-			if (i > 0 && (args[i].equalsIgnoreCase("psync") || args[i].equalsIgnoreCase("msync"))) {
-				escape = true; // Prevents parsing out parts of the command which are parts of a sub-command
-			}
-			if (!escape && value == null && args[i].equalsIgnoreCase(key) && i < args.length - 1) {
-				value = args[++i];
-				continue;
-			}
-			out += args[i];
-			if (i < args.length - 1) {
-				out += " ";
-			}
-		}
+        return new Result(out, value);
+    }
 
-		return new Result(out, value);
-	}
+    ;
 
-	public static String concat(int start, String... args) {
-		String out = "";
-		for (int i = start; i < args.length; i++) {
-			if (out.length() > 0) {
-				out += " ";
-			}
-			out += args[i];
-		}
-		return out;
-	}
+    public static String concat(int start, String... args) {
+        String out = "";
+        for (int i = start; i < args.length; i++) {
+            if (out.length() > 0) {
+                out += " ";
+            }
+            out += args[i];
+        }
+        return out;
+    }
+
+    public static record Result(String remaining, String value) {
+    }
 }

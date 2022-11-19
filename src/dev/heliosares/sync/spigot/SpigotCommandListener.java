@@ -1,9 +1,10 @@
 package dev.heliosares.sync.spigot;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
+import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.Packet;
+import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.utils.CommandParser;
+import dev.heliosares.sync.utils.FormulaParser;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -11,13 +12,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.json.JSONObject;
 
-import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.net.Packet;
-import dev.heliosares.sync.net.Packets;
-import dev.heliosares.sync.utils.CommandParser;
-import dev.heliosares.sync.utils.FormulaParser;
-
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class SpigotCommandListener implements CommandExecutor, TabCompleter {
     private final SyncCore plugin;
