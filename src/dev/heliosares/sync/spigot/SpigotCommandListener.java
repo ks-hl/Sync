@@ -128,14 +128,6 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     }
                 });
             }
-            //TODO why is this here?
-//            try {
-//                plugin.getSync().send(new Packet(null, Packets.COMMAND.id,
-//                        new JSONObject().put("command", CommandParser.concat(0, args))));
-//            } catch (Exception e) {
-//                sender.sendMessage("§cAn error occured");
-//                plugin.print(e);
-//            }
             return true;
         }
         return false;

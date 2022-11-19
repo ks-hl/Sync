@@ -19,7 +19,7 @@ public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
     private final NetEventHandler eventhandler;
     private ServerSocket serverSocket;
-    private ArrayList<ServerClientHandler> clients = new ArrayList<>();
+    private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
     private UserManager usermanager;
     private boolean closed = false;
 
@@ -51,7 +51,7 @@ public class SyncServer implements SyncNetCore {
     public boolean send(String server, Packet packet) {
         boolean any = false;
         synchronized (clients) {
-            String servers[] = (server == null || server.equals("all")) ? null : server.split(",");
+            String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
             Iterator<ServerClientHandler> it = clients.iterator();
             outer:
             while (it.hasNext()) {
@@ -92,42 +92,40 @@ public class SyncServer implements SyncNetCore {
         if (serverSocket != null) {
             throw new IllegalStateException("Server already started");
         }
-        plugin.runAsync(new Runnable() {
-            @Override
-            public void run() {
-                // This loop restarts the server on failure
-                while (!closed) {
-                    try {
-                        serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
+        plugin.runAsync(() -> {
+            // This loop restarts the server on failure
+            while (!closed) {
+                try {
+                    serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
 
-                        plugin.print("Server running on port " + port + ".");
-                        // This look waits for clients
-                        while (!closed) {
-                            Socket socket = serverSocket.accept();
-                            ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
+                    plugin.print("Server running on port " + port + ".");
+                    // This look waits for clients
+                    while (!closed) {
+                        Socket socket = serverSocket.accept();
+                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
 
-                            plugin.debug("Connection accepted on port " + socket.getPort());
+                        plugin.debug("Connection accepted on port " + socket.getPort());
 
-                            synchronized (clients) {
-                                clients.add(ch);
-                            }
-                            plugin.runAsync(ch);
+                        synchronized (clients) {
+                            clients.add(ch);
                         }
-                    } catch (SocketException e1) {
-                        plugin.print("Server closed.");
-                        return;
-                    } catch (IOException e1) {
-                        plugin.warning("Server crashed:");
-                        plugin.print(e1);
-                    } finally {
-                        closeTemporary();
+                        plugin.runAsync(ch);
                     }
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {
-                        plugin.warning("Failed to delay");
-                        plugin.print(e);
-                    }
+                } catch (SocketException e1) {
+                    plugin.print("Server closed.");
+                    return;
+                } catch (Exception e1) {
+                    plugin.warning("Server crashed:");
+                    plugin.print(e1);
+                } finally {
+                    closeTemporary();
+                }
+                try {
+                    Thread.sleep(5000);
+                    // Not busy waiting. A delay to wait to restart
+                } catch (InterruptedException e) {
+                    plugin.warning("Failed to delay");
+                    plugin.print(e);
                 }
             }
         });
@@ -213,7 +211,7 @@ public class SyncServer implements SyncNetCore {
      *
      * @param ch Connection to remove
      */
-    public void remove(SocketConnection ch) {
+    public void remove(ServerClientHandler ch) {
         ch.close();
         synchronized (clients) {
             clients.remove(ch);

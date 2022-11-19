@@ -63,8 +63,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         this.getServer().getPluginManager().registerEvents(this, this);
         try {
             this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
-        } catch (Throwable t) {
-
+        } catch (Throwable ignored) {
         }
 
         sync = new SyncClient(this);
