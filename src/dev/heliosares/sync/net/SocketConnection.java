@@ -1,5 +1,8 @@
 package dev.heliosares.sync.net;
 
+import dev.heliosares.sync.SyncAPI;
+import org.json.JSONObject;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -7,19 +10,15 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
 
-import org.json.JSONObject;
-
-import dev.heliosares.sync.SyncAPI;
-
 public class SocketConnection {
     private final Socket socket;
     private final DataOutputStream out;
     private final DataInputStream in;
+    private final long created;
     private boolean closed;
     private String name;
     private long lastPacketSent;
     private long lastPacketReceived;
-    private final long created;
 
     public SocketConnection(Socket socket) throws IOException {
         this.socket = socket;

@@ -7,15 +7,14 @@ import java.util.function.Supplier;
 //https://stackoverflow.com/questions/3422673/how-to-evaluate-a-math-expression-given-in-string-form
 public class FormulaParser {
     public final String originalEquation;
-    public String equation;
-
     private final Random random = new Random();
+    public String equation;
+    private int pos = -1, ch;
+    private HashMap<String, Supplier<Object>> variables = new HashMap<>();
 
     public FormulaParser(String equation) {
         this.originalEquation = equation.toLowerCase();
     }
-
-    private int pos = -1, ch;
 
     private void nextChar() {
         ch = (++pos < equation.length()) ? equation.charAt(pos) : -1;
@@ -78,8 +77,6 @@ public class FormulaParser {
         ch = -1;
         variables.clear();
     }
-
-    private HashMap<String, Supplier<Object>> variables = new HashMap<>();
 
     public void setVariable(String name, Supplier<Object> value) {
         variables.put(name, value);

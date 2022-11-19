@@ -29,15 +29,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class SyncBungee extends Plugin implements SyncCoreProxy {
+    private static SyncBungee instance;
     protected Configuration config;
     protected Configuration data;
     SyncServer sync;
     boolean debug;
 
-    private static SyncBungee instance;
-
     public static SyncBungee getInstance() {
         return instance;
+    }
+
+    public static void tell(CommandSender sender, String msg) {
+        sender.sendMessage(TextComponent.fromLegacyText(ChatColor.translateAlternateColorCodes('&', msg)));
     }
 
     @Override
@@ -177,10 +180,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         } catch (IOException e) {
             print(e);
         }
-    }
-
-    public static void tell(CommandSender sender, String msg) {
-        sender.sendMessage(TextComponent.fromLegacyText(ChatColor.translateAlternateColorCodes('&', msg)));
     }
 
     @Override

@@ -18,6 +18,7 @@ public class UserManager extends NetListener {
     private final SyncNetCore sync;
     private final SyncCore plugin;
     private final Map<String, List<PlayerData>> players = new HashMap<>();
+    private int lasthash;
 
     public UserManager(SyncCore plugin, SyncNetCore client) {
         super(Packets.PLAYER_DATA.id, null);
@@ -28,7 +29,30 @@ public class UserManager extends NetListener {
             plugin.scheduleAsync(() -> sendCurrentHash(), 10000, 10000);
     }
 
-    private int lasthash;
+    private static int hash(List<PlayerData> players) {
+        if (players == null || players.isEmpty()) {
+            return 0;
+        }
+        return players.stream().map(PlayerData::hashData).reduce(Integer::sum).get();
+    }
+
+    private static List<PlayerData> getPlayerData(String server, JSONArray arr) {
+        List<PlayerData> list = new ArrayList<>();
+        arr.forEach(o -> {
+            PlayerData data = getPlayerData(server, (JSONObject) o);
+            if (data != null)
+                list.add(data);
+        });
+        return list;
+    }
+
+    private static PlayerData getPlayerData(String server, JSONObject o) {
+        try {
+            return new PlayerData(server, o.getString("name"), o.getString("uuid"), o.getBoolean("v"));
+        } catch (JSONException e) {
+            return null;
+        }
+    }
 
     private void sendCurrentHash() {
         List<PlayerData> pl = plugin.getPlayers();
@@ -122,13 +146,6 @@ public class UserManager extends NetListener {
                                 .put("hash", hash(players))));
     }
 
-    private static int hash(List<PlayerData> players) {
-        if (players == null || players.isEmpty()) {
-            return 0;
-        }
-        return players.stream().map(PlayerData::hashData).reduce(Integer::sum).get();
-    }
-
     private boolean quit(String server, UUID uuid) {
         List<PlayerData> current = players.get(server);
         if (current != null) {
@@ -142,24 +159,6 @@ public class UserManager extends NetListener {
             }
         }
         return false;
-    }
-
-    private static List<PlayerData> getPlayerData(String server, JSONArray arr) {
-        List<PlayerData> list = new ArrayList<>();
-        arr.forEach(o -> {
-            PlayerData data = getPlayerData(server, (JSONObject) o);
-            if (data != null)
-                list.add(data);
-        });
-        return list;
-    }
-
-    private static PlayerData getPlayerData(String server, JSONObject o) {
-        try {
-            return new PlayerData(server, o.getString("name"), o.getString("uuid"), o.getBoolean("v"));
-        } catch (JSONException e) {
-            return null;
-        }
     }
 
     public Map<String, List<PlayerData>> getPlayers() {
@@ -200,7 +199,7 @@ public class UserManager extends NetListener {
         List<PlayerData> out = new ArrayList<>();
         synchronized (players) {
             for (List<PlayerData> list : players.values()) {
-               out.addAll(list.stream().filter(predicate).toList());
+                out.addAll(list.stream().filter(predicate).toList());
             }
         }
         return out;

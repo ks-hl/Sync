@@ -23,12 +23,20 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
+    private static SyncSpigot instance;
     private SyncClient sync;
     private boolean debug;
-    private static SyncSpigot instance;
 
     public static SyncSpigot getInstance() {
         return instance;
+    }
+
+    public static boolean isVanished(Player player) {
+        for (MetadataValue meta : player.getMetadata("vanished")) {
+            if (meta.asBoolean())
+                return true;
+        }
+        return false;
     }
 
     @Override
@@ -230,14 +238,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     public PlayerData getPlayerData(Player p, boolean vanished) {
         return new PlayerData(this.sync.getName(), p.getName(), p.getUniqueId().toString(), vanished);
-    }
-
-    public static boolean isVanished(Player player) {
-        for (MetadataValue meta : player.getMetadata("vanished")) {
-            if (meta.asBoolean())
-                return true;
-        }
-        return false;
     }
 
     @EventHandler
