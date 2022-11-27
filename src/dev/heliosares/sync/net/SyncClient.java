@@ -59,6 +59,8 @@ public class SyncClient implements SyncNetCore {
                             plugin.warning("Null packet received");
                             continue;
                         }
+                        if (packet.getForward() != null) packet.setOrigin(packet.getForward());
+                        else packet.setOrigin("proxy");
                         if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                             plugin.debug("received: " + packet);
                         }

@@ -28,6 +28,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     plugin.warning("Null packet received");
                     continue;
                 }
+                packet.setOrigin(getName());
                 if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                     plugin.debug("received from " + getName() + ": " + packet);
                 }

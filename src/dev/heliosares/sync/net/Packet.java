@@ -8,6 +8,7 @@ public class Packet {
     private final JSONObject payload;
     private final long responseID;
     private final boolean isResponse;
+    private String origin;
     private byte[] blob;
     private String forward;
 
@@ -55,6 +56,10 @@ public class Packet {
         if (packet.has("fw")) forward = packet.getString("fw");
     }
 
+    void setOrigin(String origin) {
+        if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
+        this.origin = origin;
+    }
 
     private Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
         this.responseID = responseID;
@@ -62,6 +67,10 @@ public class Packet {
         this.packetID = packetID;
         this.payload = payload;
         this.isResponse = isResponse;
+    }
+
+    public String getOrigin() {
+        return origin;
     }
 
     /**
