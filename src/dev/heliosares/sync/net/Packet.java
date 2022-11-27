@@ -9,7 +9,14 @@ public class Packet {
     private byte[] blob;
     private String forward;
 
+    private final long responseID;
+
+    public long getResponseID() {
+        return responseID;
+    }
+
     public Packet(String channel, int packetid, JSONObject payload) {
+        this.responseID = IDProvider.getNextID();
         this.channel = channel;
         this.packetid = packetid;
         this.payload = payload;
@@ -89,6 +96,6 @@ public class Packet {
 
     @Override
     public Packet clone() {
-        return new Packet(channel, packetid, new JSONObject(payload.toString()), blob).setForward(forward);
+        return new Packet(channel, packetID, new JSONObject(payload.toString())).setForward(forward).setBlob(blob);
     }
 }

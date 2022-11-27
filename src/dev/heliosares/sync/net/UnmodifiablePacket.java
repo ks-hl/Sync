@@ -114,7 +114,8 @@ public class UnmodifiablePacket extends Packet {
                         this.lock = true;
                         return this;
                     }
-                }.lock(), packet.getBlob());
+                }.lock());
+        super.setBlob(packet.getBlob());
         super.setForward(packet.getForward());
     }
 
