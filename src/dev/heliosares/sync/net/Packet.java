@@ -11,29 +11,36 @@ public class Packet {
     private byte[] blob;
     private String forward;
 
-    public Packet(String channel, int packetid, JSONObject payload) {
-        this(channel, packetid, payload, IDProvider.getNextID(), false);
+    public Packet(String channel, int packetID, JSONObject payload) {
+        this(channel, packetID, payload, IDProvider.getNextID(), false);
     }
 
-    public Packet(String channel, int packetid, JSONObject payload, long responseID) {
-        this(channel, packetid, payload, responseID, true);
+    public Packet(String channel, int packetID, JSONObject payload, long responseID) {
+        this(channel, packetID, payload, responseID, true);
     }
 
-    public Packet(String channel, int packetid, JSONObject payload, byte[] blob) {
-        this(channel, packetid, payload);
+    @Deprecated
+    public Packet(String channel, int packetID, JSONObject payload, byte[] blob) {
+        this(channel, packetID, payload);
         this.blob = blob;
     }
 
+    /**
+     * Creates a packet from a JSONObject
+     *
+     * @param packet The packet to parse
+     * @see #toJSON()
+     */
     Packet(JSONObject packet) {
         packetID = packet.getInt("pid");
-        if (packet.has("irid")) {
-            responseID = packet.getLong("rid");
+        if (packet.has("dir")) {
+            responseID = packet.getLong("dir");
             isResponse = true;
         } else if (packet.has("rid")) {
             responseID = packet.getLong("rid");
             isResponse = false;
         } else {
-            responseID = -1;
+            responseID = Long.MIN_VALUE;
             isResponse = false;
         }
         if (packet.has("ch")) channel = packet.getString("ch");
@@ -46,12 +53,24 @@ public class Packet {
     }
 
 
-    private Packet(String channel, int packetid, JSONObject payload, long responseID, boolean isResponse) {
+    private Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
         this.responseID = responseID;
         this.channel = channel;
-        this.packetID = packetid;
+        this.packetID = packetID;
         this.payload = payload;
         this.isResponse = isResponse;
+    }
+
+    /**
+     * Generates a packet to respond to this packet.
+     *
+     * @param channel  See constructors
+     * @param packetID See constructors
+     * @param payload  See constructors
+     * @return The response packet
+     */
+    public Packet createResponse(String channel, int packetID, JSONObject payload) {
+        return new Packet(channel, packetID, payload, responseID, true);
     }
 
     public boolean isResponse() {
@@ -79,10 +98,25 @@ public class Packet {
         return toJSON().toString();
     }
 
+
+    /**
+     * pid - Packet ID
+     * <br>
+     * rid - Response ID
+     * <br>
+     * dir - Reply to Response ID
+     * <br>
+     * ch  - Channel
+     * <br>
+     * pl  - Payload
+     * <br>
+     * fw  - Forwarding Server
+     * <br>
+     */
     public JSONObject toJSON() {
         JSONObject json = new JSONObject();
         json.put("pid", packetID);
-        json.put("rid", responseID);
+        if (responseID > Long.MIN_VALUE) json.put(isResponse ? "dir" : "rid", responseID);
         if (channel != null) json.put("ch", channel);
         if (payload != null) json.put("pl", payload);
         if (forward != null) json.put("fw", forward);

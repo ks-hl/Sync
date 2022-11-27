@@ -4,10 +4,9 @@ public class DoubleRolling {
 
     private final int size;
     private final double total = 0d;
-    private int index = 0;
-
     private final int[] samples;
     private final int[] time;
+    private int index = 0;
 
     public DoubleRolling(int size) {
         this.size = size;

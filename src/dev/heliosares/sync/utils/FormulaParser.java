@@ -8,9 +8,9 @@ import java.util.function.Supplier;
 public class FormulaParser {
     public final String originalEquation;
     private final Random random = new Random();
+    private final HashMap<String, Supplier<Object>> variables = new HashMap<>();
     public String equation;
     private int pos = -1, ch;
-    private final HashMap<String, Supplier<Object>> variables = new HashMap<>();
 
     public FormulaParser(String equation) {
         this.originalEquation = equation.toLowerCase();

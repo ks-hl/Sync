@@ -3,22 +3,30 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncAPI;
 import org.json.JSONObject;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.GeneralSecurityException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public class SocketConnection {
     private final Socket socket;
     private final DataOutputStream out;
     private final DataInputStream in;
     private final long created;
+    private final Map<Long, ResponseAction> responses = new HashMap<>();
     private boolean closed;
     private String name;
     private long lastPacketSent;
     private long lastPacketReceived;
+    private long lastCleanup;
 
     public SocketConnection(Socket socket) throws IOException {
         this.socket = socket;
@@ -83,10 +91,13 @@ public class SocketConnection {
                 Packet packet = new Packet(new JSONObject(new String(read())));
                 if (packet.getPacketId() != Packets.KEEPALIVE.id)
                     SyncAPI.getInstance().debug("RECV: " + packet);
-                if (packet.getPacketId() == Packets.BLOB.id) {
-                    packet.setBlob(read());
+                if (packet.getPacketId() == Packets.BLOB.id) packet.setBlob(read());
+                if (packet.isResponse()) {
+                    ResponseAction action = responses.get(packet.getResponseID());
+                    if (action != null) action.action().accept(packet);
                 }
                 this.lastPacketReceived = System.currentTimeMillis();
+                cleanup();
                 return packet;
             }
         } catch (NullPointerException e) {
@@ -94,7 +105,13 @@ public class SocketConnection {
         }
     }
 
-    private void send(byte[] b) throws IOException, GeneralSecurityException {
+    private void cleanup() {
+        if (System.currentTimeMillis() - lastCleanup < 60000) return;
+        lastCleanup = System.currentTimeMillis();
+        responses.entrySet().removeIf(a -> System.currentTimeMillis() - a.getValue().created > 15000L);
+    }
+
+    private void send(byte[] b) throws IOException {
         synchronized (out) {
             for (int i = 0; i < 8; i++)
                 out.write(i);
@@ -105,18 +122,29 @@ public class SocketConnection {
         }
     }
 
-    public void send(Packet packet) throws IOException, GeneralSecurityException {
+    public void send(Packet packet) throws IOException {
+        sendConsumer(packet, null);
+    }
+
+    public CompletableFuture<Packet> sendCompletable(Packet packet) throws IOException {
+        CompletableFuture<Packet> completableFuture = new CompletableFuture<>();
+        sendConsumer(packet, completableFuture::complete);
+        return completableFuture;
+    }
+
+    public void sendConsumer(Packet packet, @Nullable Consumer<Packet> consumer) throws IOException {
         if (closed) {
             return;
         }
+        if (packet.isResponse() && consumer != null)
+            throw new IllegalArgumentException("Cannot specify consumer for a response");
         synchronized (out) {
+            if (consumer != null)
+                responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), consumer));
             String plain = packet.toString();
-            if (packet.getPacketId() != Packets.KEEPALIVE.id)
-                SyncAPI.getInstance().debug("SEND: " + plain);
+            if (packet.getPacketId() != Packets.KEEPALIVE.id) SyncAPI.getInstance().debug("SEND: " + plain);
             send(plain.getBytes());
-            if (packet.getPacketId() == Packets.BLOB.id) {
-                send(packet.getBlob());
-            }
+            if (packet.getPacketId() == Packets.BLOB.id) send(packet.getBlob());
             out.flush();
         }
         this.lastPacketSent = System.currentTimeMillis();
@@ -138,5 +166,8 @@ public class SocketConnection {
             return;
         }
         send(new Packet(null, Packets.KEEPALIVE.id, null));
+    }
+
+    private record ResponseAction(long created, @Nonnull Consumer<Packet> action) {
     }
 }

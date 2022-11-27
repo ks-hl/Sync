@@ -19,8 +19,8 @@ public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
     private final NetEventHandler eventhandler;
     private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
-    private ServerSocket serverSocket;
     private final UserManager usermanager;
+    private ServerSocket serverSocket;
     private boolean closed = false;
 
     public SyncServer(SyncCoreProxy plugin) {
