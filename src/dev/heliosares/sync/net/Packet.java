@@ -4,23 +4,31 @@ import org.json.JSONObject;
 
 public class Packet {
     private final String channel;
-    private final int packetid;
+    private final int packetID;
     private final JSONObject payload;
     private byte[] blob;
     private String forward;
 
     private final long responseID;
 
+    public boolean isResponse() {
+        return isResponse;
+    }
+
+    private final boolean isResponse;
+
     public long getResponseID() {
         return responseID;
     }
 
     public Packet(String channel, int packetid, JSONObject payload) {
-        this.responseID = IDProvider.getNextID();
-        this.channel = channel;
-        this.packetid = packetid;
-        this.payload = payload;
+        this(channel, packetid, payload, IDProvider.getNextID(), false);
     }
+
+    public Packet(String channel, int packetid, JSONObject payload, long responseID) {
+        this(channel, packetid, payload, responseID, true);
+    }
+
 
     public Packet(String channel, int packetid, JSONObject payload, byte[] blob) {
         this(channel, packetid, payload);
@@ -28,20 +36,32 @@ public class Packet {
     }
 
     Packet(JSONObject packet) {
-        packetid = packet.getInt("pid");
-        if (packet.has("ch")) {
-            channel = packet.getString("ch");
+        packetID = packet.getInt("pid");
+        if (packet.has("irid")) {
+            responseID = packet.getLong("rid");
+            isResponse = true;
+        } else if (packet.has("rid")) {
+            responseID = packet.getLong("rid");
+            isResponse = false;
         } else {
-            channel = null;
+            responseID = -1;
+            isResponse = false;
         }
-        if (packet.has("pl")) {
-            payload = packet.getJSONObject("pl");
-        } else {
-            payload = null;
-        }
-        if (packet.has("fw")) {
-            forward = packet.getString("fw");
-        }
+        if (packet.has("ch")) channel = packet.getString("ch");
+        else channel = null;
+
+        if (packet.has("pl")) payload = packet.getJSONObject("pl");
+        else payload = null;
+
+        if (packet.has("fw")) forward = packet.getString("fw");
+    }
+
+    private Packet(String channel, int packetid, JSONObject payload, long responseID, boolean isResponse) {
+        this.responseID = responseID;
+        this.channel = channel;
+        this.packetID = packetid;
+        this.payload = payload;
+        this.isResponse = isResponse;
     }
 
     public String getChannel() {
@@ -49,7 +69,7 @@ public class Packet {
     }
 
     public int getPacketId() {
-        return packetid;
+        return packetID;
     }
 
     public JSONObject getPayload() {
@@ -58,18 +78,17 @@ public class Packet {
 
     @Override
     public String toString() {
+        return toJSON().toString();
+    }
+
+    public JSONObject toJSON() {
         JSONObject json = new JSONObject();
-        json.put("pid", packetid);
-        if (channel != null) {
-            json.put("ch", channel);
-        }
-        if (payload != null) {
-            json.put("pl", payload);
-        }
-        if (forward != null) {
-            json.put("fw", forward);
-        }
-        return json.toString();
+        json.put("pid", packetID);
+        json.put("rid", responseID);
+        if (channel != null) json.put("ch", channel);
+        if (payload != null) json.put("pl", payload);
+        if (forward != null) json.put("fw", forward);
+        return json;
     }
 
     public byte[] getBlob() {
@@ -94,8 +113,7 @@ public class Packet {
         return new UnmodifiablePacket(this);
     }
 
-    @Override
-    public Packet clone() {
-        return new Packet(channel, packetID, new JSONObject(payload.toString())).setForward(forward).setBlob(blob);
-    }
+//    public Packet copy() {
+//        return new Packet(toJSON()).setBlob(getBlob());
+//    }
 }
