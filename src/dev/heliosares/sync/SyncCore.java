@@ -6,6 +6,8 @@ import dev.heliosares.sync.net.SyncNetCore;
 import java.util.List;
 
 public interface SyncCore {
+    void newThread(Runnable run);
+
     void runAsync(Runnable run);
 
     void scheduleAsync(Runnable run, long delay, long period);

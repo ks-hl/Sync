@@ -41,7 +41,7 @@ public class SyncClient implements SyncNetCore {
         if (connection != null) {
             throw new IllegalStateException("Client already started");
         }
-        plugin.runAsync(() -> {
+        plugin.newThread(() -> {
             while (!closed) {
                 if (unableToConnectCount < 3 || plugin.debug()) {
                     plugin.print("Client connecting on port " + port + "...");
@@ -50,8 +50,7 @@ public class SyncClient implements SyncNetCore {
                     connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
 
                     plugin.debug("Sending handshake");
-                    connection.send(
-                            new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
+                    connection.send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
 
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
@@ -59,8 +58,11 @@ public class SyncClient implements SyncNetCore {
                             plugin.warning("Null packet received");
                             continue;
                         }
-                        if (packet.getForward() != null) packet.setOrigin(packet.getForward());
-                        else packet.setOrigin("proxy");
+                        if (packet.getForward() != null) {
+                            packet.setOrigin(packet.getForward());
+                        } else {
+                            packet.setOrigin("proxy");
+                        }
                         if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                             plugin.debug("received: " + packet);
                         }

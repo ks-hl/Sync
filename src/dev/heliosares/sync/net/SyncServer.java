@@ -106,7 +106,7 @@ public class SyncServer implements SyncNetCore {
         if (serverSocket != null) {
             throw new IllegalStateException("Server already started");
         }
-        plugin.runAsync(() -> {
+        plugin.newThread(() -> {
             // This loop restarts the server on failure
             while (!closed) {
                 try {
@@ -123,7 +123,7 @@ public class SyncServer implements SyncNetCore {
                         synchronized (clients) {
                             clients.add(ch);
                         }
-                        plugin.runAsync(ch);
+                        plugin.newThread(ch);
                     }
                 } catch (SocketException e1) {
                     plugin.print("Server closed.");

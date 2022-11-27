@@ -199,8 +199,13 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public void runAsync(Runnable run) {
+    public void newThread(Runnable run) {
         new Thread(run).start();
+    }
+
+    @Override
+    public void runAsync(Runnable run) {
+        getProxy().getScheduler().runAsync(this, run);
     }
 
     @Override

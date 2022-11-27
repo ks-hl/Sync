@@ -197,8 +197,13 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     }
 
     @Override
-    public void runAsync(Runnable run) {
+    public void newThread(Runnable run) {
         new Thread(run).start();
+    }
+
+    @Override
+    public void runAsync(Runnable run) {
+        getServer().getScheduler().runTaskAsynchronously(this, run);
     }
 
     @Override

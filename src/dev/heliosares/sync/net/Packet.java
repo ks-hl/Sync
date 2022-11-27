@@ -61,7 +61,7 @@ public class Packet {
         this.origin = origin;
     }
 
-    private Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
+    Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
         this.responseID = responseID;
         this.channel = channel;
         this.packetID = packetID;
@@ -81,8 +81,9 @@ public class Packet {
      * @param payload  See constructors
      * @return The response packet
      */
-    public Packet createResponse(String channel, int packetID, JSONObject payload) {
-        return new Packet(channel, packetID, payload, responseID, true);
+    public Packet createResponse(JSONObject payload) {
+        if (isResponse()) throw new IllegalArgumentException("Cannot reply to a response!");
+        return new Packet(channel, packetID, payload, responseID, true).setForward(origin);
     }
 
     public boolean isResponse() {

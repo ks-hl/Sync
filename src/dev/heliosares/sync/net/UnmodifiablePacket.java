@@ -5,9 +5,11 @@ import dev.heliosares.sync.utils.UnmodifiableJSONObject;
 public class UnmodifiablePacket extends Packet {
 
     public UnmodifiablePacket(Packet packet) {
-        super(packet.getChannel(), packet.getPacketId(), packet.getPayload() == null ? null : new UnmodifiableJSONObject(packet.getPayload().toString()));
+        super(packet.getChannel(), packet.getPacketId(), packet.getPayload() == null ? null :
+                new UnmodifiableJSONObject(packet.getPayload().toString()), packet.getResponseID(), packet.isResponse());
         super.setBlob(packet.getBlob());
         super.setForward(packet.getForward());
+        super.setOrigin(packet.getOrigin());
     }
 
     @Override
@@ -17,6 +19,11 @@ public class UnmodifiablePacket extends Packet {
 
     @Override
     public UnmodifiablePacket setForward(String forward) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setOrigin(String forward) {
         throw new UnsupportedOperationException();
     }
 

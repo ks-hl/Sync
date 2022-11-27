@@ -63,8 +63,13 @@ public class Main implements SyncCore {
     }
 
     @Override
-    public void runAsync(Runnable run) {
+    public void newThread(Runnable run) {
         new Thread(run).start();
+    }
+
+    @Override
+    public void runAsync(Runnable run) {
+        newThread(run);
     }
 
     @Override
