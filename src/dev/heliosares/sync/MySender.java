@@ -1,15 +1,15 @@
 package dev.heliosares.sync;
 
 public interface MySender {
-    public String getName();
+    String getName();
 
-    public void sendMessage(String msg);
+    void sendMessage(String msg);
 
-    public boolean hasPermission(String node);
+    boolean hasPermission(String node);
 
-    public boolean hasPermissionExplicit(String node);
+    boolean hasPermissionExplicit(String node);
 
-    public void execute(String command);
+    void execute(String command);
 
-    public Object getSender();
+    Object getSender();
 }

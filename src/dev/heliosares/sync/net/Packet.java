@@ -6,20 +6,10 @@ public class Packet {
     private final String channel;
     private final int packetID;
     private final JSONObject payload;
+    private final long responseID;
+    private final boolean isResponse;
     private byte[] blob;
     private String forward;
-
-    private final long responseID;
-
-    public boolean isResponse() {
-        return isResponse;
-    }
-
-    private final boolean isResponse;
-
-    public long getResponseID() {
-        return responseID;
-    }
 
     public Packet(String channel, int packetid, JSONObject payload) {
         this(channel, packetid, payload, IDProvider.getNextID(), false);
@@ -28,7 +18,6 @@ public class Packet {
     public Packet(String channel, int packetid, JSONObject payload, long responseID) {
         this(channel, packetid, payload, responseID, true);
     }
-
 
     public Packet(String channel, int packetid, JSONObject payload, byte[] blob) {
         this(channel, packetid, payload);
@@ -56,12 +45,21 @@ public class Packet {
         if (packet.has("fw")) forward = packet.getString("fw");
     }
 
+
     private Packet(String channel, int packetid, JSONObject payload, long responseID, boolean isResponse) {
         this.responseID = responseID;
         this.channel = channel;
         this.packetID = packetid;
         this.payload = payload;
         this.isResponse = isResponse;
+    }
+
+    public boolean isResponse() {
+        return isResponse;
+    }
+
+    public long getResponseID() {
+        return responseID;
     }
 
     public String getChannel() {

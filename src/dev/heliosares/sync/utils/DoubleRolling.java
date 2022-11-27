@@ -2,12 +2,12 @@ package dev.heliosares.sync.utils;
 
 public class DoubleRolling {
 
-    private int size;
-    private double total = 0d;
+    private final int size;
+    private final double total = 0d;
     private int index = 0;
 
-    private int samples[];
-    private int time[];
+    private final int[] samples;
+    private final int[] time;
 
     public DoubleRolling(int size) {
         this.size = size;
