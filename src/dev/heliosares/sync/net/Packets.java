@@ -15,7 +15,7 @@ public enum Packets {
 
     public final int id;
 
-    private Packets(int id) {
+    Packets(int id) {
         this.id = id;
     }
 }

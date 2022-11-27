@@ -6,27 +6,27 @@ import dev.heliosares.sync.net.SyncNetCore;
 import java.util.List;
 
 public interface SyncCore {
-    public void runAsync(Runnable run);
+    void runAsync(Runnable run);
 
-    public void scheduleAsync(Runnable run, long delay, long period);
+    void scheduleAsync(Runnable run, long delay, long period);
 
-    public void warning(String msg);
+    void warning(String msg);
 
-    public void print(String msg);
+    void print(String msg);
 
-    public void print(Throwable t);
+    void print(Throwable t);
 
-    public void debug(String msg);
+    void debug(String msg);
 
-    public boolean debug();
+    boolean debug();
 
-    public MySender getSender(String name);
+    MySender getSender(String name);
 
-    public void dispatchCommand(MySender sender, String command);
+    void dispatchCommand(MySender sender, String command);
 
-    public SyncNetCore getSync();
+    SyncNetCore getSync();
 
-    public List<PlayerData> getPlayers();
+    List<PlayerData> getPlayers();
 
-    public void setDebug(boolean debug);
+    void setDebug(boolean debug);
 }

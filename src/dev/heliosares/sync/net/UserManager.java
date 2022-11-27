@@ -78,7 +78,6 @@ public class UserManager extends NetListener {
                     sendPlayers(packet.getForward());
                 } catch (IOException | GeneralSecurityException e) {
                     plugin.print(e);
-                    return;
                 }
             }
         } else if (packet.getPayload().has("players")) {

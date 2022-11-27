@@ -14,7 +14,7 @@ import java.util.*;
 
 public class SpigotConsoleSender implements ConsoleCommandSender {
 
-    private ArrayList<String> output = new ArrayList<>();
+    private final ArrayList<String> output = new ArrayList<>();
 
     public List<String> getOutput() {
         return Collections.unmodifiableList(output);

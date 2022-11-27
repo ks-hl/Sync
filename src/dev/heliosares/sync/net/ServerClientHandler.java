@@ -29,7 +29,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     continue;
                 }
                 if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                    plugin.debug("received from " + getName() + ": " + packet.toString());
+                    plugin.debug("received from " + getName() + ": " + packet);
                 }
                 boolean noname = getName() == null;
                 if (packet.getPacketId() == Packets.HANDSHAKE.id) {

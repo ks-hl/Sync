@@ -10,7 +10,7 @@ public class FormulaParser {
     private final Random random = new Random();
     public String equation;
     private int pos = -1, ch;
-    private HashMap<String, Supplier<Object>> variables = new HashMap<>();
+    private final HashMap<String, Supplier<Object>> variables = new HashMap<>();
 
     public FormulaParser(String equation) {
         this.originalEquation = equation.toLowerCase();

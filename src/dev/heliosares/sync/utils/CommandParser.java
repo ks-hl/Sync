@@ -20,7 +20,6 @@ public class CommandParser {
         if (sender != null) {
             if (!sender.hasPermissionExplicit("sync." + command)) {
                 sender.sendMessage("§cNo permission");
-                return;
             }
         }
     }
@@ -44,7 +43,7 @@ public class CommandParser {
     }
 
     public static Result parse(String key, String cmd) {
-        String args[] = cmd.split(" ");
+        String[] args = cmd.split(" ");
         String value = null;
         String out = "";
         boolean escape = false;
@@ -66,8 +65,6 @@ public class CommandParser {
         return new Result(out, value);
     }
 
-    ;
-
     public static String concat(int start, String... args) {
         String out = "";
         for (int i = start; i < args.length; i++) {
@@ -79,6 +76,6 @@ public class CommandParser {
         return out;
     }
 
-    public static record Result(String remaining, String value) {
+    public record Result(String remaining, String value) {
     }
 }

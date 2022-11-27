@@ -67,7 +67,6 @@ public class SocketConnection {
                 if (next == -1) {
                     throw new SocketException("disconnected");
                 }
-            ;
         }
         synchronized (in) {
             int size = in.readInt();
@@ -83,7 +82,7 @@ public class SocketConnection {
             synchronized (in) {
                 Packet packet = new Packet(new JSONObject(new String(read())));
                 if (packet.getPacketId() != Packets.KEEPALIVE.id)
-                    SyncAPI.getInstance().debug("RECV: " + packet.toString());
+                    SyncAPI.getInstance().debug("RECV: " + packet);
                 if (packet.getPacketId() == Packets.BLOB.id) {
                     packet.setBlob(read());
                 }
@@ -95,7 +94,7 @@ public class SocketConnection {
         }
     }
 
-    private void send(byte b[]) throws IOException, GeneralSecurityException {
+    private void send(byte[] b) throws IOException, GeneralSecurityException {
         synchronized (out) {
             for (int i = 0; i < 8; i++)
                 out.write(i);

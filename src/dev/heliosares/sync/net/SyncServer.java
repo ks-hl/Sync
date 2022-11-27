@@ -18,9 +18,9 @@ import java.util.List;
 public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
     private final NetEventHandler eventhandler;
-    private ServerSocket serverSocket;
     private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
-    private UserManager usermanager;
+    private ServerSocket serverSocket;
+    private final UserManager usermanager;
     private boolean closed = false;
 
     public SyncServer(SyncCoreProxy plugin) {

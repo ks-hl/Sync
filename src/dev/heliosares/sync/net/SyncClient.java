@@ -62,7 +62,7 @@ public class SyncClient implements SyncNetCore {
                                 continue;
                             }
                             if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                                plugin.debug("received: " + packet.toString());
+                                plugin.debug("received: " + packet);
                             }
                             boolean isHandshake = packet.getPacketId() == Packets.HANDSHAKE.id;
                             boolean noname = connection.getName() == null;
