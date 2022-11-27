@@ -48,7 +48,6 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("name", name)));
 
                     server.updateClientsWithServerList();
-                    continue;
                 } else if (noname) {
                     plugin.warning("Client tried to send packet without handshake. Disconnecting");
                     close();

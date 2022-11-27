@@ -46,7 +46,7 @@ public class Main implements SyncCore {
 
         SyncClient sync = new SyncClient(new Main());
         try {
-            sync.start("127.0.0.1", port, -1);
+            sync.start(port, -1);
             while (!sync.isConnected() || sync.getName() == null) {
                 Thread.sleep(10);
             }

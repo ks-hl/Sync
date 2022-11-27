@@ -68,7 +68,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
         sync = new SyncClient(this);
         try {
-            sync.start("127.0.0.1", getConfig().getInt("port", 8001), this.getServer().getPort());
+            sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
         } catch (IOException e1) {
             warning("Error while enabling.");
             print(e1);

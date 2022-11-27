@@ -19,6 +19,9 @@ public class Packet {
         this(channel, packetID, payload, responseID, true);
     }
 
+    /**
+     * @deprecated Use {@link #Packet(String, int, JSONObject)} instead
+     */
     @Deprecated
     public Packet(String channel, int packetID, JSONObject payload, byte[] blob) {
         this(channel, packetID, payload);

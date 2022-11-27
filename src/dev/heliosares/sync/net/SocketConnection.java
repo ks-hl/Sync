@@ -136,6 +136,9 @@ public class SocketConnection {
         if (closed) {
             return;
         }
+        if (getName() == null) {
+            throw new IllegalStateException("Can not send packets before handshake.");
+        }
         if (packet.isResponse() && consumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
         synchronized (out) {

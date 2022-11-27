@@ -6,6 +6,7 @@ import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.spigot.SyncSpigot;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +14,7 @@ import java.util.UUID;
 public class SyncAPI {
     private static SyncCore instance;
 
-    public static SyncCore getInstance() {
+    public static @Nonnull SyncCore getInstance() {
         if (instance != null) {
             return instance;
         }
@@ -29,7 +30,8 @@ public class SyncAPI {
             }
         } catch (Throwable ignored) {
         }
-        return instance;
+        assert false : "No instance of Sync"; // This should never be reached
+        return null;
     }
 
     /**

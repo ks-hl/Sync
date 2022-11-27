@@ -26,7 +26,7 @@ public class UserManager extends NetListener {
         this.plugin = plugin;
 
         if (sync instanceof SyncClient)
-            plugin.scheduleAsync(() -> sendCurrentHash(), 10000, 10000);
+            plugin.scheduleAsync(this::sendCurrentHash, 10000, 10000);
     }
 
     private static int hash(List<PlayerData> players) {
@@ -76,7 +76,7 @@ public class UserManager extends NetListener {
             if (packet.getPayload().getString("request").equalsIgnoreCase("all")) {
                 try {
                     sendPlayers(packet.getForward());
-                } catch (IOException | GeneralSecurityException e) {
+                } catch (IOException e) {
                     plugin.print(e);
                 }
             }
@@ -112,7 +112,7 @@ public class UserManager extends NetListener {
                     synchronized (players) {
                         otherhash = hash(players.get(packet.getForward()));
                     }
-                } catch (NullPointerException e) {
+                } catch (NullPointerException ignored) {
                 }
                 if (hash != otherhash) {
                     plugin.warning("Hash mismatch! " + hash + "!=" + otherhash);
@@ -126,12 +126,12 @@ public class UserManager extends NetListener {
         try {
             sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", "all"))
                     .setForward(sync.getName()));
-        } catch (JSONException | IOException | GeneralSecurityException e) {
+        } catch (JSONException | IOException e) {
             plugin.print(e);
         }
     }
 
-    public void sendPlayers(@Nullable String server) throws IOException, GeneralSecurityException {
+    public void sendPlayers(@Nullable String server) throws IOException {
         if (sync instanceof SyncServer) {
             return;
         }
@@ -209,27 +209,25 @@ public class UserManager extends NetListener {
             if (players.isEmpty()) {
                 return "No servers";
             }
-            String build = "";
+            StringBuilder build = new StringBuilder();
             for (Entry<String, List<PlayerData>> entry : players.entrySet()) {
-                build += "§6§l" + entry.getKey() + "§7: ";
+                build.append("§6§l").append(entry.getKey()).append("§7: ");
                 if (entry.getValue().isEmpty()) {
-                    build += "None\n";
+                    build.append("None\n");
                     continue;
                 }
-                build += "\n";
-                String line = "";
+                build.append("\n");
+                StringBuilder line = new StringBuilder();
                 for (PlayerData p : entry.getValue()) {
                     if (line.length() > 100) {
-                        build += line + "\n";
-                        line = "";
+                        build.append(line).append("\n");
+                        line = new StringBuilder();
                     }
-                    line += (p.isVanished() ? "§c[V]§7" : "§7") + p.getName() + ", ";
+                    line.append(p.isVanished() ? "§c[V]§7" : "§7").append(p.getName()).append(", ");
                 }
-                if (line.length() > 0) {
-                    build += line + "\n";
-                }
+                build.append(line).append("\n");
             }
-            return build.isEmpty() ? "" : build.substring(0, build.length() - 1);
+            return build.substring(0, build.length() - 1);
         }
     }
 
@@ -240,8 +238,8 @@ public class UserManager extends NetListener {
                     new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
                             lasthash = plugin.getPlayers().stream()
                                     .map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
-                                    .reduce((a, b) -> a + b).get())));
-        } catch (JSONException | IOException | GeneralSecurityException e) {
+                                    .reduce(Integer::sum).get())));
+        } catch (JSONException | IOException e) {
             plugin.print(e);
         }
     }
@@ -250,12 +248,12 @@ public class UserManager extends NetListener {
         plugin.debug("Sending quit for " + uuid.toString());
         try {
             Optional<Integer> hash = plugin.getPlayers().stream().filter(p -> !p.getUUID().equals(uuid))
-                    .map(p -> p.hashData()).reduce((a, b) -> a + b);
+                    .map(PlayerData::hashData).reduce(Integer::sum);
             sync.send("all",
                     new Packet(null, Packets.PLAYER_DATA.id,
                             new JSONObject().put("quit", new JSONArray().put(uuid.toString())).put("hash",
-                                    hash.isPresent() ? (lasthash = hash.get()) : 0)));
-        } catch (JSONException | IOException | GeneralSecurityException e) {
+                                    hash.map(integer -> (lasthash = integer)).orElse(0))));
+        } catch (JSONException | IOException e) {
             plugin.print(e);
         }
     }

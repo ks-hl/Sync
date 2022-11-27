@@ -3,15 +3,16 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncCore;
 import org.json.JSONObject;
 
+import javax.annotation.Nullable;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.GeneralSecurityException;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public class SyncClient implements SyncNetCore {
     private final SyncCore plugin;
@@ -32,91 +33,87 @@ public class SyncClient implements SyncNetCore {
     /**
      * Initiates the client. This should only be called once, onEnable
      *
-     * @param ip         Currently only loopback (127.0.0.1) is supported
      * @param port       Port of the proxy server
      * @param serverport Port of this Minecraft server
      * @throws IOException
      */
-    public void start(String ip, int port, int serverport) throws IOException {
+    public void start(int port, int serverport) throws IOException {
         if (connection != null) {
             throw new IllegalStateException("Client already started");
         }
-        plugin.runAsync(new Runnable() {
-            @Override
-            public void run() {
-                while (!closed) {
-                    if (unableToConnectCount < 3 || plugin.debug()) {
-                        plugin.print("Client connecting on port " + port + "...");
-                    }
-                    try {
-                        connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
+        plugin.runAsync(() -> {
+            while (!closed) {
+                if (unableToConnectCount < 3 || plugin.debug()) {
+                    plugin.print("Client connecting on port " + port + "...");
+                }
+                try {
+                    connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
 
-                        plugin.debug("Sending handshake");
-                        connection.send(
-                                new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
+                    plugin.debug("Sending handshake");
+                    connection.send(
+                            new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
 
-                        while (!closed) { // Listen for packets
-                            Packet packet = connection.listen();
-                            if (packet == null) {
-                                plugin.warning("Null packet received");
-                                continue;
-                            }
-                            if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                                plugin.debug("received: " + packet);
-                            }
-                            boolean isHandshake = packet.getPacketId() == Packets.HANDSHAKE.id;
-                            boolean noname = connection.getName() == null;
-                            if (isHandshake) {
-                                if (!noname) {
-                                    plugin.warning("Server tried to handshake after connected. Reconnecting...");
-                                    break;
-                                }
-                                connection.setName(packet.getPayload().getString("name"));
-                                plugin.print("Connected as " + connection.getName());
-                                unableToConnectCount = 0;
-
-                                usermanager.sendPlayers("all");
-                                usermanager.request("all");
-
-                                continue;
-                            }
-                            if (noname) {
-                                plugin.warning("Server tried to send packet without handshake. Reconnecting...");
+                    while (!closed) { // Listen for packets
+                        Packet packet = connection.listen();
+                        if (packet == null) {
+                            plugin.warning("Null packet received");
+                            continue;
+                        }
+                        if (packet.getPacketId() != Packets.KEEPALIVE.id) {
+                            plugin.debug("received: " + packet);
+                        }
+                        boolean isHandshake = packet.getPacketId() == Packets.HANDSHAKE.id;
+                        boolean noname = connection.getName() == null;
+                        if (isHandshake) {
+                            if (!noname) {
+                                plugin.warning("Server tried to handshake after connected. Reconnecting...");
                                 break;
                             }
-                            if (packet.getPacketId() == Packets.SERVER_LIST.id) {
-                                servers = packet.getPayload().getJSONArray("servers").toList().stream()
-                                        .map(o -> (String) o).collect(Collectors.toUnmodifiableList());
-                            }
+                            connection.setName(packet.getPayload().getString("name"));
+                            plugin.print("Connected as " + connection.getName());
+                            unableToConnectCount = 0;
 
-                            eventhandler.execute("proxy", packet);
+                            usermanager.sendPlayers("all");
+                            usermanager.request("all");
+
+                            continue;
                         }
-                    } catch (ConnectException e) {
-                        if (!plugin.debug() && ++unableToConnectCount == 3) {
-                            plugin.print("Server not available. Continuing to attempt silently...");
-                        } else if (plugin.debug() || unableToConnectCount < 3) {
-                            plugin.print("Server not available. Retrying...");
+                        if (noname) {
+                            plugin.warning("Server tried to send packet without handshake. Reconnecting...");
+                            break;
                         }
-                    } catch (NullPointerException | SocketException | EOFException e) {
-                        plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
-                        if (plugin.debug()) {
-                            plugin.print(e);
+                        if (packet.getPacketId() == Packets.SERVER_LIST.id) {
+                            servers = packet.getPayload().getJSONArray("servers").toList().stream()
+                                    .map(o -> (String) o).toList();
                         }
-                        if (closed) {
-                            return;
-                        }
-                    } catch (Exception e) {
-                        plugin.warning("Client crashed. Restarting...");
-                        plugin.print(e);
-                    } finally {
-                        closeTemporary();
+
+                        eventhandler.execute("proxy", packet);
                     }
-                    try {
-                        Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
-                    } catch (InterruptedException e) {
-                        plugin.warning("Failed to delay");
+                } catch (ConnectException e) {
+                    if (!plugin.debug() && ++unableToConnectCount == 3) {
+                        plugin.print("Server not available. Continuing to attempt silently...");
+                    } else if (plugin.debug() || unableToConnectCount < 3) {
+                        plugin.print("Server not available. Retrying...");
+                    }
+                } catch (NullPointerException | SocketException | EOFException e) {
+                    plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
+                    if (plugin.debug()) {
                         plugin.print(e);
                     }
+                    if (closed) {
+                        return;
+                    }
+                } catch (Exception e) {
+                    plugin.warning("Client crashed. Restarting...");
+                    plugin.print(e);
+                } finally {
+                    closeTemporary();
+                }
+                try {
+                    Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
+                } catch (InterruptedException e) {
+                    plugin.warning("Failed to delay");
+                    plugin.print(e);
                 }
             }
         });
@@ -143,13 +140,9 @@ public class SyncClient implements SyncNetCore {
     /**
      * Sends a packet!
      *
-     * @param packet
-     * @throws IOException
+     * @return always true
      */
-    public boolean send(Packet packet) throws IOException, GeneralSecurityException {
-        if (connection.getName() == null) {
-            throw new IllegalStateException("Can not send packets before handshake.");
-        }
+    public boolean send(Packet packet) throws IOException {
         connection.send(packet);
         return true;
     }
@@ -197,14 +190,28 @@ public class SyncClient implements SyncNetCore {
         return servers;
     }
 
-    public boolean send(String server, Packet packet) throws IOException, GeneralSecurityException {
+    public boolean send(@Nullable String server, Packet packet) throws IOException {
         if (server != null && !server.equals("all")) {
             if (servers == null || !servers.contains(server)) {
                 return false;
             }
         }
         packet.setForward(server);
-        return send(packet);
+        send(packet);
+        return true;
+    }
+
+    @Override
+    public CompletableFuture<Packet> sendCompletable(String server, Packet packet) throws IOException {
+        packet.setForward(server);
+        return connection.sendCompletable(packet);
+    }
+
+    @Override
+    public boolean sendConsumer(String server, Packet packet, Consumer<Packet> consumer) throws IOException {
+        packet.setForward(server);
+        connection.sendConsumer(packet, consumer);
+        return true;
     }
 
     @Override

@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncCoreProxy;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -14,6 +15,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
@@ -33,8 +36,8 @@ public class SyncServer implements SyncNetCore {
     /**
      * Send to all servers
      *
-     * @param packetid
      * @param packet
+     * @return
      */
     public boolean send(Packet packet) {
         return send(null, packet);
@@ -49,11 +52,22 @@ public class SyncServer implements SyncNetCore {
      * @return
      */
     public boolean send(String server, Packet packet) {
+        return sendConsumer(server, packet, null);
+    }
+
+    @Override
+    public @Nullable CompletableFuture<Packet> sendCompletable(String server, Packet packet) {
+        CompletableFuture<Packet> completableFuture = new CompletableFuture<>();
+        if (!sendConsumer(server, packet, completableFuture::complete)) return null;
+        return completableFuture;
+    }
+
+    @Override
+    public boolean sendConsumer(String server, Packet packet, @Nullable Consumer<Packet> consumer) {
         boolean any = false;
         synchronized (clients) {
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
             Iterator<ServerClientHandler> it = clients.iterator();
-            outer:
             while (it.hasNext()) {
                 ServerClientHandler ch = it.next();
                 if (ch.getName() == null || !ch.isConnected()) {
@@ -66,12 +80,12 @@ public class SyncServer implements SyncNetCore {
                             break contains;
                         }
                     }
-                    continue outer;
+                    continue;
                 }
                 try {
-                    ch.send(packet);
+                    ch.sendConsumer(packet, consumer);
                     any = true;
-                } catch (IOException | GeneralSecurityException e) {
+                } catch (IOException e) {
                     plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");
                     plugin.print(e);
                     ch.close();

@@ -1,13 +1,19 @@
 package dev.heliosares.sync.net;
 
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public interface SyncNetCore {
-    boolean send(Packet packet) throws IOException, GeneralSecurityException;
+    boolean send(Packet packet) throws IOException;
 
-    boolean send(String server, Packet packet) throws IOException, GeneralSecurityException;
+    boolean send(String server, Packet packet) throws IOException;
+
+    CompletableFuture<Packet> sendCompletable(String server, Packet packet) throws IOException;
+
+    boolean sendConsumer(String server, Packet packet, Consumer<Packet> consumer) throws IOException;
+
 
     NetEventHandler getEventHandler();
 
