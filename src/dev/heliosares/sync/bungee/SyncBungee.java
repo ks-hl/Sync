@@ -48,32 +48,32 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         instance = this;
         loadConfig();
 
-        if (config.getString("privatekey", null) == null) {
-            print("Generating new keys...");
-            KeyPair pair;
-            try {
-                pair = EncryptionManager.generateRSAKkeyPair();
-            } catch (Exception e) {
-                warning("Failed to generate keys");
-                print(e);
-                return;
-            }
-            config.set("privatekey", EncryptionManager.encode(pair.getPrivate().getEncoded()));
-            config.set("publickey", EncryptionManager.encode(pair.getPublic().getEncoded()));
-            saveConfig();
-            print("Done.");
-        }
+//        if (config.getString("privatekey", null) == null) {
+//            print("Generating new keys...");
+//            KeyPair pair;
+//            try {
+//                pair = EncryptionManager.generateRSAKkeyPair();
+//            } catch (Exception e) {
+//                warning("Failed to generate keys");
+//                print(e);
+//                return;
+//            }
+//            config.set("privatekey", EncryptionManager.encode(pair.getPrivate().getEncoded()));
+//            config.set("publickey", EncryptionManager.encode(pair.getPublic().getEncoded()));
+//            saveConfig();
+//            print("Done.");
+//        }
 
-        try {
-            EncryptionManager.setRSAkey(config.getString("privatekey"), true);
-        } catch (Throwable t) {
-            warning("Invalid key. Disabling.");
-            if (debug) {
-                print(t);
-            }
-            this.onDisable();
-            return;
-        }
+//        try {
+//            EncryptionManager.setRSAkey(config.getString("privatekey"), true);
+//        } catch (Throwable t) {
+//            warning("Invalid key. Disabling.");
+//            if (debug) {
+//                print(t);
+//            }
+//            this.onDisable();
+//            return;
+//        }
 
         print("Enabling");
         getProxy().getPluginManager().registerCommand(this, new ProxyCommandListener("msync", this));
