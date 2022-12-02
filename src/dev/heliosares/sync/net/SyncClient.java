@@ -206,15 +206,9 @@ public class SyncClient implements SyncNetCore {
     }
 
     @Override
-    public CompletableFuture<Packet> sendCompletable(String server, Packet packet) throws IOException {
+    public boolean sendConsumer(String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
         packet.setForward(server);
-        return connection.sendCompletable(packet);
-    }
-
-    @Override
-    public boolean sendConsumer(String server, Packet packet, Consumer<Packet> consumer) throws IOException {
-        packet.setForward(server);
-        connection.sendConsumer(packet, consumer);
+        connection.sendConsumer(packet, responseConsumer);
         return true;
     }
 

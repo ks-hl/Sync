@@ -6,6 +6,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.*;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -60,6 +61,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         this.getCommand("psync").setExecutor(cmd);
         this.getCommand("psync").setTabCompleter(cmd);
         this.getCommand("if").setExecutor(cmd);
+        this.getCommand("mtell").setExecutor(cmd);
         this.getServer().getPluginManager().registerEvents(this, this);
         try {
             this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
@@ -262,5 +264,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
         getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50, period / 50);
+    }
+
+    @Override
+    public boolean isAsync() {
+        return Bukkit.isPrimaryThread();
     }
 }

@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
@@ -56,14 +55,7 @@ public class SyncServer implements SyncNetCore {
     }
 
     @Override
-    public @Nullable CompletableFuture<Packet> sendCompletable(String server, Packet packet) {
-        CompletableFuture<Packet> completableFuture = new CompletableFuture<>();
-        if (!sendConsumer(server, packet, completableFuture::complete)) return null;
-        return completableFuture;
-    }
-
-    @Override
-    public boolean sendConsumer(String server, Packet packet, @Nullable Consumer<Packet> consumer) {
+    public boolean sendConsumer(String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
         boolean any = false;
         synchronized (clients) {
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
@@ -83,7 +75,7 @@ public class SyncServer implements SyncNetCore {
                     continue;
                 }
                 try {
-                    ch.sendConsumer(packet, consumer);
+                    ch.sendConsumer(packet, responseConsumer);
                     any = true;
                 } catch (IOException e) {
                     plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");

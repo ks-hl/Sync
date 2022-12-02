@@ -13,3 +13,6 @@ commands:
     if:
         usage: /if
         description: Base command
+    mtell:
+        usage: /mtell <player> <msg>
+        description: Send a player a message on any server

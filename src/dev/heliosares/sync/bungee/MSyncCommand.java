@@ -15,10 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-public class ProxyCommandListener extends Command implements TabExecutor {
+public class MSyncCommand extends Command implements TabExecutor {
     private final SyncBungee plugin;
 
-    public ProxyCommandListener(String name, SyncBungee plugin) {
+    public MSyncCommand(String name, SyncBungee plugin) {
         super(name);
         this.plugin = plugin;
     }

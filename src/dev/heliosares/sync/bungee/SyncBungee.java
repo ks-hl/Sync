@@ -75,7 +75,8 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 //        }
 
         print("Enabling");
-        getProxy().getPluginManager().registerCommand(this, new ProxyCommandListener("msync", this));
+        getProxy().getPluginManager().registerCommand(this, new MSyncCommand("msync", this));
+        getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
 
         sync = new SyncServer(this);
         try {
@@ -211,6 +212,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
         getProxy().getScheduler().schedule(this, run, delay, period, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public boolean isAsync() {
+        return true;
     }
 
     @Override

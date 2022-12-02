@@ -1,5 +1,6 @@
 package dev.heliosares.sync.net;
 
+import dev.heliosares.sync.SyncAPI;
 import org.json.JSONObject;
 
 import java.util.UUID;
@@ -42,6 +43,10 @@ public class PlayerData {
     }
 
     public int hashData() {
-        return (uuid.toString() + (vanished ? "v" : "n")).hashCode();
+        return toJSON().toString().hashCode();
+    }
+
+    public void sendMessage(String msg) throws Exception {
+        SyncAPI.send(server, new Packet(null, Packets.MESSAGE.id, new JSONObject().put("to", name).put("msg", msg)));
     }
 }

@@ -123,4 +123,9 @@ public class Main implements SyncCore {
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
     }
+
+    @Override
+    public boolean isAsync() {
+        return true;
+    }
 }

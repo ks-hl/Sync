@@ -13,7 +13,6 @@ import java.net.SocketException;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class SocketConnection {
@@ -122,28 +121,22 @@ public class SocketConnection {
         }
     }
 
-    public void send(Packet packet) throws IOException {
+    protected void send(Packet packet) throws IOException {
         sendConsumer(packet, null);
     }
 
-    public CompletableFuture<Packet> sendCompletable(Packet packet) throws IOException {
-        CompletableFuture<Packet> completableFuture = new CompletableFuture<>();
-        sendConsumer(packet, completableFuture::complete);
-        return completableFuture;
-    }
-
-    public void sendConsumer(Packet packet, @Nullable Consumer<Packet> consumer) throws IOException {
+    protected void sendConsumer(Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
         if (closed) {
             return;
         }
         if (getName() == null && packet.getPacketId() != Packets.HANDSHAKE.id) {
             throw new IllegalStateException("Cannot send packets before handshake.");
         }
-        if (packet.isResponse() && consumer != null)
+        if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
         synchronized (out) {
-            if (consumer != null)
-                responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), consumer));
+            if (responseConsumer != null)
+                responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), responseConsumer));
             String plain = packet.toString();
             if (packet.getPacketId() != Packets.KEEPALIVE.id) SyncAPI.getInstance().debug("SEND: " + plain);
             send(plain.getBytes());

@@ -12,6 +12,8 @@ public interface SyncCore {
 
     void scheduleAsync(Runnable run, long delay, long period);
 
+    public boolean isAsync();
+
     void warning(String msg);
 
     void print(String msg);

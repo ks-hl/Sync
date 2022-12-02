@@ -1,8 +1,10 @@
 package dev.heliosares.sync.spigot;
 
+import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
 import org.bukkit.Bukkit;
@@ -10,6 +12,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -49,16 +52,17 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
-
-            try {
-                plugin.getSync().send(new Packet(null, Packets.COMMAND.id,
-                        new JSONObject().put("command", CommandParser.concat(0, args))));
-            } catch (Exception e) {
-                sender.sendMessage("§cAn error occured");
-                plugin.print(e);
-                return true;
-            }
-            sender.sendMessage("§aCommand sent.");
+            plugin.runAsync(() -> {
+                try {
+                    plugin.getSync().send(new Packet(null, Packets.COMMAND.id,
+                            new JSONObject().put("command", CommandParser.concat(0, args))));
+                } catch (Exception e) {
+                    sender.sendMessage("§cAn error occured");
+                    plugin.print(e);
+                    return;
+                }
+                sender.sendMessage("§aCommand sent.");
+            });
             return true;
         } else if (cmd.getLabel().equalsIgnoreCase("if")) {
             if (!sender.hasPermission("sync.if")) {
@@ -128,6 +132,37 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     }
                 });
             }
+            return true;
+        } else if (cmd.getLabel().equalsIgnoreCase("mtell")) {
+            if (!sender.hasPermission("sync.mtell")) {
+                sender.sendMessage("§cNo permission");
+                return true;
+            }
+
+
+            StringBuilder msgBuilder = new StringBuilder(args[1]);
+            for (int i = 2; i < args.length; i++) msgBuilder.append(" ").append(args[i]);
+            final String msg = msgBuilder.toString();
+
+            Player targetLocal = Bukkit.getPlayer(args[0]);
+            if (targetLocal != null) {
+                targetLocal.sendMessage(msg);
+                return true;
+            }
+
+            plugin.runAsync(() -> {
+                PlayerData target = SyncAPI.getPlayer(args[0]);
+                if (target == null) {
+                    sender.sendMessage("§cPlayer not found");
+                    return;
+                }
+                try {
+                    target.sendMessage(msg.toString());
+                } catch (Exception e) {
+                    sender.sendMessage("§cAn error occured");
+                    plugin.print(e);
+                }
+            });
             return true;
         }
         return false;

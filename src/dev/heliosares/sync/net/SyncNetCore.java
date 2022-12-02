@@ -10,8 +10,6 @@ public interface SyncNetCore {
 
     boolean send(String server, Packet packet) throws IOException;
 
-    CompletableFuture<Packet> sendCompletable(String server, Packet packet) throws IOException;
-
     boolean sendConsumer(String server, Packet packet, Consumer<Packet> consumer) throws IOException;
 
 
