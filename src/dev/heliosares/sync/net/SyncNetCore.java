@@ -2,7 +2,6 @@ package dev.heliosares.sync.net;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public interface SyncNetCore {

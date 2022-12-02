@@ -56,11 +56,6 @@ public class Packet {
         if (packet.has("fw")) forward = packet.getString("fw");
     }
 
-    void setOrigin(String origin) {
-        if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
-        this.origin = origin;
-    }
-
     Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
         this.responseID = responseID;
         this.channel = channel;
@@ -71,6 +66,11 @@ public class Packet {
 
     public String getOrigin() {
         return origin;
+    }
+
+    void setOrigin(String origin) {
+        if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
+        this.origin = origin;
     }
 
     /**
