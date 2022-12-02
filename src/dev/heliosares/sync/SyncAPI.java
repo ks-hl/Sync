@@ -75,7 +75,6 @@ public class SyncAPI {
     /**
      * Unregisters all listeners on this channel
      *
-     * @param channel
      */
     public static void unregister(String channel) {
         getInstance().getSync().getEventHandler().unregisterChannel(channel);

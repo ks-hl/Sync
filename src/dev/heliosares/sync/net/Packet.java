@@ -37,7 +37,7 @@ public class Packet {
      */
     Packet(JSONObject packet) {
         packetID = packet.getInt("pid");
-        if (packet.has("dir")) {
+        if (packet.has("dir")) { // Get it? Like rid but backwards
             responseID = packet.getLong("dir");
             isResponse = true;
         } else if (packet.has("rid")) {
@@ -76,9 +76,7 @@ public class Packet {
     /**
      * Generates a packet to respond to this packet.
      *
-     * @param channel  See constructors
-     * @param packetID See constructors
-     * @param payload  See constructors
+     * @param payload The payload with which to respond
      * @return The response packet
      */
     public Packet createResponse(JSONObject payload) {
@@ -157,8 +155,4 @@ public class Packet {
     public Packet unmodifiable() {
         return new UnmodifiablePacket(this);
     }
-
-//    public Packet copy() {
-//        return new Packet(toJSON()).setBlob(getBlob());
-//    }
 }
