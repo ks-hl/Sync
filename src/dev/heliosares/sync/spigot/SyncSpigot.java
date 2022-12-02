@@ -268,6 +268,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @Override
     public boolean isAsync() {
-        return Bukkit.isPrimaryThread();
+        return !Bukkit.isPrimaryThread();
     }
 }

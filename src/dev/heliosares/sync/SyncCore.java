@@ -3,6 +3,7 @@ package dev.heliosares.sync;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 public interface SyncCore {
@@ -30,6 +31,7 @@ public interface SyncCore {
 
     SyncNetCore getSync();
 
+    @Nullable
     List<PlayerData> getPlayers();
 
     void setDebug(boolean debug);

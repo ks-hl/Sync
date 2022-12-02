@@ -6,13 +6,14 @@ import dev.heliosares.sync.net.*;
 import dev.heliosares.sync.utils.CommandParser;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.util.List;
-import java.util.Scanner;
 
-public class Main implements SyncCore {
+public class SyncDaemon implements SyncCore {
 
-    public Main() {
+    private static SyncDaemon instance;
+
+    public SyncDaemon() {
+        instance = this;
     }
 
     public static void main(String[] args) {
@@ -20,15 +21,15 @@ public class Main implements SyncCore {
             System.err.println("You must specify arguments");
             return;
         }
-        try {
-            Scanner sc = new Scanner(new File("key"));
-            EncryptionManager.setRSAkey(sc.nextLine(), false);
-        } catch (Exception e2) {
-            System.err.println("Invalid key");
-            e2.printStackTrace();
-            System.exit(1);
-            return;
-        }
+//        try {
+//            Scanner sc = new Scanner(new File("key"));
+//            EncryptionManager.setRSAkey(sc.nextLine(), false);
+//        } catch (Exception e2) {
+//            System.err.println("Invalid key");
+//            e2.printStackTrace();
+//            System.exit(1);
+//            return;
+//        }
         int port = 8001;
         boolean portTerm = false;
         if (args[0].startsWith("-port:")) {
@@ -44,7 +45,7 @@ public class Main implements SyncCore {
         String command = CommandParser.concat(portTerm ? 1 : 0, args);
         System.out.println("Sending: " + command);
 
-        SyncClient sync = new SyncClient(new Main());
+        SyncClient sync = new SyncClient(new SyncDaemon());
         try {
             sync.start(port, -1);
             while (!sync.isConnected() || sync.getName() == null) {
@@ -60,6 +61,10 @@ public class Main implements SyncCore {
         }
         System.out.println("Command sent.");
         System.exit(0);
+    }
+
+    public static SyncCore getInstance() {
+        return instance;
     }
 
     @Override

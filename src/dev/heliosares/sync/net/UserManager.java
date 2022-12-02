@@ -135,6 +135,7 @@ public class UserManager extends NetListener {
             return;
         }
         List<PlayerData> players = plugin.getPlayers();
+        if (players == null) return;
         sync.send(server,
                 new Packet(null, Packets.PLAYER_DATA.id,
                         new JSONObject()
@@ -144,7 +145,7 @@ public class UserManager extends NetListener {
                                 .put("hash", hash(players))));
     }
 
-    private boolean quit(String server, UUID uuid) {
+    private void quit(String server, UUID uuid) {
         List<PlayerData> current = players.get(server);
         if (current != null) {
             Iterator<PlayerData> it = current.iterator();
@@ -152,11 +153,10 @@ public class UserManager extends NetListener {
                 data = it.next();
                 if (data.getUUID().equals(uuid)) {
                     it.remove();
-                    return true;
+                    return;
                 }
             }
         }
-        return false;
     }
 
     public Map<String, List<PlayerData>> getPlayers() {
@@ -232,28 +232,33 @@ public class UserManager extends NetListener {
 
     public void updatePlayer(PlayerData data) {
         plugin.debug("Sending update for " + data.getName());
-        try {
-            sync.send("all", new Packet(null, Packets.PLAYER_DATA.id,
-                    new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
-                            lasthash = plugin.getPlayers().stream()
-                                    .map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
-                                    .reduce(Integer::sum).get())));
-        } catch (JSONException | IOException e) {
-            plugin.print(e);
-        }
+        plugin.runAsync(() -> {
+            try {
+                sync.send("all", new Packet(null, Packets.PLAYER_DATA.id,
+                        new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
+                                lasthash = plugin.getPlayers().stream()
+                                        .map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
+                                        .reduce(Integer::sum).get())));
+            } catch (JSONException | IOException e) {
+                plugin.print(e);
+            }
+        });
+
     }
 
     public void quitPlayer(UUID uuid) {
         plugin.debug("Sending quit for " + uuid.toString());
-        try {
-            Optional<Integer> hash = plugin.getPlayers().stream().filter(p -> !p.getUUID().equals(uuid))
-                    .map(PlayerData::hashData).reduce(Integer::sum);
-            sync.send("all",
-                    new Packet(null, Packets.PLAYER_DATA.id,
-                            new JSONObject().put("quit", new JSONArray().put(uuid.toString())).put("hash",
-                                    hash.map(integer -> (lasthash = integer)).orElse(0))));
-        } catch (JSONException | IOException e) {
-            plugin.print(e);
-        }
+        plugin.runAsync(() -> {
+            try {
+                Optional<Integer> hash = plugin.getPlayers().stream().filter(p -> !p.getUUID().equals(uuid))
+                        .map(PlayerData::hashData).reduce(Integer::sum);
+                sync.send("all",
+                        new Packet(null, Packets.PLAYER_DATA.id,
+                                new JSONObject().put("quit", new JSONArray().put(uuid.toString())).put("hash",
+                                        hash.map(integer -> (lasthash = integer)).orElse(0))));
+            } catch (JSONException | IOException e) {
+                plugin.print(e);
+            }
+        });
     }
 }
