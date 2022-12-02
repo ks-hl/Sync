@@ -141,16 +141,6 @@ public class SyncClient implements SyncNetCore {
     }
 
     /**
-     * Sends a packet!
-     *
-     * @return always true
-     */
-    public boolean send(Packet packet) throws IOException {
-        connection.send(packet);
-        return true;
-    }
-
-    /**
      * Permanently closes this instance of the client. Only call onDisable
      */
     public void close() {
@@ -193,7 +183,20 @@ public class SyncClient implements SyncNetCore {
         return servers;
     }
 
+
+    /**
+     * Sends a packet!
+     *
+     * @return true if sent
+     */
+    public boolean send(Packet packet) throws IOException {
+        if (notAsync()) return false;
+        connection.send(packet);
+        return true;
+    }
+
     public boolean send(@Nullable String server, Packet packet) throws IOException {
+        if (notAsync()) return false;
         if (server != null && !server.equals("all")) {
             if (servers == null || !servers.contains(server)) {
                 return false;
@@ -206,9 +209,19 @@ public class SyncClient implements SyncNetCore {
 
     @Override
     public boolean sendConsumer(String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
+        if (notAsync()) return false;
         packet.setForward(server);
         connection.sendConsumer(packet, responseConsumer);
         return true;
+    }
+
+    private boolean notAsync() {
+        if (!plugin.isAsync()) {
+            plugin.warning("Synchronous call to sync");
+            Thread.dumpStack();
+            return true;
+        }
+        return false;
     }
 
     @Override
