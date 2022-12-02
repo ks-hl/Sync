@@ -136,13 +136,8 @@ public class UserManager extends NetListener {
         }
         List<PlayerData> players = plugin.getPlayers();
         if (players == null) return;
-        sync.send(server,
-                new Packet(null, Packets.PLAYER_DATA.id,
-                        new JSONObject()
-                                .put("players",
-                                        new JSONArray(
-                                                players.stream().map(PlayerData::toJSON).collect(Collectors.toList())))
-                                .put("hash", hash(players))));
+        sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("players",
+                new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList()))).put("hash", hash(players))));
     }
 
     private void quit(String server, UUID uuid) {

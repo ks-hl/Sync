@@ -20,25 +20,18 @@ public class SyncAPI {
             return instance;
         }
         try {
-            if ((instance = SyncSpigot.getInstance()) != null) {
-                return instance;
-            }
+            if ((instance = SyncSpigot.getInstance()) != null) return instance;
         } catch (Throwable ignored) {
         }
         try {
-            if ((instance = SyncBungee.getInstance()) != null) {
-                return instance;
-            }
+            if ((instance = SyncBungee.getInstance()) != null) return instance;
         } catch (Throwable ignored) {
         }
         try {
-            if ((instance = SyncDaemon.getInstance()) != null) {
-                return instance;
-            }
+            if ((instance = SyncDaemon.getInstance()) != null) return instance;
         } catch (Throwable ignored) {
         }
-        assert false : "No instance of Sync"; // This should never be reached
-        return null;
+        throw new IllegalStateException("No instance of Sync");
     }
 
     /**
