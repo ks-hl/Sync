@@ -190,13 +190,13 @@ public class SyncClient implements SyncNetCore {
      * @return true if sent
      */
     public boolean send(Packet packet) throws IOException {
-        if (notAsync()) return false;
+        checkAsync();
         connection.send(packet);
         return true;
     }
 
     public boolean send(@Nullable String server, Packet packet) throws IOException {
-        if (notAsync()) return false;
+        checkAsync();
         if (server != null && !server.equals("all")) {
             if (servers == null || !servers.contains(server)) {
                 return false;
@@ -209,19 +209,16 @@ public class SyncClient implements SyncNetCore {
 
     @Override
     public boolean sendConsumer(String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
-        if (notAsync()) return false;
+        checkAsync();
         packet.setForward(server);
         connection.sendConsumer(packet, responseConsumer);
         return true;
     }
 
-    private boolean notAsync() {
-        if (!plugin.isAsync()) {
-            plugin.warning("Synchronous call to sync");
-            Thread.dumpStack();
-            return true;
-        }
-        return false;
+    private void checkAsync() {
+        if (plugin.isAsync()) return;
+        plugin.warning("Synchronous call to sync");
+        if (plugin.debug()) Thread.dumpStack();
     }
 
     @Override
