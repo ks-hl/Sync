@@ -100,16 +100,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 }
             }
         });
-        sync.getEventHandler().registerListener(new NetListener(Packets.MESSAGE.id, null) {
-            @Override
-            public void execute(String server, Packet packet) {
-                String msg = packet.getPayload().getString("msg");
-                if (packet.getPayload().has("to")) {
-                    Player to = getServer().getPlayer(packet.getPayload().getString("to"));
-                    if (to != null) to.sendMessage(msg);
-                } else getServer().broadcastMessage(msg);
-            }
-        });
 
         sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
             @Override
@@ -269,5 +259,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     @Override
     public boolean isAsync() {
         return !Bukkit.isPrimaryThread();
+    }
+
+    @Override
+    public PlatformType getPlatformType() {
+        return PlatformType.SPIGOT;
     }
 }

@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
+import net.md_5.bungee.api.chat.BaseComponent;
 import org.json.JSONObject;
 
 import java.util.UUID;
@@ -47,6 +48,10 @@ public class PlayerData {
     }
 
     public void sendMessage(String msg) throws Exception {
-        SyncAPI.send(server, new Packet(null, Packets.MESSAGE.id, new JSONObject().put("to", name).put("msg", msg)));
+        SyncAPI.sendMessage(name, msg, null);
+    }
+
+    public void sendMessage(BaseComponent[] msg) throws Exception {
+        SyncAPI.sendMessage(name, msg, null);
     }
 }

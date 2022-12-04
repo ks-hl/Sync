@@ -126,6 +126,11 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
+    public PlatformType getPlatformType() {
+        return PlatformType.DAEMON;
+    }
+
+    @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
     }
 

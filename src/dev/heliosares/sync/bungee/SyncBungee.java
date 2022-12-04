@@ -8,15 +8,18 @@ import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import org.json.JSONObject;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +27,9 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public class SyncBungee extends Plugin implements SyncCoreProxy {
@@ -91,11 +96,28 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         sync.getEventHandler().registerListener(new NetListener(Packets.MESSAGE.id, null) {
             @Override
             public void execute(String server, Packet packet) {
-                String msg = packet.getPayload().getString("msg");
-                if (packet.getPayload().has("to")) {
-                    ProxiedPlayer to = getProxy().getPlayer(packet.getPayload().getString("to"));
-                    if (to != null) tell(to, msg);
-                } else getProxy().getPlayers().forEach(p -> tell(p, msg));
+                @Nullable String msg = packet.getPayload().optString("msg", null);
+                @Nullable String json = packet.getPayload().optString("json", null);
+                @Nullable String node = packet.getPayload().optString("node", null);
+                @Nullable String to = packet.getPayload().optString("to", null);
+                if (to != null) {
+                    ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
+                    if (toPlayer == null) {
+                        try {
+                            toPlayer = getProxy().getPlayer(UUID.fromString(to));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                    if (toPlayer != null) tell(toPlayer, msg);
+                } else {
+                    Consumer<ProxiedPlayer> send;
+                    if (msg != null) send = p -> tell(p, msg);
+                    else if (json != null) {
+                        BaseComponent[] base = ComponentSerializer.parse(json);
+                        send = p -> p.sendMessage(base);
+                    } else return;
+                    getProxy().getPlayers().stream().filter(p -> node == null || p.hasPermission(node)).forEach(send);
+                }
             }
         });
         sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
@@ -265,5 +287,10 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     @Override
     public void setDebug(boolean debug) {
         this.debug = debug;
+    }
+
+    @Override
+    public PlatformType getPlatformType() {
+        return PlatformType.BUNGEE;
     }
 }

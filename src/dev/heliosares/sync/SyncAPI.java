@@ -2,12 +2,14 @@ package dev.heliosares.sync;
 
 import dev.heliosares.sync.bungee.SyncBungee;
 import dev.heliosares.sync.daemon.SyncDaemon;
-import dev.heliosares.sync.net.NetListener;
-import dev.heliosares.sync.net.Packet;
-import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.*;
 import dev.heliosares.sync.spigot.SyncSpigot;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.chat.ComponentSerializer;
+import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -74,7 +76,6 @@ public class SyncAPI {
 
     /**
      * Unregisters all listeners on this channel
-     *
      */
     public static void unregister(String channel) {
         getInstance().getSync().getEventHandler().unregisterChannel(channel);
@@ -84,4 +85,25 @@ public class SyncAPI {
         return getInstance().getSync().getServers();
     }
 
+    /**
+     * Broadcasts a message to all players with the node
+     */
+    public static void sendMessage(@Nullable String to, BaseComponent[] msg, @Nullable String node) throws Exception {
+        broadcastMessage(new JSONObject().put("json", ComponentSerializer.toString(msg).replace("[JSON]", "")), to, node);
+    }
+
+    /**
+     * Broadcasts a message to all players with the node
+     */
+    public static void sendMessage(@Nullable String to, String raw, @Nullable String node) throws Exception {
+        broadcastMessage(new JSONObject().put("msg", raw), to, node);
+    }
+
+    private static void broadcastMessage(JSONObject payload, @Nullable String to, @Nullable String node) throws Exception {
+        if (getInstance().getSync() instanceof SyncServer)
+            throw new UnsupportedOperationException("Messages can only be sent from clients");
+        if (node != null) payload.put("node", node);
+        if (to != null) payload.put("to", to);
+        send(new Packet(null, Packets.MESSAGE.id, payload));
+    }
 }
