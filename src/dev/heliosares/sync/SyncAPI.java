@@ -89,7 +89,19 @@ public class SyncAPI {
      * Broadcasts a message to all players with the node
      */
     public static void sendMessage(@Nullable String to, BaseComponent[] msg, @Nullable String node) throws Exception {
-        broadcastMessage(new JSONObject().put("json", ComponentSerializer.toString(msg).replace("[JSON]", "")), to, node);
+        sendMessage(to, msg, node, false);
+    }
+
+    /**
+     * Broadcasts a message to all players with the node
+     *
+     * @param othersOnly if true, will not display to players on the sending server
+     */
+    public static void sendMessage(@Nullable String to, BaseComponent[] msg, @Nullable String node, boolean othersOnly) throws Exception {
+        JSONObject packet = new JSONObject();
+        packet.put("json", ComponentSerializer.toString(msg).replace("[JSON]", ""));
+        if (othersOnly) packet.put("others_only", true);
+        broadcastMessage(packet, to, node);
     }
 
     /**

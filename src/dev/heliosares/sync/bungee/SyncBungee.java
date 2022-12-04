@@ -100,6 +100,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
                 @Nullable String json = packet.getPayload().optString("json", null);
                 @Nullable String node = packet.getPayload().optString("node", null);
                 @Nullable String to = packet.getPayload().optString("to", null);
+                boolean others_only = packet.getPayload().optBoolean("others_only");
                 if (to != null) {
                     ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
                     if (toPlayer == null) {
@@ -116,7 +117,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
                         BaseComponent[] base = ComponentSerializer.parse(json);
                         send = p -> p.sendMessage(base);
                     } else return;
-                    getProxy().getPlayers().stream().filter(p -> node == null || p.hasPermission(node)).forEach(send);
+                    ServerInfo ignore = others_only ? getProxy().getServerInfo(server) : null;
+                    getProxy().getPlayers().stream()
+                            .filter(p -> !p.getServer().getInfo().equals(ignore))
+                            .filter(p -> node == null || p.hasPermission(node))
+                            .forEach(send);
                 }
             }
         });
