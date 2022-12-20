@@ -35,7 +35,6 @@ import java.util.logging.Level;
 public class SyncBungee extends Plugin implements SyncCoreProxy {
     private static SyncBungee instance;
     protected Configuration config;
-    protected Configuration data;
     SyncServer sync;
     boolean debug;
 
@@ -52,46 +51,12 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         instance = this;
         loadConfig();
 
-//        if (config.getString("privatekey", null) == null) {
-//            print("Generating new keys...");
-//            KeyPair pair;
-//            try {
-//                pair = EncryptionManager.generateRSAKkeyPair();
-//            } catch (Exception e) {
-//                warning("Failed to generate keys");
-//                print(e);
-//                return;
-//            }
-//            config.set("privatekey", EncryptionManager.encode(pair.getPrivate().getEncoded()));
-//            config.set("publickey", EncryptionManager.encode(pair.getPublic().getEncoded()));
-//            saveConfig();
-//            print("Done.");
-//        }
-
-//        try {
-//            EncryptionManager.setRSAkey(config.getString("privatekey"), true);
-//        } catch (Throwable t) {
-//            warning("Invalid key. Disabling.");
-//            if (debug) {
-//                print(t);
-//            }
-//            this.onDisable();
-//            return;
-//        }
-
         print("Enabling");
         getProxy().getPluginManager().registerCommand(this, new MSyncCommand("msync", this));
         getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
 
         sync = new SyncServer(this);
-        try {
-            sync.start(config.getInt("port", 8001));
-        } catch (IOException e1) {
-            warning("Error while enabling.");
-            print(e1);
-            this.onDisable();
-            return;
-        }
+        sync.start(config.getInt("port", 8001));
 
         sync.getEventHandler().registerListener(new NetListener(Packets.MESSAGE.id, null) {
             @Override
@@ -180,8 +145,9 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     public void loadConfig() {
-        if (!getDataFolder().exists())
-            getDataFolder().mkdir();
+        if (!getDataFolder().exists()) {
+            boolean ignored = getDataFolder().mkdir();
+        }
 
         File file = new File(getDataFolder(), "config.yml");
 
@@ -195,15 +161,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class)
                     .load(new File(getDataFolder(), "config.yml"));
-        } catch (IOException e) {
-            print(e);
-        }
-    }
-
-    public void saveConfig() {
-        try {
-            ConfigurationProvider.getProvider(YamlConfiguration.class).save(config,
-                    new File(getDataFolder(), "config.yml"));
         } catch (IOException e) {
             print(e);
         }

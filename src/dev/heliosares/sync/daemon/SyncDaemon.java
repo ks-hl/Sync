@@ -21,15 +21,6 @@ public class SyncDaemon implements SyncCore {
             System.err.println("You must specify arguments");
             return;
         }
-//        try {
-//            Scanner sc = new Scanner(new File("key"));
-//            EncryptionManager.setRSAkey(sc.nextLine(), false);
-//        } catch (Exception e2) {
-//            System.err.println("Invalid key");
-//            e2.printStackTrace();
-//            System.exit(1);
-//            return;
-//        }
         int port = 8001;
         boolean portTerm = false;
         if (args[0].startsWith("-port:")) {

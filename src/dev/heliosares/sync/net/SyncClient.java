@@ -34,9 +34,8 @@ public class SyncClient implements SyncNetCore {
      *
      * @param port       Port of the proxy server
      * @param serverport Port of this Minecraft server
-     * @throws IOException
      */
-    public void start(int port, int serverport) throws IOException {
+    public void start(int port, int serverport) {
         if (connection != null) {
             throw new IllegalStateException("Client already started");
         }
@@ -126,8 +125,6 @@ public class SyncClient implements SyncNetCore {
      * This should be called about once per second. Informs the server that it is
      * still connected. If no packet is received by the server for 10 seconds, the
      * client will be kicked.
-     *
-     * @throws IOException
      */
     public void keepalive() throws Exception {
         if (closed || connection == null || !connection.isConnected()) {
@@ -209,6 +206,9 @@ public class SyncClient implements SyncNetCore {
         return connection.getName();
     }
 
+    /**
+     * @return Whether the client is actively connected
+     */
     public boolean isConnected() {
         if (connection == null) {
             return false;

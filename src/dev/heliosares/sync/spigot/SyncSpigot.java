@@ -20,6 +20,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -46,22 +47,11 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         this.getConfig().options().copyDefaults(true);
         this.saveDefaultConfig();
 
-        try {
-            EncryptionManager.setRSAkey(getConfig().getString("publickey"), false);
-        } catch (Throwable t) {
-            warning("Invalid key. Disabling.");
-            if (debug) {
-                print(t);
-            }
-            this.setEnabled(false);
-            return;
-        }
-
         SpigotCommandListener cmd = new SpigotCommandListener(this);
-        this.getCommand("psync").setExecutor(cmd);
-        this.getCommand("psync").setTabCompleter(cmd);
-        this.getCommand("if").setExecutor(cmd);
-        this.getCommand("mtell").setExecutor(cmd);
+        Objects.requireNonNull(this.getCommand("psync")).setExecutor(cmd);
+        Objects.requireNonNull(this.getCommand("psync")).setTabCompleter(cmd);
+        Objects.requireNonNull(this.getCommand("if")).setExecutor(cmd);
+        Objects.requireNonNull(this.getCommand("mtell")).setExecutor(cmd);
         this.getServer().getPluginManager().registerEvents(this, this);
         try {
             this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
@@ -69,14 +59,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         }
 
         sync = new SyncClient(this);
-        try {
-            sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
-        } catch (IOException e1) {
-            warning("Error while enabling.");
-            print(e1);
-            this.setEnabled(false);
-            return;
-        }
+        sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
         sync.getEventHandler().registerListener(new NetListener(Packets.PLAY_SOUND.id, null) {
             @Override
             public void execute(String server, Packet packet) {

@@ -10,7 +10,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -70,7 +69,7 @@ public class SocketConnection {
         }
     }
 
-    public void sendKeepalive() throws IOException, GeneralSecurityException {
+    public void sendKeepalive() throws IOException {
         if (System.currentTimeMillis() - getTimeOfLastPacketSent() < 750) {
             return;
         }

@@ -10,7 +10,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -34,9 +33,6 @@ public class SyncServer implements SyncNetCore {
 
     /**
      * Send to all servers
-     *
-     * @param packet
-     * @return
      */
     public boolean send(Packet packet) {
         return send(null, packet);
@@ -47,8 +43,6 @@ public class SyncServer implements SyncNetCore {
      *
      * @param server The name of the server (separated by commas for multiple), or
      *               null or "all" for all servers.
-     * @param packet
-     * @return
      */
     public boolean send(String server, Packet packet) {
         return sendConsumer(server, packet, null);
@@ -92,9 +86,8 @@ public class SyncServer implements SyncNetCore {
      * Initializes the server. This should only be called once onEnable
      *
      * @param port The port to listen to
-     * @throws IOException
      */
-    public void start(int port) throws IOException {
+    public void start(int port) {
         if (serverSocket != null) {
             throw new IllegalStateException("Server already started");
         }
@@ -163,7 +156,7 @@ public class SyncServer implements SyncNetCore {
                 } else {
                     try {
                         ch.sendKeepalive();
-                    } catch (GeneralSecurityException | IOException e) {
+                    } catch (IOException e) {
                         plugin.print(ch.getName() + " timed out");
                         remove = true;
                     }
@@ -176,7 +169,7 @@ public class SyncServer implements SyncNetCore {
         }
     }
 
-    public void updateClientsWithServerList() throws IOException {
+    public void updateClientsWithServerList() {
         send(new Packet(null, Packets.SERVER_LIST.id, new JSONObject().put("servers", new JSONArray(getServers()))));
     }
 
@@ -222,10 +215,7 @@ public class SyncServer implements SyncNetCore {
         synchronized (clients) {
             clients.remove(ch);
         }
-        try {
-            updateClientsWithServerList();
-        } catch (IOException ignored) {
-        }
+        updateClientsWithServerList();
     }
 
     /**
