@@ -163,28 +163,6 @@ public class SyncClient implements SyncNetCore {
     }
 
     /**
-     * @return The name of this server according to the proxy
-     */
-    public String getName() {
-        if (connection == null) {
-            return null;
-        }
-        return connection.getName();
-    }
-
-    public boolean isConnected() {
-        if (connection == null) {
-            return false;
-        }
-        return connection.isConnected();
-    }
-
-    public List<String> getServers() {
-        return servers;
-    }
-
-
-    /**
      * Sends a packet!
      *
      * @return true if sent
@@ -219,6 +197,27 @@ public class SyncClient implements SyncNetCore {
         if (plugin.isAsync()) return;
         plugin.warning("Synchronous call to sync");
         if (plugin.debug()) Thread.dumpStack();
+    }
+
+    /**
+     * @return The name of this server according to the proxy
+     */
+    public String getName() {
+        if (connection == null) {
+            return null;
+        }
+        return connection.getName();
+    }
+
+    public boolean isConnected() {
+        if (connection == null) {
+            return false;
+        }
+        return connection.isConnected();
+    }
+
+    public List<String> getServers() {
+        return servers;
     }
 
     @Override

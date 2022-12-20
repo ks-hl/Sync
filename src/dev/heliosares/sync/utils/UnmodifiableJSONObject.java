@@ -18,10 +18,6 @@ public class UnmodifiableJSONObject extends JSONObject {
         lock = true;
     }
 
-    private void checkLock() {
-        if (lock) throw new UnsupportedOperationException("This JSONObject is locked");
-    }
-
     @Override
     public JSONObject accumulate(String key, Object value) {
         checkLock();
@@ -104,5 +100,9 @@ public class UnmodifiableJSONObject extends JSONObject {
     public JSONObject putOpt(String key, Object value) {
         checkLock();
         return super.putOpt(key, value);
+    }
+
+    private void checkLock() {
+        if (lock) throw new UnsupportedOperationException("This JSONObject is locked");
     }
 }

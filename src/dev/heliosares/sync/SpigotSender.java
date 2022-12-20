@@ -13,11 +13,6 @@ public class SpigotSender implements MySender {
     }
 
     @Override
-    public String getName() {
-        return sender.getName();
-    }
-
-    @Override
     public void sendMessage(String msg) {
         sender.sendMessage(msg);
     }
@@ -40,6 +35,11 @@ public class SpigotSender implements MySender {
     @Override
     public void execute(String command) {
         Bukkit.dispatchCommand(sender, command);
+    }
+
+    @Override
+    public String getName() {
+        return sender.getName();
     }
 
     @Override

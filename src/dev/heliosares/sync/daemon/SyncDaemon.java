@@ -112,6 +112,14 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
+    public void setDebug(boolean debug) {
+    }
+
+    @Override
+    public void scheduleAsync(Runnable run, long delay, long period) {
+    }
+
+    @Override
     public SyncNetCore getSync() {
         return null;
     }
@@ -122,16 +130,8 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
-    public void setDebug(boolean debug) {
-    }
-
-    @Override
     public PlatformType getPlatformType() {
         return PlatformType.DAEMON;
-    }
-
-    @Override
-    public void scheduleAsync(Runnable run, long delay, long period) {
     }
 
     @Override

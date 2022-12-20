@@ -155,15 +155,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         }.runTaskTimerAsynchronously(this, 20, 20);
     }
 
-    private void dispatchCommand(CommandSender sender, String command) {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                getServer().dispatchCommand(sender, command);
-            }
-        }.runTask(this);
-    }
-
     @Override
     public void onDisable() {
         if (sync != null) {
@@ -221,17 +212,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         });
     }
 
-    @Override
-    public SyncClient getSync() {
-        return sync;
-    }
-
-    @Override
-    public List<PlayerData> getPlayers() {
-        return getServer().getOnlinePlayers().stream().map(p -> getPlayerData(p, isVanished(p)))
-                .collect(Collectors.toList());
-    }
-
     public PlayerData getPlayerData(Player p, boolean vanished) {
         return new PlayerData(this.sync.getName(), p.getName(), p.getUniqueId().toString(), vanished);
     }
@@ -254,6 +234,26 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
         getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50, period / 50);
+    }
+
+    private void dispatchCommand(CommandSender sender, String command) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                getServer().dispatchCommand(sender, command);
+            }
+        }.runTask(this);
+    }
+
+    @Override
+    public SyncClient getSync() {
+        return sync;
+    }
+
+    @Override
+    public List<PlayerData> getPlayers() {
+        return getServer().getOnlinePlayers().stream().map(p -> getPlayerData(p, isVanished(p)))
+                .collect(Collectors.toList());
     }
 
     @Override

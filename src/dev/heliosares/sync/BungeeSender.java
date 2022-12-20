@@ -14,11 +14,6 @@ public class BungeeSender implements MySender {
     }
 
     @Override
-    public String getName() {
-        return sender.getName();
-    }
-
-    @Override
     public void sendMessage(String msg) {
         SyncBungee.tell(sender, msg);
     }
@@ -41,6 +36,11 @@ public class BungeeSender implements MySender {
     @Override
     public void execute(String command) {
         plugin.dispatchCommand(this, command);
+    }
+
+    @Override
+    public String getName() {
+        return sender.getName();
     }
 
     @Override

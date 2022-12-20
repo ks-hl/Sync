@@ -13,8 +13,6 @@ public interface SyncCore {
 
     void scheduleAsync(Runnable run, long delay, long period);
 
-    boolean isAsync();
-
     void warning(String msg);
 
     void print(String msg);
@@ -29,16 +27,18 @@ public interface SyncCore {
 
     void dispatchCommand(MySender sender, String command);
 
+    void setDebug(boolean debug);
+
+    enum PlatformType {
+        SPIGOT, BUNGEE, DAEMON
+    }
+
+    boolean isAsync();
+
     SyncNetCore getSync();
 
     @Nullable
     List<PlayerData> getPlayers();
 
-    void setDebug(boolean debug);
-
     PlatformType getPlatformType();
-
-    enum PlatformType {
-        SPIGOT, BUNGEE, DAEMON
-    }
 }

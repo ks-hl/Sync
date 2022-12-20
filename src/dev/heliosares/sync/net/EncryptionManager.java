@@ -36,18 +36,6 @@ public class EncryptionManager {
         return keyPairGenerator.generateKeyPair();
     }
 
-    protected static byte[] encryptRSA(String str) throws GeneralSecurityException {
-        Cipher cipher = Cipher.getInstance(RSA);
-        cipher.init(Cipher.ENCRYPT_MODE, RSA_KEY);
-        return cipher.doFinal(str.getBytes());
-    }
-
-    protected static String decryptRSA(byte[] cipherText) throws GeneralSecurityException {
-        Cipher cipher = Cipher.getInstance(RSA);
-        cipher.init(Cipher.DECRYPT_MODE, RSA_KEY);
-        return new String(cipher.doFinal(cipherText));
-    }
-
     public static SecretKey generateAESkey() throws GeneralSecurityException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
         keyGenerator.init(256);
@@ -82,6 +70,26 @@ public class EncryptionManager {
         return Base64.getDecoder().decode(str);
     }
 
+    public static long hash(String str) {
+        long out = 0;
+        for (int i = 0; i < str.length(); i++) {
+            out += str.charAt(0) * Math.pow(31, str.length() - 1);
+        }
+        return out;
+    }
+
+    protected static byte[] encryptRSA(String str) throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance(RSA);
+        cipher.init(Cipher.ENCRYPT_MODE, RSA_KEY);
+        return cipher.doFinal(str.getBytes());
+    }
+
+    protected static String decryptRSA(byte[] cipherText) throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance(RSA);
+        cipher.init(Cipher.DECRYPT_MODE, RSA_KEY);
+        return new String(cipher.doFinal(cipherText));
+    }
+
     @SuppressWarnings("unused")
     private static byte[][] split(byte[] in) {
         byte[] iv = new byte[16];
@@ -104,14 +112,6 @@ public class EncryptionManager {
             } else {
                 out[i] = two[i - one.length];
             }
-        }
-        return out;
-    }
-
-    public static long hash(String str) {
-        long out = 0;
-        for (int i = 0; i < str.length(); i++) {
-            out += str.charAt(0) * Math.pow(31, str.length() - 1);
         }
         return out;
     }

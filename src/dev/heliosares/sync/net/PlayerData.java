@@ -23,6 +23,18 @@ public class PlayerData {
         return new JSONObject().put("name", name).put("uuid", uuid).put("v", vanished);
     }
 
+    public int hashData() {
+        return toJSON().toString().hashCode();
+    }
+
+    public void sendMessage(String msg) throws Exception {
+        SyncAPI.sendMessage(name, msg, null);
+    }
+
+    public void sendMessage(BaseComponent[] msg) throws Exception {
+        SyncAPI.sendMessage(name, msg, null);
+    }
+
     public String getServer() {
         return server;
     }
@@ -41,17 +53,5 @@ public class PlayerData {
 
     protected void setVanished(boolean vanished) {
         this.vanished = vanished;
-    }
-
-    public int hashData() {
-        return toJSON().toString().hashCode();
-    }
-
-    public void sendMessage(String msg) throws Exception {
-        SyncAPI.sendMessage(name, msg, null);
-    }
-
-    public void sendMessage(BaseComponent[] msg) throws Exception {
-        SyncAPI.sendMessage(name, msg, null);
     }
 }

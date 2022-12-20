@@ -53,22 +53,6 @@ public class UserManager extends NetListener {
         }
     }
 
-    private void sendCurrentHash() {
-        List<PlayerData> pl = plugin.getPlayers();
-        if (pl.size() == 0) {
-            return;
-        }
-        int hash = hash(pl);
-        if (hash == lasthash) {
-            return;
-        }
-        try {
-            sync.send(new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("hash", lasthash = hash)));
-        } catch (Exception e) {
-            plugin.print(e);
-        }
-    }
-
     @Override
     public void execute(String server, Packet packet) {
         if (packet.getPayload().has("request")) {
@@ -121,15 +105,6 @@ public class UserManager extends NetListener {
         }
     }
 
-    protected void request(String server) {
-        try {
-            sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", "all"))
-                    .setForward(sync.getName()));
-        } catch (JSONException | IOException e) {
-            plugin.print(e);
-        }
-    }
-
     public void sendPlayers(@Nullable String server) throws IOException {
         if (sync instanceof SyncServer) {
             return;
@@ -138,36 +113,6 @@ public class UserManager extends NetListener {
         if (players == null) return;
         sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("players",
                 new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList()))).put("hash", hash(players))));
-    }
-
-    private void quit(String server, UUID uuid) {
-        List<PlayerData> current = players.get(server);
-        if (current != null) {
-            Iterator<PlayerData> it = current.iterator();
-            for (PlayerData data; it.hasNext(); ) {
-                data = it.next();
-                if (data.getUUID().equals(uuid)) {
-                    it.remove();
-                    return;
-                }
-            }
-        }
-    }
-
-    public Map<String, List<PlayerData>> getPlayers() {
-        Map<String, List<PlayerData>> out = new HashMap<>();
-        synchronized (players) {
-            players.forEach((k, v) -> out.put(k, Collections.unmodifiableList(v)));
-        }
-        return Collections.unmodifiableMap(out);
-    }
-
-    public List<PlayerData> getAllPlayers() {
-        List<PlayerData> out = new ArrayList<>();
-        synchronized (players) {
-            players.forEach((k, v) -> out.addAll(v));
-        }
-        return out;
     }
 
     public PlayerData getPlayer(String name) {
@@ -255,5 +200,60 @@ public class UserManager extends NetListener {
                 plugin.print(e);
             }
         });
+    }
+
+    protected void request(String server) {
+        try {
+            sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", "all"))
+                    .setForward(sync.getName()));
+        } catch (JSONException | IOException e) {
+            plugin.print(e);
+        }
+    }
+
+    private void sendCurrentHash() {
+        List<PlayerData> pl = plugin.getPlayers();
+        if (pl.size() == 0) {
+            return;
+        }
+        int hash = hash(pl);
+        if (hash == lasthash) {
+            return;
+        }
+        try {
+            sync.send(new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("hash", lasthash = hash)));
+        } catch (Exception e) {
+            plugin.print(e);
+        }
+    }
+
+    private void quit(String server, UUID uuid) {
+        List<PlayerData> current = players.get(server);
+        if (current != null) {
+            Iterator<PlayerData> it = current.iterator();
+            for (PlayerData data; it.hasNext(); ) {
+                data = it.next();
+                if (data.getUUID().equals(uuid)) {
+                    it.remove();
+                    return;
+                }
+            }
+        }
+    }
+
+    public Map<String, List<PlayerData>> getPlayers() {
+        Map<String, List<PlayerData>> out = new HashMap<>();
+        synchronized (players) {
+            players.forEach((k, v) -> out.put(k, Collections.unmodifiableList(v)));
+        }
+        return Collections.unmodifiableMap(out);
+    }
+
+    public List<PlayerData> getAllPlayers() {
+        List<PlayerData> out = new ArrayList<>();
+        synchronized (players) {
+            players.forEach((k, v) -> out.addAll(v));
+        }
+        return out;
     }
 }

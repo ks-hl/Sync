@@ -157,7 +157,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     return;
                 }
                 try {
-                    target.sendMessage(msg.toString());
+                    target.sendMessage(msg);
                 } catch (Exception e) {
                     sender.sendMessage("§cAn error occured");
                     plugin.print(e);

@@ -11,14 +11,13 @@ public interface SyncNetCore {
 
     boolean sendConsumer(String server, Packet packet, Consumer<Packet> consumer) throws IOException;
 
+    void close();
+
+    void closeTemporary();
 
     NetEventHandler getEventHandler();
 
     List<String> getServers();
-
-    void close();
-
-    void closeTemporary();
 
     String getName();
 

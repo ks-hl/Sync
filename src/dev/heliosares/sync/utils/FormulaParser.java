@@ -16,24 +16,6 @@ public class FormulaParser {
         this.originalEquation = equation.toLowerCase();
     }
 
-    private void nextChar() {
-        ch = (++pos < equation.length()) ? equation.charAt(pos) : -1;
-    }
-
-    private char peek() {
-        return equation.charAt(pos + 1);
-    }
-
-    private boolean eat(int charToEat) {
-        while (ch == ' ')
-            nextChar();
-        if (ch == charToEat) {
-            nextChar();
-            return true;
-        }
-        return false;
-    }
-
     public String replaceVariables(String str) {
         String out = "";
         String var = "";
@@ -80,6 +62,24 @@ public class FormulaParser {
 
     public void setVariable(String name, Supplier<Object> value) {
         variables.put(name, value);
+    }
+
+    private void nextChar() {
+        ch = (++pos < equation.length()) ? equation.charAt(pos) : -1;
+    }
+
+    private char peek() {
+        return equation.charAt(pos + 1);
+    }
+
+    private boolean eat(int charToEat) {
+        while (ch == ' ')
+            nextChar();
+        if (ch == charToEat) {
+            nextChar();
+            return true;
+        }
+        return false;
     }
 
     // Grammar:

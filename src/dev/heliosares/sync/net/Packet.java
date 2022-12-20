@@ -64,15 +64,6 @@ public class Packet {
         this.isResponse = isResponse;
     }
 
-    public String getOrigin() {
-        return origin;
-    }
-
-    void setOrigin(String origin) {
-        if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
-        this.origin = origin;
-    }
-
     /**
      * Generates a packet to respond to this packet.
      *
@@ -84,31 +75,10 @@ public class Packet {
         return new Packet(channel, packetID, payload, responseID, true).setForward(origin);
     }
 
-    public boolean isResponse() {
-        return isResponse;
-    }
-
-    public long getResponseID() {
-        return responseID;
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public int getPacketId() {
-        return packetID;
-    }
-
-    public JSONObject getPayload() {
-        return payload;
-    }
-
     @Override
     public String toString() {
         return toJSON().toString();
     }
-
 
     /**
      * pid - Packet ID
@@ -134,6 +104,39 @@ public class Packet {
         return json;
     }
 
+    public Packet unmodifiable() {
+        return new UnmodifiablePacket(this);
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    void setOrigin(String origin) {
+        if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
+        this.origin = origin;
+    }
+
+    public boolean isResponse() {
+        return isResponse;
+    }
+
+    public long getResponseID() {
+        return responseID;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
+
+    public int getPacketId() {
+        return packetID;
+    }
+
+    public JSONObject getPayload() {
+        return payload;
+    }
+
     public byte[] getBlob() {
         return blob;
     }
@@ -150,9 +153,5 @@ public class Packet {
     public Packet setForward(String forward) {
         this.forward = forward;
         return this;
-    }
-
-    public Packet unmodifiable() {
-        return new UnmodifiablePacket(this);
     }
 }

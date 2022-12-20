@@ -242,11 +242,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public boolean isAsync() {
-        return true;
-    }
-
-    @Override
     public String getServerNameByPort(int port) {
         for (Entry<String, ServerInfo> info : getProxy().getServers().entrySet()) {
             if (info.getValue().getSocketAddress() instanceof InetSocketAddress) {
@@ -280,6 +275,16 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    @Override
+    public boolean isAsync() {
+        return true;
+    }
+
+    @Override
     public SyncServer getSync() {
         return sync;
     }
@@ -287,11 +292,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     @Override
     public List<PlayerData> getPlayers() {
         return null;
-    }
-
-    @Override
-    public void setDebug(boolean debug) {
-        this.debug = debug;
     }
 
     @Override
