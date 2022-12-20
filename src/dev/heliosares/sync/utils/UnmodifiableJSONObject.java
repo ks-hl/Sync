@@ -13,11 +13,6 @@ public class UnmodifiableJSONObject extends JSONObject {
         lock = true;
     }
 
-    public UnmodifiableJSONObject() {
-        super();
-        lock = true;
-    }
-
     @Override
     public JSONObject accumulate(String key, Object value) {
         checkLock();

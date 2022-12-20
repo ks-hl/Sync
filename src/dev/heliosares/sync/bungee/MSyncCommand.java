@@ -43,7 +43,7 @@ public class MSyncCommand extends Command implements TabExecutor {
                     SyncBungee.tell(sender, "§cDebug disabled");
                 return;
             } else if (args[0].equalsIgnoreCase("-serverlist")) {
-                String out = "Server statuses: ";
+                StringBuilder out = new StringBuilder("Server statuses: ");
                 List<ServerClientHandler> clients = plugin.sync.getClients();
                 for (Entry<String, ServerInfo> entry : plugin.getProxy().getServers().entrySet()) {
                     ServerClientHandler ch = null;
@@ -54,12 +54,12 @@ public class MSyncCommand extends Command implements TabExecutor {
                         }
                     }
                     boolean connected = ch != null && ch.isConnected();
-                    out += "\n";
-                    out += connected ? "§a" : "§c";
-                    out += entry.getKey() + ": ";
-                    out += connected ? "Online" : "Offline";
+                    out.append("\n");
+                    out.append(connected ? "§a" : "§c");
+                    out.append(entry.getKey()).append(": ");
+                    out.append(connected ? "Online" : "Offline");
                 }
-                SyncBungee.tell(sender, out);
+                SyncBungee.tell(sender, out.toString());
                 return;
             } else if (args[0].equalsIgnoreCase("-playerlist")) {
                 SyncBungee.tell(sender, plugin.sync.getUserManager().toFormattedString());
