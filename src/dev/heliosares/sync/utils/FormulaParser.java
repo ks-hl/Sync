@@ -6,8 +6,8 @@ import java.util.function.Supplier;
 
 //https://stackoverflow.com/questions/3422673/how-to-evaluate-a-math-expression-given-in-string-form
 public class FormulaParser {
+    private static final Random random = new Random();
     public final String originalEquation;
-    private final Random random = new Random();
     private final HashMap<String, Supplier<Object>> variables = new HashMap<>();
     public String equation;
     private int pos = -1, ch;
@@ -94,7 +94,6 @@ public class FormulaParser {
         int startPos = pos;
         for (; ; ) {
             boolean and = eat('&');
-            boolean lessthan = false;
             boolean greaterthan;
             if (and || eat('|')) {
                 double other = parsePM();
@@ -108,14 +107,14 @@ public class FormulaParser {
                 }
             } else if (eat('='))
                 x = (x == parsePM()) ? 1 : 0;
-            else if ((greaterthan = eat('>')) || (lessthan = eat('<'))) {
+            else if ((greaterthan = eat('>')) || eat('<')) {
                 boolean orequal = eat('=');
                 double other = parsePM();
                 if (orequal && x == other) {
                     x = 1;
                 } else if (greaterthan) {
                     x = (x > other) ? 1 : 0;
-                } else if (lessthan) {
+                } else {
                     x = (x < other) ? 1 : 0;
                 }
             } else if (eat('+'))

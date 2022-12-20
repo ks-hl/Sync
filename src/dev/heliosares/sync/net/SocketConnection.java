@@ -93,7 +93,12 @@ public class SocketConnection {
                 if (packet.getPacketId() == Packets.BLOB.id) packet.setBlob(read());
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
-                    if (action != null) action.action().accept(packet);
+                    try {
+                        if (action != null) action.action().accept(packet);
+                    } catch (Throwable t) {
+                        SyncAPI.getInstance().warning("Error while handling response packet " + packet);
+                        SyncAPI.getInstance().print(t);
+                    }
                 }
                 this.lastPacketReceived = System.currentTimeMillis();
                 cleanup();
