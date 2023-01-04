@@ -74,7 +74,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
                         } catch (IllegalArgumentException ignored) {
                         }
                     }
-                    if (toPlayer != null) tell(toPlayer, msg);
+                    if (toPlayer != null && (node == null || toPlayer.hasPermission(node))) tell(toPlayer, msg);
                 } else {
                     Consumer<ProxiedPlayer> send;
                     if (msg != null) send = p -> tell(p, msg);

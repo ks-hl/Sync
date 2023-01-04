@@ -4,7 +4,7 @@ main: dev.heliosares.sync.spigot.SyncSpigot
 description: Sync
 api-version: 1.13
 author: Heliosares
-softdepend: [PremiumVanish]
+softdepend: [PremiumVanish, PlaceholderAPI]
 
 commands:
     psync:

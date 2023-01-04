@@ -7,6 +7,7 @@ import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
+import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -19,6 +20,8 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SpigotCommandListener implements CommandExecutor, TabCompleter {
     private final SyncCore plugin;
@@ -142,7 +145,23 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
 
             StringBuilder msgBuilder = new StringBuilder(args[1]);
             for (int i = 2; i < args.length; i++) msgBuilder.append(" ").append(args[i]);
-            final String msg = msgBuilder.toString();
+            String msg_ = msgBuilder.toString();
+
+            Matcher matcher = PLACEHOLDER_PATTERN_W_USERNAME.matcher(msg_);
+            msgBuilder = new StringBuilder();
+            int lastIndex = 0;
+            while (matcher.find()) {
+                msgBuilder.append(msg_, lastIndex, matcher.start());
+                try {
+                    msgBuilder.append(PlaceholderAPI.setPlaceholders(Bukkit.getOfflinePlayer(matcher.group(1)), '%' + matcher.group(2) + '%'));
+                } catch (NoClassDefFoundError ignored) {
+                }
+                lastIndex = matcher.end();
+            }
+            if (lastIndex < msg_.length()) msgBuilder.append(msg_, lastIndex, msg_.length());
+            msg_ = msgBuilder.toString();
+
+            final String msg = msg_;
 
             Player targetLocal = Bukkit.getPlayer(args[0]);
             if (targetLocal != null) {
@@ -167,6 +186,8 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
         }
         return false;
     }
+
+    private static final Pattern PLACEHOLDER_PATTERN_W_USERNAME = Pattern.compile("\\{([\\w_]+):([\\w_-]+)}");
 
     @Override
     public List<String> onTabComplete(@Nonnull CommandSender sender, @Nonnull Command command, @Nonnull String label, String[] args) {
