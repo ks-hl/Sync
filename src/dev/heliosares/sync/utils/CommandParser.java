@@ -12,24 +12,14 @@ public class CommandParser {
     public static Result parse(String key, String cmd) {
         String[] args = cmd.split(" ");
         String value = null;
-        StringBuilder out = new StringBuilder();
-        boolean escape = false;
-        int i = 0;
-        for (; i < args.length; i++) {
-            if (i > 0 && (args[i].equalsIgnoreCase("psync") || args[i].equalsIgnoreCase("msync"))) {
-                escape = true; // Prevents parsing out parts of the command which are parts of a sub-command
-            }
-            if (!escape && value == null && args[i].equalsIgnoreCase(key) && i < args.length - 1) {
-                value = args[++i];
-                continue;
-            }
-            out.append(args[i]);
-            if (i < args.length - 1) {
-                out.append(" ");
-            }
+        int start = 0;
+
+        if (args.length >= 2 && args[0].equalsIgnoreCase(key)) {
+            value = args[1];
+            start = 2;
         }
 
-        return new Result(out.toString(), value);
+        return new Result(concat(start, args), value);
     }
 
     public static String concat(int start, String... args) {

@@ -1,7 +1,6 @@
 package dev.heliosares.sync.spigot;
 
 import dev.heliosares.sync.SyncAPI;
-import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.PlayerData;
@@ -24,9 +23,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SpigotCommandListener implements CommandExecutor, TabCompleter {
-    private final SyncCore plugin;
+    private final SyncSpigot plugin;
 
-    public SpigotCommandListener(SyncCore plugin) {
+    public SpigotCommandListener(SyncSpigot plugin) {
         this.plugin = plugin;
     }
 
@@ -55,6 +54,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     return true;
                 }
             }
+
             plugin.runAsync(() -> {
                 try {
                     plugin.getSync().send(new Packet(null, Packets.COMMAND.id,
