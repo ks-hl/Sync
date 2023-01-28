@@ -16,6 +16,8 @@ public final class NetEventHandler {
 
     @Deprecated
     public void registerListener(NetListener listen) {
+        plugin.warning("Deprecated listener registration");
+        Thread.dumpStack();
         registerListener(listen.getPacketId(), listen.getChannel(), listen::execute);
     }
 
@@ -30,6 +32,8 @@ public final class NetEventHandler {
 
     @Deprecated
     public void unregisterListener(NetListener listen) {
+        plugin.warning("Deprecated listener un-registration");
+        Thread.dumpStack();
         unregisterChannel(listen.getChannel());
     }
 
