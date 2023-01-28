@@ -12,7 +12,7 @@ import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class UserManager extends NetListener {
+public class UserManager implements NetEventHandler.PacketConsumer {
 
     private final SyncNetCore sync;
     private final SyncCore plugin;
@@ -20,7 +20,6 @@ public class UserManager extends NetListener {
     private int lasthash;
 
     public UserManager(SyncCore plugin, SyncNetCore client) {
-        super(Packets.PLAYER_DATA.id, null);
         this.sync = client;
         this.plugin = plugin;
 

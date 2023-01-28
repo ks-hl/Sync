@@ -1,5 +1,6 @@
 package dev.heliosares.sync.net;
 
+@Deprecated
 public abstract class NetListener {
 
     private final int packetid;

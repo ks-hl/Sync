@@ -58,12 +58,18 @@ public class SyncAPI {
         return getInstance().getSync().send(packet);
     }
 
+    @Deprecated
     public static void register(NetListener listen) {
         getInstance().getSync().getEventHandler().registerListener(listen);
     }
 
+    @Deprecated
     public static void unregister(NetListener listen) {
         getInstance().getSync().getEventHandler().unregisterListener(listen);
+    }
+
+    public static void register(int packetID, String channel, NetEventHandler.PacketConsumer consumer) {
+        getInstance().getSync().getEventHandler().registerListener(packetID, channel, consumer);
     }
 
     public static PlayerData getPlayer(String name) {

@@ -3,7 +3,9 @@ package dev.heliosares.sync.spigot;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SpigotSender;
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.net.*;
+import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import org.bukkit.Bukkit;
@@ -18,7 +20,6 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -60,64 +61,58 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
         sync = new SyncClient(this);
         sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
-        sync.getEventHandler().registerListener(new NetListener(Packets.PLAY_SOUND.id, null) {
-            @Override
-            public void execute(String server, Packet packet) {
-                Sound sound;
-                float pitch = 1f;
-                float volume = 1f;
-                if (packet.getPayload().has("pitch")) pitch = packet.getPayload().getFloat("pitch");
-                if (packet.getPayload().has("volume")) volume = packet.getPayload().getFloat("volume");
-                try {
-                    sound = Sound.valueOf(packet.getPayload().getString("sound"));
-                } catch (IllegalArgumentException ignored) {
-                    return;
-                }
-                if (packet.getPayload().has("to")) {
-                    Player to = getServer().getPlayer(packet.getPayload().getString("to"));
-                    if (to != null) to.playSound(to, sound, pitch, volume);
-                } else {
-                    for (Player player : getServer().getOnlinePlayers()) {
-                        player.playSound(player, sound, pitch, volume);
-                    }
+        sync.getEventHandler().registerListener(Packets.PLAY_SOUND.id, null, (server, packet) -> {
+            Sound sound;
+            float pitch = 1f;
+            float volume = 1f;
+            if (packet.getPayload().has("pitch")) pitch = packet.getPayload().getFloat("pitch");
+            if (packet.getPayload().has("volume")) volume = packet.getPayload().getFloat("volume");
+            try {
+                sound = Sound.valueOf(packet.getPayload().getString("sound"));
+            } catch (IllegalArgumentException ignored) {
+                return;
+            }
+            if (packet.getPayload().has("to")) {
+                Player to = getServer().getPlayer(packet.getPayload().getString("to"));
+                if (to != null) to.playSound(to, sound, pitch, volume);
+            } else {
+                for (Player player : getServer().getOnlinePlayers()) {
+                    player.playSound(player, sound, pitch, volume);
                 }
             }
         });
 
-        sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
-            @Override
-            public void execute(String server, Packet packet) {
-                try {
-                    String message = packet.getPayload().getString("command");
+        sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
+            try {
+                String message = packet.getPayload().getString("command");
 
-                    if (message.equals("-kill")) {
-                        print("Killing");
-                        System.exit(0);
-                        return;
-                    } else if (message.equals("-halt")) {
-                        print("Halting");
-                        Runtime.getRuntime().halt(0);
-                    }
-
-                    print("Executing: " + message);
-
-                    Result playerR = CommandParser.parse("-p", message);
-                    CommandSender sender = null;
-                    if (playerR.value() == null) {
-                        sender = getServer().getConsoleSender();
-                    } else {
-                        sender = getServer().getPlayer(playerR.value());
-                        message = playerR.remaining();
-                        if (sender == null) {
-                            print("Player not found: " + playerR.value());
-                            return;
-                        }
-                    }
-                    dispatchCommand(sender, message);
-                } catch (Exception e) {
-                    getLogger().warning("Error while parsing: ");
-                    print(e);
+                if (message.equals("-kill")) {
+                    print("Killing");
+                    System.exit(0);
+                    return;
+                } else if (message.equals("-halt")) {
+                    print("Halting");
+                    Runtime.getRuntime().halt(0);
                 }
+
+                print("Executing: " + message);
+
+                Result playerR = CommandParser.parse("-p", message);
+                CommandSender sender = null;
+                if (playerR.value() == null) {
+                    sender = getServer().getConsoleSender();
+                } else {
+                    sender = getServer().getPlayer(playerR.value());
+                    message = playerR.remaining();
+                    if (sender == null) {
+                        print("Player not found: " + playerR.value());
+                        return;
+                    }
+                }
+                dispatchCommand(sender, message);
+            } catch (Exception e) {
+                getLogger().warning("Error while parsing: ");
+                print(e);
             }
         });
 

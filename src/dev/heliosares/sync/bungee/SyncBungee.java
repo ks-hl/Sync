@@ -3,7 +3,10 @@ package dev.heliosares.sync.bungee;
 import dev.heliosares.sync.BungeeSender;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCoreProxy;
-import dev.heliosares.sync.net.*;
+import dev.heliosares.sync.net.Packet;
+import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.ChatColor;
@@ -58,82 +61,72 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         sync = new SyncServer(this);
         sync.start(config.getInt("port", 8001));
 
-        sync.getEventHandler().registerListener(new NetListener(Packets.MESSAGE.id, null) {
-            @Override
-            public void execute(String server, Packet packet) {
-                @Nullable String msg = packet.getPayload().optString("msg", null);
-                @Nullable String json = packet.getPayload().optString("json", null);
-                @Nullable String node = packet.getPayload().optString("node", null);
-                @Nullable String to = packet.getPayload().optString("to", null);
-                boolean others_only = packet.getPayload().optBoolean("others_only");
-                if (to != null) {
-                    ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
-                    if (toPlayer == null) {
-                        try {
-                            toPlayer = getProxy().getPlayer(UUID.fromString(to));
-                        } catch (IllegalArgumentException ignored) {
-                        }
+        sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
+            @Nullable String msg = packet.getPayload().optString("msg", null);
+            @Nullable String json = packet.getPayload().optString("json", null);
+            @Nullable String node = packet.getPayload().optString("node", null);
+            @Nullable String to = packet.getPayload().optString("to", null);
+            boolean others_only = packet.getPayload().optBoolean("others_only");
+            if (to != null) {
+                ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
+                if (toPlayer == null) {
+                    try {
+                        toPlayer = getProxy().getPlayer(UUID.fromString(to));
+                    } catch (IllegalArgumentException ignored) {
                     }
-                    if (toPlayer != null && (node == null || toPlayer.hasPermission(node))) tell(toPlayer, msg);
-                } else {
-                    Consumer<ProxiedPlayer> send;
-                    if (msg != null) send = p -> tell(p, msg);
-                    else if (json != null) {
-                        BaseComponent[] base = ComponentSerializer.parse(json);
-                        send = p -> p.sendMessage(base);
-                    } else return;
-                    ServerInfo ignore = others_only ? getProxy().getServerInfo(server) : null;
-                    getProxy().getPlayers().stream()
-                            .filter(p -> !p.getServer().getInfo().equals(ignore))
-                            .filter(p -> node == null || p.hasPermission(node))
-                            .forEach(send);
                 }
+                if (toPlayer != null && (node == null || toPlayer.hasPermission(node))) tell(toPlayer, msg);
+            } else {
+                Consumer<ProxiedPlayer> send;
+                if (msg != null) send = p -> tell(p, msg);
+                else if (json != null) {
+                    BaseComponent[] base = ComponentSerializer.parse(json);
+                    send = p -> p.sendMessage(base);
+                } else return;
+                ServerInfo ignore = others_only ? getProxy().getServerInfo(server) : null;
+                getProxy().getPlayers().stream()
+                        .filter(p -> !p.getServer().getInfo().equals(ignore))
+                        .filter(p -> node == null || p.hasPermission(node))
+                        .forEach(send);
             }
+
         });
-        sync.getEventHandler().registerListener(new NetListener(Packets.COMMAND.id, null) {
-            @Override
-            public void execute(String server, Packet packet) {
-                try {
-                    String message = packet.getPayload().getString("command");
+        sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
+            try {
+                String message = packet.getPayload().getString("command");
 
-                    print("Executing: " + message);
+                print("Executing: " + message);
 
-                    Result serverR = CommandParser.parse("-s", message);
-                    if (serverR.value() != null) {
-                        if (!sync.send(serverR.value(), new Packet(null, packet.getPacketId(),
-                                new JSONObject().put("command", serverR.remaining())))) {
-                            warning("No servers found matching this name: " + serverR.value());
-                        }
+                Result serverR = CommandParser.parse("-s", message);
+                if (serverR.value() != null) {
+                    if (!sync.send(serverR.value(), new Packet(null, packet.getPacketId(),
+                            new JSONObject().put("command", serverR.remaining())))) {
+                        warning("No servers found matching this name: " + serverR.value());
+                    }
+                    return;
+                }
+
+                Result playerR = CommandParser.parse("-p", message);
+
+                CommandSender sender = null;
+                if (playerR.value() == null) {
+                    sender = getProxy().getConsole();
+                } else {
+                    sender = getProxy().getPlayer(playerR.value());
+                    if (sender == null) {
+                        print("Player not found");
                         return;
                     }
-
-                    Result playerR = CommandParser.parse("-p", message);
-
-                    CommandSender sender = null;
-                    if (playerR.value() == null) {
-                        sender = getProxy().getConsole();
-                    } else {
-                        sender = getProxy().getPlayer(playerR.value());
-                        if (sender == null) {
-                            print("Player not found");
-                            return;
-                        }
-                    }
-                    debug("out: " + playerR.remaining());
-                    getProxy().getPluginManager().dispatchCommand(sender, playerR.remaining());
-                } catch (Exception e) {
-                    getLogger().warning("Error while parsing: ");
-                    print(e);
                 }
+                debug("out: " + playerR.remaining());
+                getProxy().getPluginManager().dispatchCommand(sender, playerR.remaining());
+            } catch (Exception e) {
+                getLogger().warning("Error while parsing: ");
+                print(e);
             }
         });
 
-        getProxy().getScheduler().schedule(this, new Runnable() {
-            @Override
-            public void run() {
-                sync.keepalive();
-            }
-        }, 1, 1, TimeUnit.SECONDS);
+        getProxy().getScheduler().schedule(this, () -> sync.keepalive(), 1, 1, TimeUnit.SECONDS);
     }
 
     @Override

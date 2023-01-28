@@ -7,49 +7,64 @@ import java.util.Objects;
 
 public final class NetEventHandler {
 
-    private final ArrayList<NetListener> listeners = new ArrayList<>();
+    private final ArrayList<EventHandler> listeners = new ArrayList<>();
     private final SyncCore plugin;
 
     public NetEventHandler(SyncCore plugin) {
         this.plugin = plugin;
     }
 
+    @Deprecated
     public void registerListener(NetListener listen) {
+        registerListener(listen.getPacketId(), listen.getChannel(), listen::execute);
+    }
+
+    public void registerListener(int id, String channel, PacketConsumer consumer) {
+        if (channel != null && !channel.matches("\\w+:\\w+")) {
+            throw new IllegalArgumentException("Channel name must conform to 'PluginName:Channel'");
+        }
         synchronized (listeners) {
-            listeners.add(listen);
+            listeners.add(new EventHandler(id, channel, consumer));
         }
     }
 
+    @Deprecated
     public void unregisterListener(NetListener listen) {
-        synchronized (listeners) {
-            listeners.remove(listen);
-        }
+        unregisterChannel(listen.getChannel());
     }
 
     public void unregisterChannel(String channel) {
         synchronized (listeners) {
-            listeners.removeIf(netListener -> Objects.equals(channel, netListener.getChannel()));
+            listeners.removeIf(netListener -> Objects.equals(channel, netListener.channel()));
         }
+    }
+
+    record EventHandler(int id, String channel, PacketConsumer d) {
+    }
+
+    @FunctionalInterface
+    public interface PacketConsumer {
+        void execute(String server, Packet packet);
     }
 
     void execute(String server, Packet packet) {
         packet = packet.unmodifiable();
         synchronized (listeners) {
-            for (NetListener listen : listeners) {
+            for (EventHandler handler : listeners) {
                 if (packet.getChannel() == null) {
-                    if (listen.getChannel() != null) {
+                    if (handler.channel() != null) {
                         continue;
                     }
                 } else {
-                    if (!packet.getChannel().equalsIgnoreCase(listen.getChannel())) {
+                    if (!packet.getChannel().equalsIgnoreCase(handler.channel())) {
                         continue;
                     }
                 }
-                if (packet.getPacketId() == listen.getPacketId()) {
+                if (packet.getPacketId() == handler.id()) {
                     try {
-                        listen.execute(server, packet);
+                        handler.d.execute(server, packet);
                     } catch (Throwable t) {
-                        plugin.warning("Failed to pass " + packet + " to " + listen.getChannel());
+                        plugin.warning("Failed to pass " + packet + " to " + handler.channel());
                         plugin.print(t);
                     }
                 }

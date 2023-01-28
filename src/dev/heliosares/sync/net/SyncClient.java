@@ -26,7 +26,7 @@ public class SyncClient implements SyncNetCore {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
-        eventhandler.registerListener(usermanager);
+        eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
     }
 
     /**
