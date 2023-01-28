@@ -120,6 +120,7 @@ public class SyncServer implements SyncNetCore {
                     closeTemporary();
                 }
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(5000);
                     // Not busy waiting. A delay to wait to restart
                 } catch (InterruptedException e) {

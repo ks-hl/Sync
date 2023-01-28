@@ -108,7 +108,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 
                 Result playerR = CommandParser.parse("-p", message);
 
-                CommandSender sender = null;
+                CommandSender sender;
                 if (playerR.value() == null) {
                     sender = getProxy().getConsole();
                 } else {

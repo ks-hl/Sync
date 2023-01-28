@@ -177,7 +177,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                         new JSONObject().put("join", new JSONArray().put(data.toJSON())).put("hash",
                                 lasthash = plugin.getPlayers().stream()
                                         .map(p -> p.getUUID().equals(data.getUUID()) ? data.hashData() : p.hashData())
-                                        .reduce(Integer::sum).get())));
+                                        .reduce(Integer::sum).orElse(0))));
             } catch (JSONException | IOException e) {
                 plugin.print(e);
             }

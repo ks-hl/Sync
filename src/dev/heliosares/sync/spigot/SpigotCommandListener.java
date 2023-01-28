@@ -153,6 +153,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
             while (matcher.find()) {
                 msgBuilder.append(msg_, lastIndex, matcher.start());
                 try {
+                    //noinspection deprecation
                     msgBuilder.append(PlaceholderAPI.setPlaceholders(Bukkit.getOfflinePlayer(matcher.group(1)), '%' + matcher.group(2) + '%'));
                 } catch (NoClassDefFoundError ignored) {
                 }

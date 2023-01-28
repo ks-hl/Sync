@@ -112,6 +112,7 @@ public class SyncClient implements SyncNetCore {
                     closeTemporary();
                 }
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
                 } catch (InterruptedException e) {
                     plugin.warning("Failed to delay");

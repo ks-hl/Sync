@@ -41,7 +41,6 @@ public class SyncAPI {
      *
      * @param server The server to target. Must be contained within
      *               SyncAPI.getServers()
-     * @param packet
      */
     public static boolean send(String server, Packet packet) throws Exception {
         return getInstance().getSync().send(server, packet);
@@ -51,8 +50,6 @@ public class SyncAPI {
      * Sends a packet to the other endpoint. If executed from a server, goes to the
      * proxy. If executed from the proxy, goes to all servers.
      *
-     * @param packet
-     * @throws IOException
      */
     public static boolean send(Packet packet) throws Exception {
         return getInstance().getSync().send(packet);

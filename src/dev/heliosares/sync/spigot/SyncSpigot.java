@@ -98,7 +98,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 print("Executing: " + message);
 
                 Result playerR = CommandParser.parse("-p", message);
-                CommandSender sender = null;
+                CommandSender sender;
                 if (playerR.value() == null) {
                     sender = getServer().getConsoleSender();
                 } else {
@@ -185,9 +185,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @Override
     public void dispatchCommand(MySender sender, String command) {
-        getServer().getScheduler().runTask(this, () -> {
-            sender.execute(command);
-        });
+        getServer().getScheduler().runTask(this, () -> sender.execute(command));
     }
 
     public PlayerData getPlayerData(Player p, boolean vanished) {

@@ -40,6 +40,7 @@ public class SyncDaemon implements SyncCore {
         try {
             sync.start(port, -1);
             while (!sync.isConnected() || sync.getName() == null) {
+                //noinspection BusyWait
                 Thread.sleep(10);
             }
             sync.send(new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", command)));
