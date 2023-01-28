@@ -39,14 +39,6 @@ public final class NetEventHandler {
         }
     }
 
-    record EventHandler(int id, String channel, PacketConsumer d) {
-    }
-
-    @FunctionalInterface
-    public interface PacketConsumer {
-        void execute(String server, Packet packet);
-    }
-
     void execute(String server, Packet packet) {
         packet = packet.unmodifiable();
         synchronized (listeners) {
@@ -70,5 +62,13 @@ public final class NetEventHandler {
                 }
             }
         }
+    }
+
+    @FunctionalInterface
+    public interface PacketConsumer {
+        void execute(String server, Packet packet);
+    }
+
+    record EventHandler(int id, String channel, PacketConsumer d) {
     }
 }

@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SpigotCommandListener implements CommandExecutor, TabCompleter {
+    private static final Pattern PLACEHOLDER_PATTERN_W_USERNAME = Pattern.compile("\\{([\\w_]+):([\\w_-]+)}");
     private final SyncSpigot plugin;
 
     public SpigotCommandListener(SyncSpigot plugin) {
@@ -187,8 +188,6 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
         }
         return false;
     }
-
-    private static final Pattern PLACEHOLDER_PATTERN_W_USERNAME = Pattern.compile("\\{([\\w_]+):([\\w_-]+)}");
 
     @Override
     public List<String> onTabComplete(@Nonnull CommandSender sender, @Nonnull Command command, @Nonnull String label, String[] args) {

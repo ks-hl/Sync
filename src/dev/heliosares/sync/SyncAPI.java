@@ -10,7 +10,6 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,7 +48,6 @@ public class SyncAPI {
     /**
      * Sends a packet to the other endpoint. If executed from a server, goes to the
      * proxy. If executed from the proxy, goes to all servers.
-     *
      */
     public static boolean send(Packet packet) throws Exception {
         return getInstance().getSync().send(packet);
