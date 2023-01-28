@@ -66,6 +66,10 @@ public final class NetEventHandler {
 
     @FunctionalInterface
     public interface PacketConsumer {
+        /**
+         * @param server The sender of the packet being received
+         * @param packet The packet itself {@link Packet#getPayload()}
+         */
         void execute(String server, Packet packet);
     }
 
