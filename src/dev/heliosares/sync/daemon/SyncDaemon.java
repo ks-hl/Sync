@@ -4,8 +4,12 @@ import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.*;
 import dev.heliosares.sync.utils.CommandParser;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 
 public class SyncDaemon implements SyncCore {
@@ -36,7 +40,22 @@ public class SyncDaemon implements SyncCore {
         String command = CommandParser.concat(portTerm ? 1 : 0, args);
         System.out.println("Sending: " + command);
 
-        SyncClient sync = new SyncClient(new SyncDaemon());
+
+        File keyFile = new File("public.key");
+        if (!keyFile.exists()) {
+            System.err.println("Key file does not exist. Please copy it from the proxy.");
+            return;
+        }
+
+        SyncClient sync;
+        try {
+            sync = new SyncClient(new SyncDaemon(), new EncryptionRSA(EncryptionRSA.loadPublicKey(keyFile)));
+        } catch (FileNotFoundException | InvalidKeySpecException e) {
+            System.err.println("Failed to load key file. Ensure it was correctly copied from the proxy.");
+            e.printStackTrace();
+            return;
+        }
+
         try {
             sync.start(port, -1);
             while (!sync.isConnected() || sync.getName() == null) {

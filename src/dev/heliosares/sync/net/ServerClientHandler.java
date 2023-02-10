@@ -1,26 +1,39 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.utils.EncryptionAES;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONObject;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.InvalidKeyException;
 
 public class ServerClientHandler extends SocketConnection implements Runnable {
 
     private final SyncCoreProxy plugin;
     private final SyncServer server;
+    private final EncryptionRSA encryptionRSA;
 
-    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException {
+    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket, EncryptionRSA encryptionRSA) throws IOException, InvalidKeyException {
         super(socket);
+        setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
         this.plugin = plugin;
         this.server = server;
+        this.encryptionRSA = encryptionRSA;
     }
 
     @Override
     public void run() {
+        try {
+            super.sendRaw(encryptionRSA.encode(super.getEncryption().encodeKey()));
+        } catch (IOException | InvalidKeyException e) {
+            close();
+            server.remove(this);
+            return;
+        }
         while (isConnected()) {
             try {
                 Packet packet = listen();

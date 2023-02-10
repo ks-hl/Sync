@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -21,13 +22,15 @@ public class SyncServer implements SyncNetCore {
     private final NetEventHandler eventhandler;
     private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
     private final UserManager usermanager;
+    private final EncryptionRSA encryption;
     private ServerSocket serverSocket;
     private boolean closed = false;
 
-    public SyncServer(SyncCoreProxy plugin) {
+    public SyncServer(SyncCoreProxy plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
+        this.encryption = encryption;
         eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
     }
 
@@ -101,7 +104,7 @@ public class SyncServer implements SyncNetCore {
                     // This look waits for clients
                     while (!closed) {
                         Socket socket = serverSocket.accept();
-                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
+                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket, encryption);
 
                         plugin.debug("Connection accepted on port " + socket.getPort());
 

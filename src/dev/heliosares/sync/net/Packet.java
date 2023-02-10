@@ -26,7 +26,7 @@ public class Packet {
     @Deprecated
     public Packet(String channel, int packetID, JSONObject payload, byte[] blob) {
         this(channel, packetID, payload);
-        this.blob = blob;
+        setBlob(blob);
     }
 
     /**
@@ -142,6 +142,8 @@ public class Packet {
     }
 
     public Packet setBlob(byte[] blob) {
+        if (this.getPacketId() != Packets.BLOB.id)
+            throw new IllegalArgumentException("Can not set a blob for a packet other than type Packets#BLOB");
         this.blob = blob;
         return this;
     }

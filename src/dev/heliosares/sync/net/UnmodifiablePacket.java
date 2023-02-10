@@ -7,7 +7,7 @@ public class UnmodifiablePacket extends Packet {
     public UnmodifiablePacket(Packet packet) {
         super(packet.getChannel(), packet.getPacketId(), packet.getPayload() == null ? null :
                 new UnmodifiableJSONObject(packet.getPayload().toString()), packet.getResponseID(), packet.isResponse());
-        super.setBlob(packet.getBlob());
+        if (packet.getBlob() != null && packet.getPacketId() == Packets.BLOB.id) super.setBlob(packet.getBlob());
         super.setForward(packet.getForward());
         super.setOrigin(packet.getOrigin());
     }

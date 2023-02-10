@@ -58,8 +58,16 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
 
             plugin.runAsync(() -> {
                 try {
-                    plugin.getSync().send(new Packet(null, Packets.COMMAND.id,
-                            new JSONObject().put("command", CommandParser.concat(0, args))));
+                    String command = CommandParser.concat(0, args);
+                    String reply = null;
+                    if (command.startsWith("-r ")) {
+                        command = command.substring(3);
+                        if (sender instanceof Player player) reply = player.getUniqueId().toString();
+                        else reply = SyncAPI.ConsoleUUID.toString();
+                    }
+                    Packet packet = new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", command));
+                    if (reply != null) packet.getPayload().put("reply", reply);
+                    plugin.getSync().send(packet);
                 } catch (Exception e) {
                     sender.sendMessage("§cAn error occured");
                     plugin.print(e);

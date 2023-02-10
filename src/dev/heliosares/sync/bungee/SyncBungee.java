@@ -2,6 +2,7 @@ package dev.heliosares.sync.bungee;
 
 import dev.heliosares.sync.BungeeSender;
 import dev.heliosares.sync.MySender;
+import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
@@ -9,6 +10,7 @@ import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.BaseComponent;
@@ -24,10 +26,13 @@ import org.json.JSONObject;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.security.KeyPair;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -40,6 +45,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     protected Configuration config;
     SyncServer sync;
     boolean debug;
+    private EncryptionRSA encryptionRSA;
 
     public static SyncBungee getInstance() {
         return instance;
@@ -57,8 +63,29 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         print("Enabling");
         getProxy().getPluginManager().registerCommand(this, new MSyncCommand("msync", this));
         getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
-
-        sync = new SyncServer(this);
+        File file = new File(getDataFolder(), "private.key");
+        if (!file.exists()) {
+            print("Key does not exist, regenerating...");
+            File publicKeyFile = new File(getDataFolder(), "public.key");
+            try {
+                boolean ignored = file.createNewFile();
+                if (!publicKeyFile.exists()) {
+                    boolean ignored2 = publicKeyFile.createNewFile();
+                }
+                KeyPair pair = EncryptionRSA.generate();
+                EncryptionRSA.write(file, pair.getPrivate());
+                EncryptionRSA.write(publicKeyFile, pair.getPublic());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            print("Keys generated successfully. Please copy 'Sync/public.key' to all Spigot servers");
+        }
+        try {
+            encryptionRSA = new EncryptionRSA(EncryptionRSA.loadPrivateKey(file));
+        } catch (FileNotFoundException | InvalidKeySpecException e) {
+            throw new RuntimeException(e);
+        }
+        sync = new SyncServer(this, encryptionRSA);
         sync.start(config.getInt("port", 8001));
 
         sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
@@ -110,7 +137,18 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 
                 CommandSender sender;
                 if (playerR.value() == null) {
-                    sender = getProxy().getConsole();
+                    if (packet.getPayload().has("reply")) {
+                        String replyUUID = packet.getPayload().getString("reply");
+                        if (replyUUID.equals(SyncAPI.ConsoleUUID.toString())) {
+                            warning("Console reply not implemented");
+                            sender = getProxy().getConsole();
+                        } else {
+                            ProxiedPlayer respond = getProxy().getPlayer(UUID.fromString(replyUUID));
+                            sender = new CustomBungeeCommandSender(s -> tell(respond, "§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] " + s));
+                        }
+                    } else {
+                        sender = getProxy().getConsole();
+                    }
                 } else {
                     sender = getProxy().getPlayer(playerR.value());
                     if (sender == null) {

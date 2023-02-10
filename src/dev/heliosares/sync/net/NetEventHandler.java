@@ -14,12 +14,6 @@ public final class NetEventHandler {
         this.plugin = plugin;
     }
 
-    @Deprecated
-    public void registerListener(NetListener listen) {
-        plugin.warning("Deprecated listener registration");
-        Thread.dumpStack();
-        registerListener(listen.getPacketId(), listen.getChannel(), listen::execute);
-    }
 
     public void registerListener(int id, String channel, PacketConsumer consumer) {
         if (channel != null && !channel.matches("\\w+:\\w+")) {
@@ -28,13 +22,6 @@ public final class NetEventHandler {
         synchronized (listeners) {
             listeners.add(new EventHandler(id, channel, consumer));
         }
-    }
-
-    @Deprecated
-    public void unregisterListener(NetListener listen) {
-        plugin.warning("Deprecated listener un-registration");
-        Thread.dumpStack();
-        unregisterChannel(listen.getChannel());
     }
 
     public void unregisterChannel(String channel) {

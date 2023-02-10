@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>Sync</groupId>
     <artifactId>Sync</artifactId>
-    <version>1.7</version>
+    <version>1.8</version>
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>
         <sourceDirectory>src</sourceDirectory>

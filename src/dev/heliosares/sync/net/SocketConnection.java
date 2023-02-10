@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
+import dev.heliosares.sync.utils.EncryptionAES;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -10,11 +11,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.InvalidKeyException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
 public class SocketConnection {
+    private EncryptionAES encryption;
     private final Socket socket;
     private final DataOutputStream out;
     private final DataInputStream in;
@@ -26,11 +29,22 @@ public class SocketConnection {
     private long lastPacketReceived;
     private long lastCleanup;
 
-    public SocketConnection(Socket socket) throws IOException {
+    public SocketConnection(Socket socket) throws IOException, InvalidKeyException {
         this.socket = socket;
         this.created = System.currentTimeMillis();
         out = new DataOutputStream(socket.getOutputStream());
         in = new DataInputStream(socket.getInputStream());
+    }
+
+    protected EncryptionAES getEncryption() {
+        return encryption;
+    }
+
+    protected void setEncryption(EncryptionAES encryption) throws InvalidKeyException {
+        if (this.encryption != null)
+            throw new IllegalStateException("Attempted to re set the encryption key. Key can only be set once per SocketConnection");
+        encryption.encrypt(new byte[1]); // Validates the key
+        this.encryption = encryption;
     }
 
     public void close() {
@@ -104,12 +118,37 @@ public class SocketConnection {
         this.lastPacketSent = System.currentTimeMillis();
     }
 
-    private byte[] read() throws IOException {
+    protected void send(byte[] b) throws IOException {
+        try {
+            b = encryption.encrypt(b);
+        } catch (InvalidKeyException e) {
+            // Unexpected, as this is validated on creation
+            throw new RuntimeException(e);
+        }
+        sendRaw(b);
+    }
+
+    protected void sendRaw(byte[] b) throws IOException {
+        synchronized (out) {
+            for (int i = 0; i < 8; i++)
+                out.write(i);
+            out.writeInt(b == null ? 0 : b.length);
+            if (b != null && b.length > 0) {
+                out.write(b);
+            }
+        }
+    }
+
+    protected byte[] read() throws IOException, InvalidKeyException {
+        return encryption.decrypt(readRaw());
+    }
+
+    protected byte[] readRaw() throws IOException {
         for (int i = 0; i < 8; i++) {
             int next;
             while ((next = in.read()) != i)
                 if (next == -1) {
-                    throw new SocketException("disconnected");
+                    throw new SocketException("Server/client desync occurred. Disconnected.");
                 }
         }
         synchronized (in) {
@@ -125,17 +164,6 @@ public class SocketConnection {
         if (System.currentTimeMillis() - lastCleanup < 60000) return;
         lastCleanup = System.currentTimeMillis();
         responses.entrySet().removeIf(a -> System.currentTimeMillis() - a.getValue().created > 15000L);
-    }
-
-    private void send(byte[] b) throws IOException {
-        synchronized (out) {
-            for (int i = 0; i < 8; i++)
-                out.write(i);
-            out.writeInt(b == null ? 0 : b.length);
-            if (b != null && b.length > 0) {
-                out.write(b);
-            }
-        }
     }
 
     private record ResponseAction(long created, @Nonnull Consumer<Packet> action) {

@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.utils.EncryptionAES;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -17,15 +19,18 @@ public class SyncClient implements SyncNetCore {
     private final SyncCore plugin;
     private final NetEventHandler eventhandler;
     private final UserManager usermanager;
+    private final EncryptionRSA encryptionRSA;
     private SocketConnection connection;
     private boolean closed;
     private int unableToConnectCount = 0;
     private List<String> servers;
 
-    public SyncClient(SyncCore plugin) {
+
+    public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
+        this.encryptionRSA = encryption;
         eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
     }
 
@@ -46,6 +51,7 @@ public class SyncClient implements SyncNetCore {
                 }
                 try {
                     connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
+                    connection.setEncryption(new EncryptionAES(encryptionRSA.decode(connection.readRaw())));
 
                     plugin.debug("Sending handshake");
                     connection.send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));

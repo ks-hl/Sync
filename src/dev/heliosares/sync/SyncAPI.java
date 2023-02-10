@@ -15,6 +15,7 @@ import java.util.UUID;
 
 public class SyncAPI {
     private static SyncCore instance;
+    public static UUID ConsoleUUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     public static @Nonnull SyncCore getInstance() {
         if (instance != null) {
@@ -51,16 +52,6 @@ public class SyncAPI {
      */
     public static boolean send(Packet packet) throws Exception {
         return getInstance().getSync().send(packet);
-    }
-
-    @Deprecated
-    public static void register(NetListener listen) {
-        getInstance().getSync().getEventHandler().registerListener(listen);
-    }
-
-    @Deprecated
-    public static void unregister(NetListener listen) {
-        getInstance().getSync().getEventHandler().unregisterListener(listen);
     }
 
     public static void register(int packetID, String channel, NetEventHandler.PacketConsumer consumer) {

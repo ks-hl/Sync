@@ -2,12 +2,14 @@ package dev.heliosares.sync.spigot;
 
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SpigotSender;
+import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
+import dev.heliosares.sync.utils.EncryptionRSA;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
@@ -20,8 +22,12 @@ import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -59,7 +65,21 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         } catch (Throwable ignored) {
         }
 
-        sync = new SyncClient(this);
+        File keyFile = new File(getDataFolder(),"public.key");
+        if (!keyFile.exists()) {
+            warning("Key file does not exist. Please copy it from the proxy.");
+            setEnabled(false);
+            return;
+        }
+
+        try {
+            sync = new SyncClient(this, new EncryptionRSA(EncryptionRSA.loadPublicKey(keyFile)));
+        } catch (FileNotFoundException | InvalidKeySpecException e) {
+            warning("Failed to load key file. Ensure it was correctly copied from the proxy.");
+            print(e);
+            setEnabled(false);
+            return;
+        }
         sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
         sync.getEventHandler().registerListener(Packets.PLAY_SOUND.id, null, (server, packet) -> {
             Sound sound;
@@ -98,9 +118,23 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 print("Executing: " + message);
 
                 Result playerR = CommandParser.parse("-p", message);
-                CommandSender sender;
+                CommandSender sender = getServer().getConsoleSender();
                 if (playerR.value() == null) {
-                    sender = getServer().getConsoleSender();
+                    if (packet.getPayload().has("reply")) {
+                        String replyUUID = packet.getPayload().getString("reply");
+                        if (replyUUID.equals(SyncAPI.ConsoleUUID.toString())) {
+                            warning("Console reply not implemented");
+                        } else {
+                            PlayerData respond = SyncAPI.getPlayer(UUID.fromString(replyUUID));
+                            if (respond != null) sender = new CustomCommandSender(s -> {
+                                try {
+                                    respond.sendMessage("§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] " + s);
+                                } catch (Exception e) {
+                                    print(e);
+                                }
+                            });
+                        }
+                    }
                 } else {
                     sender = getServer().getPlayer(playerR.value());
                     message = playerR.remaining();
