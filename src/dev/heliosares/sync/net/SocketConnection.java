@@ -153,9 +153,9 @@ public class SocketConnection {
         }
         synchronized (in) {
             int size = in.readInt();
-            if (size == 0) {
-                return new byte[0];
-            }
+            if (size == 0) return new byte[0];
+            if (size > 1000000000) throw new IOException("Packet size too large (" + size + ">1,000,000,000");
+
             return in.readNBytes(size);
         }
     }
