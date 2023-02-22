@@ -4,7 +4,6 @@ import dev.heliosares.sync.BungeeSender;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
-import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
@@ -122,37 +121,19 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
             try {
                 String message = packet.getPayload().getString("command");
 
-                print("Executing: " + message);
+                print("Executing (from " + server + "): /" + message);
 
-                Result serverR = CommandParser.parse("-s", message);
-                if (serverR.value() != null) {
-                    if (!sync.send(serverR.value(), new Packet(null, packet.getPacketId(),
-                            new JSONObject().put("command", serverR.remaining())))) {
-                        warning("No servers found matching this name: " + serverR.value());
-                    }
-                    return;
-                }
+                message = message.replace("%server%", getSync().getName());
 
                 Result playerR = CommandParser.parse("-p", message);
 
                 CommandSender sender;
                 if (playerR.value() == null) {
-                    if (packet.getPayload().has("reply")) {
-                        String replyUUID = packet.getPayload().getString("reply");
-                        if (replyUUID.equals(SyncAPI.ConsoleUUID.toString())) {
-                            warning("Console reply not implemented");
-                            sender = getProxy().getConsole();
-                        } else {
-                            ProxiedPlayer respond = getProxy().getPlayer(UUID.fromString(replyUUID));
-                            sender = new CustomBungeeCommandSender(s -> tell(respond, "§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] " + s));
-                        }
-                    } else {
-                        sender = getProxy().getConsole();
-                    }
+                    sender = new CustomBungeeCommandSender(s -> runAsync(() -> getSync().send(packet.createResponse(new JSONObject().put("msg", "§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] §r" + s)))));
                 } else {
                     sender = getProxy().getPlayer(playerR.value());
                     if (sender == null) {
-                        print("Player not found");
+                        getSync().send(packet.createResponse(new JSONObject().put("msg", "§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] §cPlayer not found.")));
                         return;
                     }
                 }

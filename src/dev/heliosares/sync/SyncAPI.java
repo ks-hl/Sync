@@ -130,4 +130,11 @@ public class SyncAPI {
         if (to != null) server = getPlayer(to).getServer();
         send(server, new Packet(null, Packets.TITLE.id, new JSONObject()));
     }
+
+    /**
+     * Executes a runnable using the respective platform's scheduler
+     */
+    public static void runAsync(Runnable runnable) {
+        getInstance().runAsync(runnable);
+    }
 }

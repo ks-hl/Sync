@@ -21,9 +21,11 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Objects;
@@ -106,6 +108,8 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
         sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
             try {
+                if (packet.isResponse()) return;
+
                 String message = packet.getPayload().getString("command");
 
                 if (message.equals("-kill")) {
@@ -117,26 +121,21 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                     Runtime.getRuntime().halt(0);
                 }
 
-                print("Executing (from " + packet.getOrigin() + "): " + message);
+                print("Executing (from " + packet.getOrigin() + "): /" + message);
+
+                message = message.replace("%server%", getSync().getName());
 
                 Result playerR = CommandParser.parse("-p", message);
-                CommandSender sender = getServer().getConsoleSender();
+                CommandSender sender;
                 if (playerR.value() == null) {
-                    if (packet.getPayload().has("reply")) {
-                        String replyUUID = packet.getPayload().getString("reply");
-                        if (replyUUID.equals(SyncAPI.ConsoleUUID.toString())) {
-                            warning("Console reply not implemented");
-                        } else {
-                            PlayerData respond = SyncAPI.getPlayer(UUID.fromString(replyUUID));
-                            if (respond != null) sender = new CustomCommandSender(s -> {
-                                try {
-                                    respond.sendMessage("§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] " + s);
-                                } catch (Exception e) {
-                                    print(e);
-                                }
-                            });
+                    sender = new CustomCommandSender(s -> runAsync(() -> {
+                        String response = "§8[§7From " + SyncAPI.getInstance().getSync().getName() + "§8] " + s;
+                        try {
+                            getSync().send(packet.createResponse(new JSONObject().put("msg", response)));
+                        } catch (IOException e) {
+                            print(e);
                         }
-                    }
+                    }));
                 } else {
                     sender = getServer().getPlayer(playerR.value());
                     message = playerR.remaining();

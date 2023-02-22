@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.InvalidKeyException;
+import java.util.function.Consumer;
 
 public class ServerClientHandler extends SocketConnection implements Runnable {
 
@@ -69,14 +70,11 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     final String forward = packet.getForward();
                     if (packet.getForward() != null) {
                         packet.setForward(getName());
+                        Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
                         if (forward.equalsIgnoreCase("all")) {
-                            server.getServers().forEach((c) -> {
-                                if (!c.equals(getName())) {
-                                    server.send(c, packet);
-                                }
-                            });
+                            server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
                         } else {
-                            server.send(forward, packet);
+                            sendToServer.accept(forward);
                         }
                     }
                     if (forward == null || forward.equalsIgnoreCase("all")) {

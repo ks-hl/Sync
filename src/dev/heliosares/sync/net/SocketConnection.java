@@ -11,7 +11,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.SocketException;
 import java.security.InvalidKeyException;
 import java.util.HashMap;
 import java.util.Map;
@@ -123,16 +122,13 @@ public class SocketConnection {
         try {
             b = encryption.encrypt(b);
         } catch (InvalidKeyException e) {
-            // Unexpected, as this is validated on creation
-            throw new RuntimeException(e);
+            throw new IOException("Invalid session key. This is unexpected..");
         }
         sendRaw(b);
     }
 
     protected void sendRaw(byte[] b) throws IOException {
         synchronized (out) {
-            for (int i = 0; i < 8; i++)
-                out.write(i);
             out.writeInt(b == null ? 0 : b.length);
             if (b != null && b.length > 0) {
                 out.write(b);
@@ -145,17 +141,11 @@ public class SocketConnection {
     }
 
     protected byte[] readRaw() throws IOException {
-        for (int i = 0; i < 8; i++) {
-            int next;
-            while ((next = in.read()) != i)
-                if (next == -1) {
-                    throw new SocketException("Server/client desync occurred. Disconnected.");
-                }
-        }
         synchronized (in) {
             int size = in.readInt();
             if (size == 0) return new byte[0];
-            if (size > 1000000000) throw new IOException("Packet size too large (" + size + ">1,000,000,000");
+            if (size > 100000000) throw new IOException("Packet size too large (" + size + ">100,000,000");
+            if (size < 0) throw new IOException("Packet size < 0");
 
             return in.readNBytes(size);
         }
@@ -164,7 +154,7 @@ public class SocketConnection {
     private void cleanup() {
         if (System.currentTimeMillis() - lastCleanup < 60000) return;
         lastCleanup = System.currentTimeMillis();
-        responses.entrySet().removeIf(a -> System.currentTimeMillis() - a.getValue().created > 15000L);
+        responses.entrySet().removeIf(a -> System.currentTimeMillis() - a.getValue().created > 60000L);
     }
 
     private record ResponseAction(long created, @Nonnull Consumer<Packet> action) {

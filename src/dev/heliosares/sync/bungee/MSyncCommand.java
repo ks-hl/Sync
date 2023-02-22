@@ -1,6 +1,5 @@
 package dev.heliosares.sync.bungee;
 
-import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
 import dev.heliosares.sync.net.ServerClientHandler;
@@ -8,7 +7,6 @@ import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.json.JSONObject;
@@ -72,17 +70,9 @@ public class MSyncCommand extends Command implements TabExecutor {
         String message = CommandParser.concat(0, args);
         Result serverR = CommandParser.parse("-s", message);
         message = serverR.remaining();
-        String reply = null;
-        if (message.startsWith("-r ")) {
-            message = message.substring(3);
-            if (sender instanceof ProxiedPlayer player)
-                reply = player.getUniqueId().toString();
-            else reply = SyncAPI.ConsoleUUID.toString();
-        }
         Packet packet = new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", message));
-        if (reply != null) packet.getPayload().put("reply", reply);
 
-        if (plugin.getSync().send(serverR.value(), packet)) {
+        if (plugin.getSync().sendConsumer(serverR.value(), packet, response -> SyncBungee.tell(sender, response.getPayload().getString("msg")))) {
             SyncBungee.tell(sender, "§aCommand sent.");
         } else {
             SyncBungee.tell(sender, "No servers found matching this name: " + serverR.value());

@@ -199,9 +199,9 @@ public class SyncClient implements SyncNetCore {
     }
 
     @Override
-    public boolean sendConsumer(String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
+    public boolean sendConsumer(@Nullable String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
         checkAsync();
-        packet.setForward(server);
+        if (server != null) packet.setForward(server);
         connection.sendConsumer(packet, responseConsumer);
         return true;
     }

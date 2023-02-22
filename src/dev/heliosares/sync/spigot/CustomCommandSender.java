@@ -30,6 +30,7 @@ public class CustomCommandSender implements ConsoleCommandSender {
     @Override
     public void sendMessage(@NotNull String s) {
         output.accept(s);
+        handle.sendMessage(s);
     }
 
     @Override
@@ -37,6 +38,7 @@ public class CustomCommandSender implements ConsoleCommandSender {
         for (String s : strings) {
             output.accept(s);
         }
+        handle.sendMessage(strings);
     }
 
     @Override
@@ -127,10 +129,12 @@ public class CustomCommandSender implements ConsoleCommandSender {
         return new CommandSender.Spigot() {
             public void sendMessage(@NotNull BaseComponent component) {
                 output.accept(BaseComponent.toPlainText(component));
+                handle.spigot().sendMessage(component);
             }
 
             public void sendMessage(@NotNull BaseComponent... components) {
                 output.accept(BaseComponent.toPlainText(components));
+                handle.spigot().sendMessage(components);
             }
 
             public void sendMessage(@Nullable UUID sender, @NotNull BaseComponent component) {
@@ -171,11 +175,13 @@ public class CustomCommandSender implements ConsoleCommandSender {
     @Override
     public void sendRawMessage(@NotNull String s) {
         output.accept(s);
+        handle.sendRawMessage(s);
     }
 
     @Override
     public void sendRawMessage(@Nullable UUID uuid, @NotNull String s) {
         output.accept(s);
+        handle.sendMessage(s);
     }
 
     @Override

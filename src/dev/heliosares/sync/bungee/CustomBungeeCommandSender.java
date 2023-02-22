@@ -22,23 +22,29 @@ public class CustomBungeeCommandSender implements CommandSender {
     }
 
     @Override
+    @Deprecated
     public void sendMessage(String s) {
         output.accept(s);
+        handle.sendMessage(s);
     }
 
     @Override
+    @Deprecated
     public void sendMessages(String... strings) {
         for (String s : strings) output.accept(s);
+        handle.sendMessages(strings);
     }
 
     @Override
     public void sendMessage(BaseComponent... components) {
         output.accept(BaseComponent.toPlainText(components));
+        handle.sendMessage(components);
     }
 
     @Override
     public void sendMessage(BaseComponent component) {
         output.accept(BaseComponent.toPlainText(component));
+        handle.sendMessage(component);
     }
 
     @Override
