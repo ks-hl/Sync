@@ -12,6 +12,7 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.InvalidKeyException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -51,7 +52,15 @@ public class SyncClient implements SyncNetCore {
                 }
                 try {
                     connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
-                    connection.setEncryption(new EncryptionAES(encryptionRSA.decode(connection.readRaw())));
+                    plugin.debug("Generating new AES session key");
+                    connection.setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
+                    plugin.debug("Sending key..");
+                    try {
+                        connection.sendRaw(encryptionRSA.encode(connection.getEncryption().encodeKey()));
+                    } catch (IOException | InvalidKeyException e) {
+                        close();
+                        return;
+                    }
 
                     plugin.debug("Sending handshake");
                     connection.send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));

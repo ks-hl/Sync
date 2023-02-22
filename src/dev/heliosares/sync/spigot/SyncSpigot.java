@@ -28,6 +28,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -65,7 +66,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         } catch (Throwable ignored) {
         }
 
-        File keyFile = new File(getDataFolder(),"public.key");
+        File keyFile = new File(getDataFolder(), "public.key");
         if (!keyFile.exists()) {
             warning("Key file does not exist. Please copy it from the proxy.");
             setEnabled(false);
@@ -94,7 +95,8 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             }
             if (packet.getPayload().has("to")) {
                 Player to = getServer().getPlayer(packet.getPayload().getString("to"));
-                if (to != null) to.playSound(to, sound, pitch, volume);
+                if (to == null) return;
+                to.playSound(to, sound, pitch, volume);
             } else {
                 for (Player player : getServer().getOnlinePlayers()) {
                     player.playSound(player, sound, pitch, volume);
@@ -115,7 +117,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                     Runtime.getRuntime().halt(0);
                 }
 
-                print("Executing: " + message);
+                print("Executing (from " + packet.getOrigin() + "): " + message);
 
                 Result playerR = CommandParser.parse("-p", message);
                 CommandSender sender = getServer().getConsoleSender();
@@ -138,15 +140,28 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 } else {
                     sender = getServer().getPlayer(playerR.value());
                     message = playerR.remaining();
-                    if (sender == null) {
-                        print("Player not found: " + playerR.value());
-                        return;
-                    }
+                    if (sender == null) return;
                 }
                 dispatchCommand(sender, message);
             } catch (Exception e) {
                 getLogger().warning("Error while parsing: ");
                 print(e);
+            }
+        });
+
+        sync.getEventHandler().registerListener(Packets.TITLE.id, null, (server, packet) -> {
+            String title = packet.getPayload().has("title") ? packet.getPayload().getString("title") : "";
+            String subtitle = packet.getPayload().has("subtitle") ? packet.getPayload().getString("subtitle") : "";
+            int fadein = packet.getPayload().has("fadein") ? packet.getPayload().getInt("fadein") : 0;
+            int duration = packet.getPayload().has("duration") ? packet.getPayload().getInt("duration") : 60;
+            int fadeout = packet.getPayload().has("fadeout") ? packet.getPayload().getInt("fadeout") : 0;
+            Consumer<Player> showTitle = player -> player.sendTitle(title, subtitle, fadein, duration, fadeout);
+            if (packet.getPayload().has("to")) {
+                Player to = getServer().getPlayer(UUID.fromString(packet.getPayload().getString("to")));
+                if (to == null) return;
+                showTitle.accept(to);
+            } else {
+                getServer().getOnlinePlayers().forEach(showTitle);
             }
         });
 

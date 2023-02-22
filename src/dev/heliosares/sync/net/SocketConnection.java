@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class SocketConnection {
         this.socket = socket;
         this.created = System.currentTimeMillis();
         out = new DataOutputStream(socket.getOutputStream());
-        in = new DataInputStream(socket.getInputStream());
+        in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
     }
 
     protected EncryptionAES getEncryption() {

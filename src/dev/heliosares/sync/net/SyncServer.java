@@ -47,12 +47,12 @@ public class SyncServer implements SyncNetCore {
      * @param server The name of the server (separated by commas for multiple), or
      *               null or "all" for all servers.
      */
-    public boolean send(String server, Packet packet) {
+    public boolean send(@Nullable String server, Packet packet) {
         return sendConsumer(server, packet, null);
     }
 
     @Override
-    public boolean sendConsumer(String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
+    public boolean sendConsumer(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
         boolean any = false;
         synchronized (clients) {
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
@@ -63,6 +63,7 @@ public class SyncServer implements SyncNetCore {
                     continue;
                 }
                 contains:
+                // Checks that the server is included in the list, or skips if the list is null
                 if (servers != null) {
                     for (String other : servers) {
                         if (other.equalsIgnoreCase(ch.getName())) {

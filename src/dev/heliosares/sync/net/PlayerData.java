@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncAPI;
 import net.md_5.bungee.api.chat.BaseComponent;
 import org.json.JSONObject;
 
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 public class PlayerData {
@@ -33,6 +34,10 @@ public class PlayerData {
 
     public void sendMessage(BaseComponent[] msg) throws Exception {
         SyncAPI.sendMessage(name, msg, null);
+    }
+
+    public void sendTitle(@Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
+        SyncAPI.sendTitle(getUUID(), title, subtitle, fadein, duration, fadeout);
     }
 
     public String getServer() {

@@ -11,7 +11,9 @@ public enum Packets {
 
     MESSAGE(7),//
 
-    PLAY_SOUND(8);//
+    PLAY_SOUND(8),
+
+    TITLE(9);//
 
     public final int id;
 

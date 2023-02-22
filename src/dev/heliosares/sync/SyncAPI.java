@@ -40,7 +40,7 @@ public class SyncAPI {
      * Sends a packet to a specific server.
      *
      * @param server The server to target. Must be contained within
-     *               SyncAPI.getServers()
+     *               SyncAPI.getServers() or "all"
      */
     public static boolean send(String server, Packet packet) throws Exception {
         return getInstance().getSync().send(server, packet);
@@ -109,5 +109,25 @@ public class SyncAPI {
         if (node != null) payload.put("node", node);
         if (to != null) payload.put("to", to);
         send(new Packet(null, Packets.MESSAGE.id, payload));
+    }
+
+    /**
+     * Shows a title screen to the target player
+     *
+     * @param to The UUID of the player. If null, all players on the network will be shown the title screen
+     */
+    public static void sendTitle(@Nullable UUID to, @Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
+        JSONObject payload = new JSONObject();
+
+        if (to != null) payload.put("to", to);
+        if (title != null) payload.put("title", title);
+        if (subtitle != null) payload.put("subtitle", subtitle);
+        if (fadein > 0) payload.put("fadein", fadein);
+        if (duration > 0) payload.put("duration", duration);
+        if (fadeout > 0) payload.put("fadeout", fadeout);
+
+        String server = "all";
+        if (to != null) server = getPlayer(to).getServer();
+        send(server, new Packet(null, Packets.TITLE.id, new JSONObject()));
     }
 }

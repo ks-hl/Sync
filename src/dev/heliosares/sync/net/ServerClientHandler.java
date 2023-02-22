@@ -19,7 +19,6 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
     public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket, EncryptionRSA encryptionRSA) throws IOException, InvalidKeyException {
         super(socket);
-        setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
         this.plugin = plugin;
         this.server = server;
         this.encryptionRSA = encryptionRSA;
@@ -28,8 +27,8 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     @Override
     public void run() {
         try {
-            super.sendRaw(encryptionRSA.encode(super.getEncryption().encodeKey()));
-        } catch (IOException | InvalidKeyException e) {
+            setEncryption(new EncryptionAES(encryptionRSA.decode(readRaw())));
+        } catch (InvalidKeyException | IOException e) {
             close();
             server.remove(this);
             return;
