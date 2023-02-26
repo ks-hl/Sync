@@ -128,7 +128,7 @@ public class SyncAPI {
 
         String server = "all";
         if (to != null) server = getPlayer(to).getServer();
-        send(server, new Packet(null, Packets.TITLE.id, new JSONObject()));
+        send(server, new Packet(null, Packets.TITLE.id, payload));
     }
 
     /**
