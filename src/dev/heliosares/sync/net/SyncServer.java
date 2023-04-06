@@ -11,10 +11,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
@@ -22,15 +19,14 @@ public class SyncServer implements SyncNetCore {
     private final NetEventHandler eventhandler;
     private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
     private final UserManager usermanager;
-    private final EncryptionRSA encryption;
+    private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;
     private boolean closed = false;
 
-    public SyncServer(SyncCoreProxy plugin, EncryptionRSA encryption) {
+    public SyncServer(SyncCoreProxy plugin) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
-        this.encryption = encryption;
         eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
     }
 
@@ -105,7 +101,7 @@ public class SyncServer implements SyncNetCore {
                     // This look waits for clients
                     while (!closed) {
                         Socket socket = serverSocket.accept();
-                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket, encryption);
+                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
 
                         plugin.debug("Connection accepted on port " + socket.getPort());
 
@@ -260,5 +256,15 @@ public class SyncServer implements SyncNetCore {
 
     public UserManager getUserManager() {
         return usermanager;
+    }
+
+    EncryptionRSA getEncryptionFor(UUID user) {
+        return clientEncryptionRSA.stream()
+                .filter(entry -> entry.getUUID().equals(user))
+                .findAny().orElse(null);
+    }
+
+    public void setClientEncryptionRSA(Set<EncryptionRSA> clientEncryptionRSA) {
+        this.clientEncryptionRSA = clientEncryptionRSA;
     }
 }

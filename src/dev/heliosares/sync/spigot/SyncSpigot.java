@@ -68,15 +68,26 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         } catch (Throwable ignored) {
         }
 
-        File keyFile = new File(getDataFolder(), "public.key");
-        if (!keyFile.exists()) {
-            warning("Key file does not exist. Please copy it from the proxy.");
-            setEnabled(false);
-            return;
+        File file = new File(getDataFolder(), "private.key");
+        if (!file.exists()) {
+            print("Key does not exist, regenerating...");
+            File publicKeyFile = new File(getDataFolder(), "SERVER_NAME.public.key");
+            try {
+                boolean ignored = file.createNewFile();
+                if (!publicKeyFile.exists()) {
+                    boolean ignored2 = publicKeyFile.createNewFile();
+                }
+                EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
+                pair.privateKey().write(file);
+                pair.publicKey().write(publicKeyFile);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            print("Keys generated successfully. Please copy 'plugins/Sync/SERVER_NAME.public.key' to the proxy under 'plugins/Sync/clients/SERVER_NAME.public.key', renaming 'SERVER_NAME' to the server's name");
         }
 
         try {
-            sync = new SyncClient(this, new EncryptionRSA(EncryptionRSA.loadPublicKey(keyFile)));
+            sync = new SyncClient(this, EncryptionRSA.load(file));
         } catch (FileNotFoundException | InvalidKeySpecException e) {
             warning("Failed to load key file. Ensure it was correctly copied from the proxy.");
             print(e);

@@ -49,7 +49,7 @@ public class SyncDaemon implements SyncCore {
 
         SyncClient sync;
         try {
-            sync = new SyncClient(new SyncDaemon(), new EncryptionRSA(EncryptionRSA.loadPublicKey(keyFile)));
+            sync = new SyncClient(new SyncDaemon(), EncryptionRSA.load(keyFile));
         } catch (FileNotFoundException | InvalidKeySpecException e) {
             System.err.println("Failed to load key file. Ensure it was correctly copied from the proxy.");
             e.printStackTrace();

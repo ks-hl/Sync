@@ -25,8 +25,8 @@ public class SocketConnection {
     private final Map<Long, ResponseAction> responses = new HashMap<>();
     private boolean closed;
     private String name;
-    private long lastPacketSent;
-    private long lastPacketReceived;
+    private long lastPacketSent = System.currentTimeMillis();
+    private long lastPacketReceived = System.currentTimeMillis();
     private long lastCleanup;
 
     public SocketConnection(Socket socket) throws IOException, InvalidKeyException {
@@ -40,12 +40,6 @@ public class SocketConnection {
         return encryption;
     }
 
-    protected void setEncryption(EncryptionAES encryption) throws InvalidKeyException {
-        if (this.encryption != null)
-            throw new IllegalStateException("Attempted to re set the encryption key. Key can only be set once per SocketConnection");
-        encryption.encrypt(new byte[1]); // Validates the key
-        this.encryption = encryption;
-    }
 
     public void close() {
         if (closed) {
@@ -62,8 +56,7 @@ public class SocketConnection {
         try {
             synchronized (in) {
                 Packet packet = new Packet(new JSONObject(new String(read())));
-                if (packet.getPacketId() != Packets.KEEPALIVE.id)
-                    SyncAPI.getInstance().debug("RECV: " + packet);
+                if (packet.getPacketId() != Packets.KEEPALIVE.id) SyncAPI.getInstance().debug("RECV: " + packet);
                 if (packet.getPacketId() == Packets.BLOB.id) packet.setBlob(read());
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
@@ -98,12 +91,7 @@ public class SocketConnection {
     }
 
     protected void sendConsumer(Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
-        if (closed) {
-            return;
-        }
-        if (getName() == null && packet.getPacketId() != Packets.HANDSHAKE.id) {
-            throw new IllegalStateException("Cannot send packets before handshake.");
-        }
+        if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
         synchronized (out) {
@@ -188,5 +176,13 @@ public class SocketConnection {
 
     public long getTimeOfLastPacketReceived() {
         return lastPacketReceived;
+    }
+
+    public String getIP() {
+        return socket.getRemoteSocketAddress().toString();
+    }
+
+    public void setEncryption(EncryptionAES encryption) {
+        if (this.encryption == null) this.encryption = encryption;
     }
 }

@@ -17,52 +17,68 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Scanner;
+import java.util.UUID;
 
 public class EncryptionRSA {
 
-    private final PrivateKey privateKey;
-    private final PublicKey publicKey;
+    private final UUID uuid;
+    private final Key key;
+    private final String user;
 
-    public EncryptionRSA(PrivateKey key) {
-        this.privateKey = key;
-        this.publicKey = null;
+    private EncryptionRSA(UUID uuid, Key key, String user) {
+        this.uuid = uuid;
+        this.key = key;
+        this.user = user;
     }
 
-    public EncryptionRSA(PublicKey key) {
-        this.publicKey = key;
-        this.privateKey = null;
-    }
-
-    public static PublicKey loadPublicKey(File file) throws FileNotFoundException, InvalidKeySpecException {
+    public static EncryptionRSA load(File file) throws FileNotFoundException, InvalidKeySpecException {
         try (Scanner scanner = new Scanner(file)) {
+            String type = scanner.nextLine();
+            boolean isPrivate = switch (type) {
+                case "private" -> true;
+                case "public" -> false;
+                default -> throw new InvalidKeySpecException();
+            };
+            UUID uuid = UUID.fromString(scanner.nextLine());
             String keyString = scanner.nextLine();
-            KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
-            EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(keyString));
-            return publicKeyFactory.generatePublic(publicKeySpec);
+            return load(uuid, Base64.getDecoder().decode(keyString), isPrivate, file.getName().substring(0, file.getName().indexOf('.')));
         } catch (NoSuchAlgorithmException e) {
-            assert false;
             throw new RuntimeException("RSA algorithm not implemented");
         }
     }
 
-    public static PrivateKey loadPrivateKey(File file) throws FileNotFoundException, InvalidKeySpecException {
-        try (Scanner scanner = new Scanner(file)) {
-            String keyString = scanner.nextLine();
+    public static EncryptionRSA load(UUID uuid, byte[] bytes, boolean isPrivate, String name) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        if (isPrivate) {
             KeyFactory privateKeyFactory = KeyFactory.getInstance("RSA");
-            EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(keyString));
-            return privateKeyFactory.generatePrivate(privateKeySpec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("RSA algorithm not implemented");
+            EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(bytes);
+            return new EncryptionRSA(uuid, privateKeyFactory.generatePrivate(privateKeySpec), name);
+        } else {
+            KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
+            EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(bytes);
+            return new EncryptionRSA(uuid, publicKeyFactory.generatePublic(publicKeySpec), name);
         }
     }
 
-    public static void write(File file, Key key) throws IOException {
+    public void write(File file) throws IOException {
         try (FileWriter writer = new FileWriter(file, false)) {
+            writer.write((key instanceof PrivateKey ? "private" : "public") + "\n");
+            writer.write(uuid.toString() + "\n");
             writer.write(Base64.getEncoder().encodeToString(key.getEncoded()));
         }
     }
 
-    public static KeyPair generate() {
+    public UUID getUUID() {
+        return uuid;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public record RSAPair(EncryptionRSA publicKey, EncryptionRSA privateKey) {
+    }
+
+    public static RSAPair generate() {
         KeyPairGenerator kpg = null;
         try {
             kpg = KeyPairGenerator.getInstance("RSA");
@@ -70,26 +86,15 @@ public class EncryptionRSA {
             assert false : "RSA algorithm not implemented";
         }
         kpg.initialize(2048);
-        return kpg.generateKeyPair();
+        java.security.KeyPair pair = kpg.generateKeyPair();
+        UUID uuid = UUID.randomUUID();
+        return new RSAPair(new EncryptionRSA(uuid, pair.getPublic(), null), new EncryptionRSA(uuid, pair.getPrivate(), null));
     }
 
-    public byte[] encode(byte[] bytes) throws InvalidKeyException {
-        Cipher cipher = null;
-        try {
-            cipher = Cipher.getInstance("RSA");
-            cipher.init(Cipher.ENCRYPT_MODE, getKey());
-            return cipher.doFinal(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("RSA algorithm not implemented");
-        } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new InvalidKeyException(e);
-        }
-    }
-
-    public byte[] decode(byte[] bytes) throws InvalidKeyException {
+    public byte[] encrypt(byte[] bytes) throws InvalidKeyException {
         try {
             Cipher cipher = Cipher.getInstance("RSA");
-            cipher.init(Cipher.DECRYPT_MODE, getKey());
+            cipher.init(Cipher.ENCRYPT_MODE, key);
             return cipher.doFinal(bytes);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("RSA algorithm not implemented");
@@ -98,8 +103,15 @@ public class EncryptionRSA {
         }
     }
 
-    public Key getKey() {
-        if (privateKey != null) return privateKey;
-        return publicKey;
+    public byte[] decrypt(byte[] bytes) throws InvalidKeyException {
+        try {
+            Cipher cipher = Cipher.getInstance("RSA");
+            cipher.init(Cipher.DECRYPT_MODE, key);
+            return cipher.doFinal(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("RSA algorithm not implemented");
+        } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
+            throw new InvalidKeyException(e);
+        }
     }
 }

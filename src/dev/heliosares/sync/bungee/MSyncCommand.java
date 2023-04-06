@@ -64,6 +64,9 @@ public class MSyncCommand extends Command implements TabExecutor {
             } else if (args[0].equalsIgnoreCase("-playerlist")) {
                 SyncBungee.tell(sender, plugin.sync.getUserManager().toFormattedString());
                 return;
+            } else if (args[0].equalsIgnoreCase("-reloadkeys") && sender.equals(plugin.getProxy().getConsole())) {
+                plugin.reloadKeys(true);
+                return;
             }
         }
 
@@ -89,6 +92,7 @@ public class MSyncCommand extends Command implements TabExecutor {
             if (args.length == 1) {
                 out.add("-playerlist");
                 out.add("-serverlist");
+                if (sender.equals(plugin.getProxy().getConsole())) out.add("-reloadkeys");
             }
             if (args.length > 1 && args[args.length - 2].equalsIgnoreCase("-s")) {
                 plugin.sync.getClients().forEach(c -> out.add(c.getName()));

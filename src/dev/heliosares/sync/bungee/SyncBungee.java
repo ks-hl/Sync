@@ -30,10 +30,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
-import java.security.KeyPair;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -44,7 +45,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     protected Configuration config;
     SyncServer sync;
     boolean debug;
-    private EncryptionRSA encryptionRSA;
 
     public static SyncBungee getInstance() {
         return instance;
@@ -62,29 +62,9 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         print("Enabling");
         getProxy().getPluginManager().registerCommand(this, new MSyncCommand("msync", this));
         getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
-        File file = new File(getDataFolder(), "private.key");
-        if (!file.exists()) {
-            print("Key does not exist, regenerating...");
-            File publicKeyFile = new File(getDataFolder(), "public.key");
-            try {
-                boolean ignored = file.createNewFile();
-                if (!publicKeyFile.exists()) {
-                    boolean ignored2 = publicKeyFile.createNewFile();
-                }
-                KeyPair pair = EncryptionRSA.generate();
-                EncryptionRSA.write(file, pair.getPrivate());
-                EncryptionRSA.write(publicKeyFile, pair.getPublic());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            print("Keys generated successfully. Please copy 'Sync/public.key' to all Spigot servers");
-        }
-        try {
-            encryptionRSA = new EncryptionRSA(EncryptionRSA.loadPrivateKey(file));
-        } catch (FileNotFoundException | InvalidKeySpecException e) {
-            throw new RuntimeException(e);
-        }
-        sync = new SyncServer(this, encryptionRSA);
+
+        sync = new SyncServer(this);
+        reloadKeys(false);
         sync.start(config.getInt("port", 8001));
 
         sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
@@ -110,10 +90,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
                     send = p -> p.sendMessage(base);
                 } else return;
                 ServerInfo ignore = others_only ? getProxy().getServerInfo(server) : null;
-                getProxy().getPlayers().stream()
-                        .filter(p -> !p.getServer().getInfo().equals(ignore))
-                        .filter(p -> node == null || p.hasPermission(node))
-                        .forEach(send);
+                getProxy().getPlayers().stream().filter(p -> !p.getServer().getInfo().equals(ignore)).filter(p -> node == null || p.hasPermission(node)).forEach(send);
             }
 
         });
@@ -171,8 +148,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
             }
         }
         try {
-            config = ConfigurationProvider.getProvider(YamlConfiguration.class)
-                    .load(new File(getDataFolder(), "config.yml"));
+            config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(new File(getDataFolder(), "config.yml"));
         } catch (IOException e) {
             print(e);
         }
@@ -266,5 +242,27 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     @Override
     public PlatformType getPlatformType() {
         return PlatformType.BUNGEE;
+    }
+
+    public void reloadKeys(boolean print) {
+        Set<EncryptionRSA> clientEncryptionRSA = new HashSet<>();
+        File clientsDir = new File(getDataFolder(), "clients");
+        if (clientsDir.exists()) {
+            File[] files = clientsDir.listFiles();
+            if (files != null) for (File listFile : files) {
+                if (listFile.isFile() && listFile.getName().toLowerCase().endsWith(".public.key")) {
+                    try {
+                        EncryptionRSA rsa = EncryptionRSA.load(listFile);
+                        clientEncryptionRSA.add(rsa);
+                        if (print) print("Loaded key for " + rsa.getUser());
+                    } catch (FileNotFoundException | InvalidKeySpecException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        } else {
+            boolean ignored = clientsDir.mkdir();
+        }
+        sync.setClientEncryptionRSA(clientEncryptionRSA);
     }
 }

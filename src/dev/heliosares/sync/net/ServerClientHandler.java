@@ -2,38 +2,69 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.utils.EncryptionAES;
+import dev.heliosares.sync.utils.EncryptionDH;
 import dev.heliosares.sync.utils.EncryptionRSA;
-import org.json.JSONObject;
 
+import javax.crypto.SecretKey;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.InvalidKeyException;
+import java.security.*;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 public class ServerClientHandler extends SocketConnection implements Runnable {
 
     private final SyncCoreProxy plugin;
     private final SyncServer server;
-    private final EncryptionRSA encryptionRSA;
 
-    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket, EncryptionRSA encryptionRSA) throws IOException, InvalidKeyException {
+    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException, InvalidKeyException {
         super(socket);
         this.plugin = plugin;
         this.server = server;
-        this.encryptionRSA = encryptionRSA;
+        setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
     }
 
     @Override
     public void run() {
         try {
-            setEncryption(new EncryptionAES(encryptionRSA.decode(readRaw())));
-        } catch (InvalidKeyException | IOException e) {
+            AlgorithmParameters params = EncryptionDH.generateParameters();
+            KeyPair pair = EncryptionDH.generate(params);
+            sendRaw(params.getEncoded());
+            sendRaw(pair.getPublic().getEncoded());
+
+            PublicKey clientKeyDH = EncryptionDH.getPublicKey(readRaw());
+            SecretKey keyDH = EncryptionDH.combine(pair.getPrivate(), clientKeyDH);
+            UUID user_uuid = UUID.fromString(new String(EncryptionDH.decrypt(keyDH, readRaw())));
+            EncryptionRSA clientRSA = server.getEncryptionFor(user_uuid);
+            if (clientRSA == null) {
+                throw new InvalidKeyException();
+            }
+            sendRaw(EncryptionDH.encrypt(keyDH, clientRSA.encrypt(getEncryption().encodeKey())));
+            if (!new String(read()).equals("ACK")) {
+                // Tests that the client has the decrypted AES key
+                throw new InvalidKeyException();
+            }
+            send(clientRSA.getUser().getBytes());
+            setName(clientRSA.getUser());
+
+        } catch (GeneralSecurityException e) {
+            plugin.print("Client failed to authenticate. " + getIP());
+            close();
+            server.remove(this);
+            if (plugin.debug()) {
+                plugin.print(e);
+            }
+            return;
+        } catch (IOException e) {
+            plugin.print("Error during handshake.");
+            plugin.print(e);
             close();
             server.remove(this);
             return;
         }
+        plugin.print(getName() + " connected on IP " + getIP());
         while (isConnected()) {
             try {
                 Packet packet = listen();
@@ -45,28 +76,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                     plugin.debug("received from " + getName() + ": " + packet);
                 }
-                boolean noname = getName() == null;
-                if (packet.getPacketId() == Packets.HANDSHAKE.id) {
-                    if (!noname) {
-                        plugin.warning("Client tried to handshake after connected. Disconnecting");
-                        close();
-                        return;
-                    }
-                    int port = packet.getPayload().getInt("serverport");
-                    String name = port == -1 ? ("daemon" + (System.currentTimeMillis() % 1000000))
-                            : plugin.getServerNameByPort(port);
-                    setName(name);
-
-                    plugin.print(name + " connected.");
-
-                    send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("name", name)));
-
-                    server.updateClientsWithServerList();
-                } else if (noname) {
-                    plugin.warning("Client tried to send packet without handshake. Disconnecting");
-                    close();
-                    return;
-                } else if (packet.getPacketId() != Packets.KEEPALIVE.id) {
+                if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                     final String forward = packet.getForward();
                     if (packet.getForward() != null) {
                         packet.setForward(getName());

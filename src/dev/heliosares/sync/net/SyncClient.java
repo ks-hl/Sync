@@ -2,17 +2,20 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.utils.EncryptionAES;
+import dev.heliosares.sync.utils.EncryptionDH;
 import dev.heliosares.sync.utils.EncryptionRSA;
-import org.json.JSONObject;
 
 import javax.annotation.Nullable;
+import javax.crypto.SecretKey;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.InvalidKeyException;
+import java.security.AlgorithmParameters;
+import java.security.KeyPair;
+import java.security.PublicKey;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -52,18 +55,22 @@ public class SyncClient implements SyncNetCore {
                 }
                 try {
                     connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
-                    plugin.debug("Generating new AES session key");
-                    connection.setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
-                    plugin.debug("Sending key..");
-                    try {
-                        connection.sendRaw(encryptionRSA.encode(connection.getEncryption().encodeKey()));
-                    } catch (IOException | InvalidKeyException e) {
-                        close();
-                        return;
-                    }
 
-                    plugin.debug("Sending handshake");
-                    connection.send(new Packet(null, Packets.HANDSHAKE.id, new JSONObject().put("serverport", serverport)));
+                    AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
+                    PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
+                    KeyPair keyPair = EncryptionDH.generate(params);
+                    SecretKey keyDB = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
+                    connection.sendRaw(keyPair.getPublic().getEncoded());
+                    connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
+                    connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
+                    connection.send("ACK".getBytes());
+                    connection.setName(new String(connection.read()));
+
+                    plugin.print("Authenticated as " + connection.getName());
+                    unableToConnectCount = 0;
+
+                    usermanager.sendPlayers("all");
+                    usermanager.request("all");
 
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
@@ -78,26 +85,6 @@ public class SyncClient implements SyncNetCore {
                         }
                         if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                             plugin.debug("received: " + packet);
-                        }
-                        boolean isHandshake = packet.getPacketId() == Packets.HANDSHAKE.id;
-                        boolean noname = connection.getName() == null;
-                        if (isHandshake) {
-                            if (!noname) {
-                                plugin.warning("Server tried to handshake after connected. Reconnecting...");
-                                break;
-                            }
-                            connection.setName(packet.getPayload().getString("name"));
-                            plugin.print("Connected as " + connection.getName());
-                            unableToConnectCount = 0;
-
-                            usermanager.sendPlayers("all");
-                            usermanager.request("all");
-
-                            continue;
-                        }
-                        if (noname) {
-                            plugin.warning("Server tried to send packet without handshake. Reconnecting...");
-                            break;
                         }
                         if (packet.getPacketId() == Packets.SERVER_LIST.id) {
                             servers = packet.getPayload().getJSONArray("servers").toList().stream()
