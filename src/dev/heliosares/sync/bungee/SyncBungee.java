@@ -28,12 +28,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +63,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
 
         sync = new SyncServer(this);
         reloadKeys(false);
-        sync.start(config.getInt("port", 8001));
+        sync.start(config.getString("host", null), config.getInt("port", 8001));
 
         sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
             @Nullable String msg = packet.getPayload().optString("msg", null);
@@ -187,18 +185,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public String getServerNameByPort(int port) {
-        for (Entry<String, ServerInfo> info : getProxy().getServers().entrySet()) {
-            if (info.getValue().getSocketAddress() instanceof InetSocketAddress) {
-                if (port == ((InetSocketAddress) info.getValue().getSocketAddress()).getPort()) {
-                    return info.getKey();
-                }
-            }
-        }
-        return null;
-    }
-
-    @Override
     public void warning(String msg) {
         getLogger().warning(msg);
     }
@@ -264,5 +250,10 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
             boolean ignored = clientsDir.mkdir();
         }
         sync.setClientEncryptionRSA(clientEncryptionRSA);
+    }
+
+    @Override
+    public boolean hasWritePermission(String user) {
+        return !config.getStringList("read-only").contains(user);
     }
 }

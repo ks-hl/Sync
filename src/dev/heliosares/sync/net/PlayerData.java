@@ -40,6 +40,15 @@ public class PlayerData {
         SyncAPI.sendTitle(getUUID(), title, subtitle, fadein, duration, fadeout);
     }
 
+    public void playSound(String sound, float volume, float pitch) throws Exception {
+        SyncAPI.send(server, new Packet(null, Packets.PLAY_SOUND.id, new JSONObject()
+                .put("to", uuid.toString())
+                .put("sound", sound)
+                .put("pitch", pitch)
+                .put("volume", volume))
+        );
+    }
+
     public String getServer() {
         return server;
     }

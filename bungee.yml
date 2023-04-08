@@ -1,4 +1,4 @@
 name: Sync
 main: dev.heliosares.sync.bungee.SyncBungee
-version: %VERSION%
+version: '%VERSION%'
 author: Heliosares

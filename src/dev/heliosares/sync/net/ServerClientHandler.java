@@ -18,6 +18,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
     private final SyncCoreProxy plugin;
     private final SyncServer server;
+    private boolean writePermission;
 
     public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException, InvalidKeyException {
         super(socket);
@@ -48,6 +49,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             }
             send(clientRSA.getUser().getBytes());
             setName(clientRSA.getUser());
+            writePermission = server.hasWritePermission(getName());
 
         } catch (GeneralSecurityException e) {
             plugin.print("Client failed to authenticate. " + getIP());
@@ -64,7 +66,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             server.remove(this);
             return;
         }
-        plugin.print(getName() + " connected on IP " + getIP());
+        plugin.print(getName() + " connected on IP " + getIP() + (!writePermission ? ", read-only" : ""));
         while (isConnected()) {
             try {
                 Packet packet = listen();
@@ -72,11 +74,13 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     plugin.warning("Null packet received");
                     continue;
                 }
+                if (!writePermission && packet.getPacketId() != Packets.KEEPALIVE.id && packet.getPacketId() != Packets.PLAYER_DATA.id) {
+                    plugin.warning(getName() + " tried to send a packet but does not have write permission: " + packet);
+                    continue;
+                }
                 packet.setOrigin(getName());
                 if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                     plugin.debug("received from " + getName() + ": " + packet);
-                }
-                if (packet.getPacketId() != Packets.KEEPALIVE.id) {
                     final String forward = packet.getForward();
                     if (packet.getForward() != null) {
                         packet.setForward(getName());

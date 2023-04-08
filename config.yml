@@ -1,5 +1,5 @@
-# This must be the same throughout all servers you want to connect
+host: null
 port: 8001
 
-publickey:
-privatekey:
+read-only:
+  - server-that-is-not-allowed-to-send-packets

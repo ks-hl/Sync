@@ -57,7 +57,7 @@ public class SyncDaemon implements SyncCore {
         }
 
         try {
-            sync.start(port, -1);
+            sync.start(null, port);
             while (!sync.isConnected() || sync.getName() == null) {
                 //noinspection BusyWait
                 Thread.sleep(10);

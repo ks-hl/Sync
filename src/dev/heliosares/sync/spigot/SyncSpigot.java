@@ -94,28 +94,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             setEnabled(false);
             return;
         }
-        sync.start(getConfig().getInt("port", 8001), this.getServer().getPort());
-        sync.getEventHandler().registerListener(Packets.PLAY_SOUND.id, null, (server, packet) -> {
-            Sound sound;
-            float pitch = 1f;
-            float volume = 1f;
-            if (packet.getPayload().has("pitch")) pitch = packet.getPayload().getFloat("pitch");
-            if (packet.getPayload().has("volume")) volume = packet.getPayload().getFloat("volume");
-            try {
-                sound = Sound.valueOf(packet.getPayload().getString("sound"));
-            } catch (IllegalArgumentException ignored) {
-                return;
-            }
-            if (packet.getPayload().has("to")) {
-                Player to = getServer().getPlayer(packet.getPayload().getString("to"));
-                if (to == null) return;
-                to.playSound(to, sound, pitch, volume);
-            } else {
-                for (Player player : getServer().getOnlinePlayers()) {
-                    player.playSound(player, sound, pitch, volume);
-                }
-            }
-        });
+        sync.start(getConfig().getString("host", null), getConfig().getInt("port", 8001));
 
         sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
             try {
@@ -148,7 +127,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                         }
                     }));
                 } else {
-                    sender = getServer().getPlayer(playerR.value());
+                    sender = getPlayer(playerR.value());
                     message = playerR.remaining();
                     if (sender == null) return;
                 }
@@ -167,11 +146,33 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             int fadeout = packet.getPayload().has("fadeout") ? packet.getPayload().getInt("fadeout") : 0;
             Consumer<Player> showTitle = player -> player.sendTitle(title, subtitle, fadein, duration, fadeout);
             if (packet.getPayload().has("to")) {
-                Player to = getServer().getPlayer(UUID.fromString(packet.getPayload().getString("to")));
+                Player to = getPlayer(packet.getPayload().getString("to"));
                 if (to == null) return;
                 showTitle.accept(to);
             } else {
                 getServer().getOnlinePlayers().forEach(showTitle);
+            }
+        });
+        sync.getEventHandler().registerListener(Packets.PLAY_SOUND.id, null, (server, packet) -> {
+            Sound sound;
+            float pitch = 1f;
+            float volume = 1f;
+            if (packet.getPayload().has("pitch")) pitch = packet.getPayload().getFloat("pitch");
+            if (packet.getPayload().has("volume")) volume = packet.getPayload().getFloat("volume");
+            try {
+                sound = Sound.valueOf(packet.getPayload().getString("sound"));
+            } catch (IllegalArgumentException ignored) {
+                getLogger().warning("Unknown sound: " + packet.getPayload().getString("sound"));
+                return;
+            }
+            if (packet.getPayload().has("to")) {
+                Player to = getPlayer(packet.getPayload().getString("to"));
+                if (to == null) return;
+                to.playSound(to.getEyeLocation(), sound, pitch, volume);
+            } else {
+                for (Player player : getServer().getOnlinePlayers()) {
+                    player.playSound(player.getEyeLocation(), sound, pitch, volume);
+                }
             }
         });
 
@@ -190,6 +191,14 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 }
             }
         }.runTaskTimerAsynchronously(this, 20, 20);
+    }
+
+    public Player getPlayer(String key) {
+        try {
+            return getServer().getPlayer(UUID.fromString(key));
+        } catch (IllegalArgumentException ignored) {
+        }
+        return getServer().getPlayer(key);
     }
 
     @Override

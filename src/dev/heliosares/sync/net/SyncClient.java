@@ -44,17 +44,17 @@ public class SyncClient implements SyncNetCore {
      * @param port       Port of the proxy server
      * @param serverport Port of this Minecraft server
      */
-    public void start(int port, int serverport) {
+    public void start(String host, int port) {
         if (connection != null) {
             throw new IllegalStateException("Client already started");
         }
         plugin.newThread(() -> {
             while (!closed) {
                 if (unableToConnectCount < 3 || plugin.debug()) {
-                    plugin.print("Client connecting on port " + port + "...");
+                    plugin.print("Client connecting on " + host + ":" + port + "...");
                 }
                 try {
-                    connection = new SocketConnection(new Socket(InetAddress.getLoopbackAddress(), port));
+                    connection = new SocketConnection(new Socket(host, port));
 
                     AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
                     PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());

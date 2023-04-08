@@ -6,14 +6,14 @@ import dev.heliosares.sync.net.ServerClientHandler;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.CommandSender;
-import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Set;
 
 public class MSyncCommand extends Command implements TabExecutor {
     private final SyncBungee plugin;
@@ -45,10 +45,12 @@ public class MSyncCommand extends Command implements TabExecutor {
             } else if (args[0].equalsIgnoreCase("-serverlist")) {
                 StringBuilder out = new StringBuilder("Server statuses: ");
                 List<ServerClientHandler> clients = plugin.sync.getClients();
-                for (Entry<String, ServerInfo> entry : plugin.getProxy().getServers().entrySet()) {
+                Set<String> servers = new HashSet<>(plugin.getProxy().getServers().keySet());
+                servers.addAll(plugin.getSync().getServers());
+                for (String server : servers) {
                     ServerClientHandler ch = null;
                     for (ServerClientHandler other : clients) {
-                        if (entry.getKey().equalsIgnoreCase(other.getName())) {
+                        if (server.equalsIgnoreCase(other.getName())) {
                             ch = other;
                             break;
                         }
@@ -56,7 +58,7 @@ public class MSyncCommand extends Command implements TabExecutor {
                     boolean connected = ch != null && ch.isConnected();
                     out.append("\n");
                     out.append(connected ? "§a" : "§c");
-                    out.append(entry.getKey()).append(": ");
+                    out.append(server).append(": ");
                     out.append(connected ? "Online" : "Offline");
                 }
                 SyncBungee.tell(sender, out.toString());

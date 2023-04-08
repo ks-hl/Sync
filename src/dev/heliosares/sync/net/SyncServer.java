@@ -87,7 +87,7 @@ public class SyncServer implements SyncNetCore {
      *
      * @param port The port to listen to
      */
-    public void start(int port) {
+    public void start(String host, int port) {
         if (serverSocket != null) {
             throw new IllegalStateException("Server already started");
         }
@@ -95,7 +95,7 @@ public class SyncServer implements SyncNetCore {
             // This loop restarts the server on failure
             while (!closed) {
                 try {
-                    serverSocket = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
+                    serverSocket = new ServerSocket(port, 0, InetAddress.getByName(host));
 
                     plugin.print("Server running on port " + port + ".");
                     // This look waits for clients
@@ -266,5 +266,9 @@ public class SyncServer implements SyncNetCore {
 
     public void setClientEncryptionRSA(Set<EncryptionRSA> clientEncryptionRSA) {
         this.clientEncryptionRSA = clientEncryptionRSA;
+    }
+
+    public boolean hasWritePermission(String user) {
+        return plugin.hasWritePermission(user);
     }
 }
