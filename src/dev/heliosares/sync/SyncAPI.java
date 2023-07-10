@@ -23,15 +23,15 @@ public class SyncAPI {
         }
         try {
             if ((instance = SyncSpigot.getInstance()) != null) return instance;
-        } catch (Throwable ignored) {
+        } catch (NoClassDefFoundError ignored) {
         }
         try {
             if ((instance = SyncBungee.getInstance()) != null) return instance;
-        } catch (Throwable ignored) {
+        } catch (NoClassDefFoundError ignored) {
         }
         try {
             if ((instance = SyncDaemon.getInstance()) != null) return instance;
-        } catch (Throwable ignored) {
+        } catch (NoClassDefFoundError ignored) {
         }
         throw new IllegalStateException("No instance of Sync");
     }
