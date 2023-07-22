@@ -8,6 +8,7 @@ import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -117,7 +118,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§cNo command provided.");
                 return true;
             }
-            FormulaParser parser = new FormulaParser(condition.toString());
+            FormulaParser parser = new SpigotFormulaParser(condition.toString());
 
             parser.setVariable("$online-players", () -> Bukkit.getOnlinePlayers().size());
             parser.setVariable("$sender", sender::getName);
@@ -170,7 +171,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
             if (lastIndex < msg_.length()) msgBuilder.append(msg_, lastIndex, msg_.length());
             msg_ = msgBuilder.toString();
 
-            final String msg = msg_;
+            final String msg = ChatColor.translateAlternateColorCodes('&', msg_);
 
             Player targetLocal = Bukkit.getPlayer(args[0]);
             if (targetLocal != null) {

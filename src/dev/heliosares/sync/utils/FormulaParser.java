@@ -16,7 +16,7 @@ public class FormulaParser {
         this.originalEquation = equation.toLowerCase();
     }
 
-    public String replaceVariables(String str) {
+    public String replaceVariables(String str) throws IllegalArgumentException {
         StringBuilder out = new StringBuilder();
         StringBuilder var = new StringBuilder();
         for (int i = 0; i < str.length(); i++) {
@@ -33,7 +33,7 @@ public class FormulaParser {
                 if (variables.containsKey(var.toString())) {
                     out.append(variables.get(var.toString()).get());
                 } else {
-                    throw new RuntimeException("Unknown variable: " + var);
+                    throw new IllegalArgumentException("Unknown variable: " + var);
                 }
                 var = new StringBuilder();
             } else {
@@ -43,14 +43,14 @@ public class FormulaParser {
         return out.toString();
     }
 
-    public double solve() throws RuntimeException {
+    public double solve() throws IllegalArgumentException {
         pos = -1;
         ch = -1;
         equation = replaceVariables(originalEquation);
         nextChar();
         double x = parsePM();
         if (pos < equation.length())
-            throw new RuntimeException("Unexpected: " + (char) ch);
+            throw new IllegalArgumentException("Unexpected: " + (char) ch);
         return x;
     }
 
@@ -79,7 +79,7 @@ public class FormulaParser {
     // | functionName `(` expression `)` | functionName factor
     // | factor `^` factor
 
-    private double parsePM() {
+    private double parsePM() throws IllegalArgumentException {
         double x = parseMD();
         int startPos = pos;
         for (; ; ) {
@@ -88,7 +88,7 @@ public class FormulaParser {
             if (and || eat('|')) {
                 double other = parsePM();
                 if ((x != 1 && x != 0) || (other != 1 && other != 0)) {
-                    throw new RuntimeException("Can't and/or non-boolean value: " + equation.substring(startPos, pos));
+                    throw new IllegalArgumentException("Can't and/or non-boolean value: " + equation.substring(startPos, pos));
                 }
                 if (and) {
                     x = other == 1 && x == 1 ? 1 : 0;
@@ -137,7 +137,7 @@ public class FormulaParser {
         return equation.substring(start, end);
     }
 
-    private double parseFactor() {
+    private double parseFactor() throws IllegalArgumentException {
         if (eat('+'))
             return +parseFactor(); // unary plus
         if (eat('-'))
@@ -156,12 +156,12 @@ public class FormulaParser {
             } else if (x == 0) {
                 x = 1;
             } else {
-                throw new RuntimeException("Cannot invert " + equation.substring(startPos, pos));
+                throw new IllegalArgumentException("Cannot invert " + equation.substring(startPos, pos));
             }
         } else if (eat('(')) { // parentheses
             x = parsePM();
             if (!eat(')'))
-                throw new RuntimeException("Missing ')'");
+                throw new IllegalArgumentException("Missing ')'");
         } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
             while ((ch >= '0' && ch <= '9') || ch == '.')
                 nextChar();
@@ -171,7 +171,7 @@ public class FormulaParser {
                 nextChar();
             String func = equation.substring(startPos, this.pos);
             if (!eat('('))
-                throw new RuntimeException("Missing '(' for function " + func);
+                throw new IllegalArgumentException("Missing '(' for function " + func);
 
             switch (func) {
                 case "sqrt" -> x = Math.sqrt(parsePM());
@@ -183,32 +183,36 @@ public class FormulaParser {
                     final String[] params = paramStr.isEmpty() ? new String[0] : paramStr.split(",");
                     if (func.equalsIgnoreCase("len")) {
                         if (params.length != 1)
-                            throw new RuntimeException("Invalid number of arguments for function: " + func);
+                            throw new IllegalArgumentException("Invalid number of arguments for function: " + func);
                         x = params[0].length();
                     } else if (func.equalsIgnoreCase("matches")) {
                         if (params.length != 2)
-                            throw new RuntimeException("Invalid number of arguments for function: " + func);
+                            throw new IllegalArgumentException("Invalid number of arguments for function: " + func);
                         x = params[0].matches(params[1]) ? 1 : 0;
                     } else if (func.equalsIgnoreCase("equals")) {
                         if (params.length != 2)
-                            throw new RuntimeException("Invalid number of arguments for function: " + func);
+                            throw new IllegalArgumentException("Invalid number of arguments for function: " + func);
                         x = params[0].matches(params[1]) ? 1 : 0;
+                    } else if (func.equalsIgnoreCase("hasPermission")) {
+                        if (params.length != 2)
+                            throw new IllegalArgumentException("Invalid number of arguments for function: " + func);
+                        x = hasPermission(params[0], params[1]) ? 1 : 0;
                     } else if (func.equalsIgnoreCase("rand")) {
                         if (params.length == 0) x = random.nextDouble();
                         else if (params.length == 1) {
                             x = random.nextInt(Integer.parseInt(params[0]));
                         } else if (params.length == 2) {
                             x = random.nextInt(Integer.parseInt(params[0]), Integer.parseInt(params[1]));
-                        } else throw new RuntimeException("Invalid number of arguments for function: " + func);
+                        } else throw new IllegalArgumentException("Invalid number of arguments for function: " + func);
                     } else {
-                        throw new RuntimeException("Unknown function: " + func);
+                        throw new IllegalArgumentException("Unknown function: " + func);
                     }
                 }
             }
             if (!eat(')'))
-                throw new RuntimeException("Missing ')' after argument to " + func);
+                throw new IllegalArgumentException("Missing ')' after argument to " + func);
         } else {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Unexpected: '" + (char) ch + "' (" + ch + ") in equation '" + equation + "' index " + pos);
         }
 
@@ -216,5 +220,9 @@ public class FormulaParser {
             x = Math.pow(x, parseFactor()); // exponentiation
 
         return x;
+    }
+
+    public boolean hasPermission(String uuidOrName, String node) {
+        throw new UnsupportedOperationException();
     }
 }
