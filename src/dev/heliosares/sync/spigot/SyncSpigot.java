@@ -27,8 +27,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -295,9 +295,9 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     }
 
     @Override
-    public List<PlayerData> getPlayers() {
+    public Set<PlayerData> getPlayers() {
         return getServer().getOnlinePlayers().stream().map(p -> getPlayerData(p, isVanished(p)))
-                .collect(Collectors.toList());
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override

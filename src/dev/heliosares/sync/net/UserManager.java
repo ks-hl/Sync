@@ -16,7 +16,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     private final SyncNetCore sync;
     private final SyncCore plugin;
-    private final Map<String, List<PlayerData>> players = new HashMap<>();
+    private final Map<String, Map<UUID, PlayerData>> players = new HashMap<>();
     private int lasthash;
 
     public UserManager(SyncCore plugin, SyncNetCore client) {
@@ -27,19 +27,19 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             plugin.scheduleAsync(this::sendCurrentHash, 10000, 10000);
     }
 
-    private static int hash(List<PlayerData> players) {
+    private static int hash(Collection<PlayerData> players) {
         if (players == null || players.isEmpty()) {
             return 0;
         }
-        return players.stream().map(PlayerData::hashData).reduce(Integer::sum).get();
+        return players.hashCode();
     }
 
-    private static List<PlayerData> getPlayerData(String server, JSONArray arr) {
-        List<PlayerData> list = new ArrayList<>();
+    private static Map<UUID, PlayerData> getPlayerData(String server, JSONArray arr) {
+        Map<UUID, PlayerData> list = new HashMap<>();
         arr.forEach(o -> {
             try {
                 PlayerData data = new PlayerData(server, (JSONObject) o);
-                list.add(data);
+                list.put(data.getUUID(), data);
             } catch (JSONException ignored) {
             }
         });
@@ -63,17 +63,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             }
         } else {
             if (packet.getPayload().has("join")) {
-                List<PlayerData> add = getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("join"));
-                List<PlayerData> current = players.get(packet.getForward());
-                if (current == null) {
-                    current = add;
-                } else {
-                    add.forEach(p -> quit(p.getServer(), p.getUUID()));
-                    current.addAll(add);
-                }
-                synchronized (players) {
-                    players.put(packet.getForward(), current);
-                }
+                players.computeIfAbsent(packet.getForward(), a -> new HashMap<>()).putAll(getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("join")));
             } else if (packet.getPayload().has("quit")) {
                 packet.getPayload().getJSONArray("quit").toList().stream().map(o -> (String) o)
                         .forEach(uuid -> quit(packet.getForward(), UUID.fromString(uuid)));
@@ -86,14 +76,11 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 int otherhash = 0;
                 try {
                     synchronized (players) {
-                        otherhash = hash(players.get(packet.getForward()));
+                        otherhash = hash(players.get(packet.getForward()).values());
                     }
                 } catch (NullPointerException ignored) {
                 }
-                if (hash != otherhash) {
-                    plugin.warning("Hash mismatch! " + hash + "!=" + otherhash);
-                    request(packet.getForward());
-                }
+                if (hash != otherhash) request(packet.getForward());
             }
         }
     }
@@ -102,7 +89,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         if (sync instanceof SyncServer) {
             return;
         }
-        List<PlayerData> players = plugin.getPlayers();
+        Set<PlayerData> players = plugin.getPlayers();
         if (players == null) return;
         sync.send(server, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("players",
                 new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList()))).put("hash", hash(players))));
@@ -113,27 +100,19 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     public PlayerData getPlayer(UUID uuid) {
-        return getPlayer(d -> d.getUUID().equals(uuid));
+        synchronized (players) {
+            return players.values().stream().filter(map -> map.containsKey(uuid)).map(map -> map.get(uuid)).findFirst().orElse(null);
+        }
     }
 
     public PlayerData getPlayer(Predicate<PlayerData> predicate) {
         synchronized (players) {
-            for (List<PlayerData> list : players.values()) {
-                Optional<PlayerData> o = list.stream().filter(predicate).findAny();
+            for (Map<UUID, PlayerData> map : players.values()) {
+                Optional<PlayerData> o = map.values().stream().filter(predicate).findAny();
                 if (o.isPresent()) return o.get();
             }
         }
         return null;
-    }
-
-    public List<PlayerData> getPlayers(Predicate<PlayerData> predicate) {
-        List<PlayerData> out = new ArrayList<>();
-        synchronized (players) {
-            for (List<PlayerData> list : players.values()) {
-                out.addAll(list.stream().filter(predicate).toList());
-            }
-        }
-        return out;
     }
 
     public String toFormattedString() {
@@ -142,7 +121,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 return "No servers";
             }
             StringBuilder build = new StringBuilder();
-            for (Entry<String, List<PlayerData>> entry : players.entrySet()) {
+            for (Entry<String, Map<UUID, PlayerData>> entry : players.entrySet()) {
                 build.append("§6§l").append(entry.getKey()).append("§7: ");
                 if (entry.getValue().isEmpty()) {
                     build.append("None\n");
@@ -150,12 +129,12 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 }
                 build.append("\n");
                 StringBuilder line = new StringBuilder();
-                for (PlayerData p : entry.getValue()) {
+                for (PlayerData p : entry.getValue().values()) {
                     if (line.length() > 100) {
                         build.append(line).append("\n");
                         line = new StringBuilder();
                     }
-                    line.append(p.isVanished() ? "§c[V]§7" : "§7").append(p.getName()).append(", ");
+                    line.append(p.isVanished() ? "§c[V]§7" : "§7").append(p.getName()).append("§8[§7").append(p.getAlts() == null ? 0 : p.getAlts().size()).append("§8]").append(", ");
                 }
                 build.append(line).append("\n");
             }
@@ -183,12 +162,12 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         plugin.debug("Sending quit for " + uuid.toString());
         plugin.runAsync(() -> {
             try {
-                Optional<Integer> hash = plugin.getPlayers().stream().filter(p -> !p.getUUID().equals(uuid))
-                        .map(PlayerData::hashData).reduce(Integer::sum);
+                int hash = hash(Objects.requireNonNull(plugin.getPlayers()).stream().filter(p -> !p.getUUID().equals(uuid))
+                        .collect(Collectors.toSet()));
                 sync.send("all",
                         new Packet(null, Packets.PLAYER_DATA.id,
                                 new JSONObject().put("quit", new JSONArray().put(uuid.toString())).put("hash",
-                                        hash.map(integer -> (lasthash = integer)).orElse(0))));
+                                        hash)));
             } catch (JSONException | IOException e) {
                 plugin.print(e);
             }
@@ -205,8 +184,8 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     private void sendCurrentHash() {
-        List<PlayerData> pl = plugin.getPlayers();
-        if (pl.size() == 0) {
+        Set<PlayerData> pl = plugin.getPlayers();
+        if (pl == null || pl.isEmpty()) {
             return;
         }
         int hash = hash(pl);
@@ -221,23 +200,17 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     private void quit(String server, UUID uuid) {
-        List<PlayerData> current = players.get(server);
-        if (current != null) {
-            Iterator<PlayerData> it = current.iterator();
-            for (PlayerData data; it.hasNext(); ) {
-                data = it.next();
-                if (data.getUUID().equals(uuid)) {
-                    it.remove();
-                    return;
-                }
-            }
+        synchronized (players) {
+            Map<UUID, PlayerData> data = players.get(server);
+            if (data == null) return;
+            data.remove(uuid);
         }
     }
 
-    public Map<String, List<PlayerData>> getPlayers() {
-        Map<String, List<PlayerData>> out = new HashMap<>();
+    public Map<String, Map<UUID, PlayerData>> getPlayers() {
+        Map<String, Map<UUID, PlayerData>> out = new HashMap<>();
         synchronized (players) {
-            players.forEach((k, v) -> out.put(k, Collections.unmodifiableList(v)));
+            players.forEach((k, v) -> out.put(k, Collections.unmodifiableMap(v)));
         }
         return Collections.unmodifiableMap(out);
     }
@@ -245,7 +218,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     public List<PlayerData> getAllPlayers() {
         List<PlayerData> out = new ArrayList<>();
         synchronized (players) {
-            players.forEach((k, v) -> out.addAll(v));
+            players.forEach((k, v) -> out.addAll(v.values()));
         }
         return out;
     }

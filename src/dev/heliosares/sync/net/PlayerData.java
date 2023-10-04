@@ -6,10 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PlayerData {
@@ -36,7 +33,7 @@ public class PlayerData {
     }
 
     public int hashData() {
-        return toJSON().toString().hashCode();
+        return Objects.hash(server, name, uuid, vanished, alts);
     }
 
     public void sendMessage(String msg) throws Exception {

@@ -4,7 +4,7 @@ import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
 import javax.annotation.Nullable;
-import java.util.List;
+import java.util.Set;
 
 public interface SyncCore {
     void newThread(Runnable run);
@@ -38,7 +38,7 @@ public interface SyncCore {
     SyncNetCore getSync();
 
     @Nullable
-    List<PlayerData> getPlayers();
+    Set<PlayerData> getPlayers();
 
     PlatformType getPlatformType();
 }

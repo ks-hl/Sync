@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -221,7 +220,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public List<PlayerData> getPlayers() {
+    public Set<PlayerData> getPlayers() {
         return null;
     }
 
