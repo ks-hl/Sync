@@ -37,19 +37,13 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     private static List<PlayerData> getPlayerData(String server, JSONArray arr) {
         List<PlayerData> list = new ArrayList<>();
         arr.forEach(o -> {
-            PlayerData data = getPlayerData(server, (JSONObject) o);
-            if (data != null)
+            try {
+                PlayerData data = new PlayerData(server, (JSONObject) o);
                 list.add(data);
+            } catch (JSONException ignored) {
+            }
         });
         return list;
-    }
-
-    private static PlayerData getPlayerData(String server, JSONObject o) {
-        try {
-            return new PlayerData(server, o.getString("name"), o.getString("uuid"), o.getBoolean("v"));
-        } catch (JSONException e) {
-            return null;
-        }
     }
 
     @Override

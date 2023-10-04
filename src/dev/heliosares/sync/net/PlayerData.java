@@ -2,16 +2,22 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
 import net.md_5.bungee.api.chat.BaseComponent;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class PlayerData {
     private final String server;
     private final String name;
     private final UUID uuid;
     private boolean vanished;
+    private Set<UUID> alts;
 
     public PlayerData(String server, String name, String uuid, boolean vanished) {
         this.server = server;
@@ -20,8 +26,13 @@ public class PlayerData {
         this.vanished = vanished;
     }
 
+    public PlayerData(String server, JSONObject o) throws JSONException {
+        this(server, o.getString("name"), o.getString("uuid"), o.getBoolean("v"));
+        alts = o.getJSONArray("alts").toList().stream().map(str -> UUID.fromString((String) str)).collect(Collectors.toUnmodifiableSet());
+    }
+
     public JSONObject toJSON() {
-        return new JSONObject().put("name", name).put("uuid", uuid).put("v", vanished);
+        return new JSONObject().put("name", name).put("uuid", uuid).put("v", vanished).put("alts", alts);
     }
 
     public int hashData() {
@@ -67,5 +78,13 @@ public class PlayerData {
 
     protected void setVanished(boolean vanished) {
         this.vanished = vanished;
+    }
+
+    public void setAlts(Set<UUID> alts) {
+        this.alts = Collections.unmodifiableSet(alts);
+    }
+
+    public Set<UUID> getAlts() {
+        return alts;
     }
 }

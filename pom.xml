@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>Sync</groupId>
     <artifactId>Sync</artifactId>
-    <version>1.11</version>
+    <version>1.12</version>
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>
         <sourceDirectory>src</sourceDirectory>
@@ -187,7 +187,7 @@
         <dependency>
             <groupId>com.github.LeonMangler</groupId>
             <artifactId>SuperVanish</artifactId>
-            <version>6.2.6-4</version>
+            <version>6.2.6-2</version>
         </dependency>
         <dependency>
             <groupId>me.clip</groupId>
