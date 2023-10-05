@@ -10,7 +10,6 @@ import javax.crypto.SecretKey;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.AlgorithmParameters;
@@ -42,7 +41,6 @@ public class SyncClient implements SyncNetCore {
      * Initiates the client. This should only be called once, onEnable
      *
      * @param port       Port of the proxy server
-     * @param serverport Port of this Minecraft server
      */
     public void start(String host, int port) {
         if (connection != null) {
@@ -69,7 +67,7 @@ public class SyncClient implements SyncNetCore {
                     plugin.print("Authenticated as " + connection.getName());
                     unableToConnectCount = 0;
 
-                    usermanager.sendPlayers("all");
+                    usermanager.sendPlayers("all", null);
                     usermanager.request("all");
 
                     while (!closed) { // Listen for packets

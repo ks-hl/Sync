@@ -220,13 +220,13 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public Set<PlayerData> getPlayers() {
-        return null;
+    public PlatformType getPlatformType() {
+        return PlatformType.BUNGEE;
     }
 
     @Override
-    public PlatformType getPlatformType() {
-        return PlatformType.BUNGEE;
+    public Set<PlayerData> createNewPlayerDataSet() {
+        throw new UnsupportedOperationException();
     }
 
     public void reloadKeys(boolean print) {

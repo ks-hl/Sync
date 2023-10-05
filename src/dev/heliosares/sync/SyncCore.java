@@ -37,8 +37,7 @@ public interface SyncCore {
 
     SyncNetCore getSync();
 
-    @Nullable
-    Set<PlayerData> getPlayers();
-
     PlatformType getPlatformType();
+
+    public Set<PlayerData> createNewPlayerDataSet();
 }

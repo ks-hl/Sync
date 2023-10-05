@@ -52,6 +52,7 @@ public class SyncDaemon implements SyncCore {
             sync = new SyncClient(new SyncDaemon(), EncryptionRSA.load(keyFile));
         } catch (FileNotFoundException | InvalidKeySpecException e) {
             System.err.println("Failed to load key file. Ensure it was correctly copied from the proxy.");
+            //noinspection CallToPrintStackTrace
             e.printStackTrace();
             return;
         }
@@ -67,6 +68,7 @@ public class SyncDaemon implements SyncCore {
             sync.close();
         } catch (Exception e1) {
             System.err.println("Unable to connect");
+            //noinspection CallToPrintStackTrace
             e1.printStackTrace();
             System.exit(2);
             return;
@@ -101,6 +103,7 @@ public class SyncDaemon implements SyncCore {
 
     @Override
     public void print(Throwable t) {
+        //noinspection CallToPrintStackTrace
         t.printStackTrace();
     }
 
@@ -137,11 +140,6 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
-    public Set<PlayerData> getPlayers() {
-        return null;
-    }
-
-    @Override
     public PlatformType getPlatformType() {
         return PlatformType.DAEMON;
     }
@@ -149,5 +147,10 @@ public class SyncDaemon implements SyncCore {
     @Override
     public boolean isAsync() {
         return true;
+    }
+
+    @Override
+    public Set<PlayerData> createNewPlayerDataSet() {
+        throw new UnsupportedOperationException();
     }
 }

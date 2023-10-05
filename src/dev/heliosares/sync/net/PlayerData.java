@@ -1,47 +1,250 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
+import dev.heliosares.sync.SyncCore;
 import net.md_5.bungee.api.chat.BaseComponent;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class PlayerData {
-    private final String server;
-    private final String name;
-    private final UUID uuid;
-    private boolean vanished;
-    private Set<UUID> alts;
 
-    public PlayerData(String server, String name, String uuid, boolean vanished) {
-        this.server = server;
-        this.name = name;
-        this.uuid = UUID.fromString(uuid);
-        this.vanished = vanished;
+
+    private abstract class Variable<T> {
+        public final String name;
+        private T value;
+
+        protected Variable(String name, T def) {
+            this.name = name;
+            value = def;
+        }
+
+        /**
+         * Sets the value of the variable and sends an update packet. Can be called sync or async.
+         *
+         * @param value The value to set
+         * @return whether the update packet was sent successfully. If not, the set operation fails.
+         */
+        public final CompletableFuture<Boolean> setValue(T value) {
+            CompletableFuture<Boolean> result = new CompletableFuture<>();
+            plugin.runAsync(() -> {
+                T originalValue = getValue();
+
+                setValueWithoutUpdate(value);
+
+                JSONObject o = new JSONObject();
+                PlayerData.this.uuid.putJSON(o);
+                o.put("update", name);
+                putJSON(o);
+
+                try {
+                    plugin.getSync().getUserManager().sendUpdatePacket(o);
+                    result.complete(true);
+                    return;
+                } catch (IOException e) {
+                    plugin.print(e);
+                }
+
+                setValue(originalValue);
+                result.complete(false);
+            });
+            return result;
+        }
+
+        void setValueWithoutUpdate(T value) {
+            this.value = value;
+        }
+
+        public final T getValue() {
+            return value;
+        }
+
+        protected final void putJSON(JSONObject o) {
+            o.put(name, value);
+        }
+
+        protected final void processJSON(JSONObject o) {
+            if (!o.has(name)) return;
+            processVariable(o.get(name));
+        }
+
+        protected abstract void processVariable(Object o) throws IllegalArgumentException;
+
+
+        protected void throwInvalidVariableType() throws IllegalArgumentException {
+            throw new IllegalArgumentException("Invalid type for variable " + name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, value);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Variable<?> variable)) return false;
+            return variable.name.equals(name) && Objects.equals(variable.value, value);
+        }
     }
 
-    public PlayerData(String server, JSONObject o) throws JSONException {
-        this(server, o.getString("name"), o.getString("uuid"), o.getBoolean("v"));
-        alts = o.getJSONArray("alts").toList().stream().map(str -> UUID.fromString((String) str)).collect(Collectors.toUnmodifiableSet());
+    public final class VariableString extends Variable<String> {
+        public VariableString(String name, String def) {
+            super(name, def);
+        }
+
+        @Override
+        protected void processVariable(Object o) {
+            if (o instanceof String string) {
+                setValueWithoutUpdate(string);
+            } else throwInvalidVariableType();
+        }
+    }
+
+    public final class VariableUUID extends Variable<UUID> {
+        public VariableUUID(String name, UUID def) {
+            super(name, def);
+        }
+
+        @Override
+        protected void processVariable(Object o) {
+            if (o instanceof String string) {
+                try {
+                    setValueWithoutUpdate(UUID.fromString(string));
+                } catch (IllegalArgumentException ignored) {
+                    throwInvalidVariableType();
+                }
+            }
+        }
+    }
+
+    public final class VariableBoolean extends Variable<Boolean> {
+        public VariableBoolean(String name, boolean def) {
+            super(name, def);
+        }
+
+        @Override
+        protected void processVariable(Object o) {
+            if (o instanceof Boolean bool) {
+                setValueWithoutUpdate(bool);
+            } else throwInvalidVariableType();
+        }
+    }
+
+    public final class VariableSetUUID extends Variable<Set<UUID>> {
+        public VariableSetUUID(String name, Set<UUID> def) {
+            super(name, def);
+        }
+
+        @Override
+        protected void processVariable(Object o) {
+            if (o instanceof JSONArray array) {
+                Set<UUID> set = new HashSet<>();
+                array.forEach(e -> set.add(UUID.fromString((String) e)));
+                setValueWithoutUpdate(set);
+            } else throwInvalidVariableType();
+        }
+
+        @Override
+        public int hashCode() {
+            return getValue().stream().mapToInt(UUID::hashCode).reduce(0, (a, b) -> a ^ b);
+        }
+    }
+
+    private final SyncCore plugin;
+    private final VariableString server;
+    private final VariableString name;
+    private final VariableUUID uuid;
+    private final VariableBoolean vanished;
+    private final VariableSetUUID alts;
+
+    public PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
+        this.plugin = plugin;
+        this.server = new VariableString("server", server);
+        this.name = new VariableString("name", name);
+        this.uuid = new VariableUUID("uuid", uuid);
+        this.vanished = new VariableBoolean("v", vanished);
+        this.alts = new VariableSetUUID("alts", new HashSet<>());
+    }
+
+    PlayerData(SyncCore plugin, String server, JSONObject o) throws JSONException {
+        this(plugin, server, null, null, false);
+        this.name.processJSON(o);
+        this.uuid.processJSON(o);
+        this.vanished.processJSON(o);
+        this.alts.processJSON(o);
     }
 
     public JSONObject toJSON() {
-        return new JSONObject().put("name", name).put("uuid", uuid).put("v", vanished).put("alts", alts);
+        JSONObject o = new JSONObject();
+        this.server.putJSON(o);
+        this.name.putJSON(o);
+        this.uuid.putJSON(o);
+        this.vanished.putJSON(o);
+        this.alts.putJSON(o);
+        return o;
     }
 
-    public int hashData() {
+    protected void handleUpdate(String field, Object value) {
+        (
+                switch (field) {
+                    case "server" -> server;
+                    case "name" -> name;
+                    case "uuid" -> uuid;
+                    case "vanished" -> vanished;
+                    case "alts" -> alts;
+                    default -> throw new IllegalArgumentException();
+                }
+        ).processVariable(value);
+    }
+
+    @Override
+    public int hashCode() {
         return Objects.hash(server, name, uuid, vanished, alts);
     }
 
+
+    public String getServer() {
+        return server.getValue();
+    }
+
+    public String getName() {
+        return name.getValue();
+    }
+
+    public UUID getUUID() {
+        return uuid.getValue();
+    }
+
+    public boolean isVanished() {
+        return vanished.getValue();
+    }
+
+    public void setVanished(boolean vanished) {
+        this.vanished.setValue(vanished);
+    }
+
+    public void setAlts(Set<UUID> alts) {
+        this.alts.setValue(alts);
+    }
+
+    public Set<UUID> getAlts() {
+        return alts.getValue();
+    }
+
     public void sendMessage(String msg) throws Exception {
-        SyncAPI.sendMessage(name, msg, null);
+        SyncAPI.sendMessage(getName(), msg, null);
     }
 
     public void sendMessage(BaseComponent[] msg) throws Exception {
-        SyncAPI.sendMessage(name, msg, null);
+        SyncAPI.sendMessage(getName(), msg, null);
     }
 
     public void sendTitle(@Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
@@ -49,39 +252,11 @@ public class PlayerData {
     }
 
     public void playSound(String sound, float volume, float pitch) throws Exception {
-        SyncAPI.send(server, new Packet(null, Packets.PLAY_SOUND.id, new JSONObject()
+        SyncAPI.send(getServer(), new Packet(null, Packets.PLAY_SOUND.id, new JSONObject()
                 .put("to", uuid.toString())
                 .put("sound", sound)
                 .put("pitch", pitch)
                 .put("volume", volume))
         );
-    }
-
-    public String getServer() {
-        return server;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public UUID getUUID() {
-        return uuid;
-    }
-
-    public boolean isVanished() {
-        return vanished;
-    }
-
-    protected void setVanished(boolean vanished) {
-        this.vanished = vanished;
-    }
-
-    public void setAlts(Set<UUID> alts) {
-        this.alts = Collections.unmodifiableSet(alts);
-    }
-
-    public Set<UUID> getAlts() {
-        return alts;
     }
 }

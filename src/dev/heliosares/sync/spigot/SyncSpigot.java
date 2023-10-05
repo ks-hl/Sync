@@ -256,18 +256,14 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         getServer().getScheduler().runTask(this, () -> sender.execute(command));
     }
 
-    public PlayerData getPlayerData(Player p, boolean vanished) {
-        return new PlayerData(this.sync.getName(), p.getName(), p.getUniqueId().toString(), vanished);
-    }
-
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        sync.getUserManager().updatePlayer(getPlayerData(e.getPlayer(), isVanished(e.getPlayer())));
+        sync.getUserManager().addPlayer(e.getPlayer().getName(), e.getPlayer().getUniqueId(), isVanished(e.getPlayer()));
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        sync.getUserManager().quitPlayer(e.getPlayer().getUniqueId());
+        sync.getUserManager().removePlayer(e.getPlayer().getUniqueId());
     }
 
     @Override
@@ -295,12 +291,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     }
 
     @Override
-    public Set<PlayerData> getPlayers() {
-        return getServer().getOnlinePlayers().stream().map(p -> getPlayerData(p, isVanished(p)))
-                .collect(Collectors.toUnmodifiableSet());
-    }
-
-    @Override
     public boolean isAsync() {
         return !Bukkit.isPrimaryThread();
     }
@@ -308,5 +298,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     @Override
     public PlatformType getPlatformType() {
         return PlatformType.SPIGOT;
+    }
+
+    @Override
+    public Set<PlayerData> createNewPlayerDataSet() {
+        return Bukkit.getOnlinePlayers().stream().map(player -> new PlayerData(this, getName(), player.getName(), player.getUniqueId(), isVanished(player))).collect(Collectors.toSet());
     }
 }
