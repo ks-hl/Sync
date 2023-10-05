@@ -35,7 +35,9 @@ public class PlayerData {
          */
         public final CompletableFuture<Boolean> setValue(T value) {
             CompletableFuture<Boolean> result = new CompletableFuture<>();
-            plugin.runAsync(() -> {
+            if (Objects.equals(getValue(), value)) {
+                result.complete(true);
+            } else plugin.runAsync(() -> {
                 T originalValue = getValue();
 
                 setValueWithoutUpdate(value);
@@ -165,7 +167,7 @@ public class PlayerData {
     private final VariableBoolean vanished;
     private final VariableSetUUID alts;
 
-    public PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
+    PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
         this.plugin = plugin;
         this.server = new VariableString("server", server);
         this.name = new VariableString("name", name);
@@ -253,7 +255,7 @@ public class PlayerData {
 
     public void playSound(String sound, float volume, float pitch) throws Exception {
         SyncAPI.send(getServer(), new Packet(null, Packets.PLAY_SOUND.id, new JSONObject()
-                .put("to", uuid.toString())
+                .put("to", getUUID())
                 .put("sound", sound)
                 .put("pitch", pitch)
                 .put("volume", volume))

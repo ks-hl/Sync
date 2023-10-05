@@ -5,7 +5,6 @@ import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.Packets;
-import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
@@ -16,11 +15,15 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.event.LoginEvent;
+import net.md_5.bungee.api.event.PlayerDisconnectEvent;
+import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
+import org.bukkit.event.EventHandler;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -37,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
-public class SyncBungee extends Plugin implements SyncCoreProxy {
+public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     private static SyncBungee instance;
     protected Configuration config;
     SyncServer sync;
@@ -59,6 +62,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
         print("Enabling");
         getProxy().getPluginManager().registerCommand(this, new MSyncCommand("msync", this));
         getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
+        getProxy().getPluginManager().registerListener(this, this);
 
         sync = new SyncServer(this);
         reloadKeys(false);
@@ -225,7 +229,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     }
 
     @Override
-    public Set<PlayerData> createNewPlayerDataSet() {
+    public void createNewPlayerDataSet() {
         throw new UnsupportedOperationException();
     }
 
@@ -254,5 +258,14 @@ public class SyncBungee extends Plugin implements SyncCoreProxy {
     @Override
     public boolean hasWritePermission(String user) {
         return !config.getStringList("read-only").contains(user);
+    }
+
+    @EventHandler
+    public void on(LoginEvent e) {
+        getSync().getUserManager().addPlayer(e.getConnection().getName(), e.getConnection().getUniqueId(), true);
+    }
+    @EventHandler
+    public void on(PlayerDisconnectEvent e) {
+        getSync().getUserManager().removePlayer(e.getPlayer().getUniqueId());
     }
 }

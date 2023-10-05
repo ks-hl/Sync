@@ -50,6 +50,8 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             send(clientRSA.getUser().getBytes());
             setName(clientRSA.getUser());
             writePermission = server.hasWritePermission(getName());
+            server.updateClientsWithServerList();
+            server.getUserManager().sendPlayers(getName(), null);
 
         } catch (GeneralSecurityException e) {
             plugin.print("Client failed to authenticate. " + getIP());

@@ -150,7 +150,7 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
-    public Set<PlayerData> createNewPlayerDataSet() {
+    public void createNewPlayerDataSet() {
         throw new UnsupportedOperationException();
     }
 }

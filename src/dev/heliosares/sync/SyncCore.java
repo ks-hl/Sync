@@ -39,5 +39,5 @@ public interface SyncCore {
 
     PlatformType getPlatformType();
 
-    public Set<PlayerData> createNewPlayerDataSet();
+    public void createNewPlayerDataSet();
 }

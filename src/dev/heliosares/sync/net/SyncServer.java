@@ -232,8 +232,8 @@ public class SyncServer implements SyncNetCore {
      * @return a list of all actively connected servers
      */
     @Override
-    public List<String> getServers() {
-        List<String> out = new ArrayList<>();
+    public Set<String> getServers() {
+        Set<String> out = new HashSet<>();
         synchronized (clients) {
             clients.forEach((c) -> {
                 if (c != null && c.isConnected() && c.getName() != null) {

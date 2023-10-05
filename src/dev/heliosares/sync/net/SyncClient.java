@@ -15,8 +15,11 @@ import java.net.SocketException;
 import java.security.AlgorithmParameters;
 import java.security.KeyPair;
 import java.security.PublicKey;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class SyncClient implements SyncNetCore {
     private final SyncCore plugin;
@@ -26,7 +29,7 @@ public class SyncClient implements SyncNetCore {
     private SocketConnection connection;
     private boolean closed;
     private int unableToConnectCount = 0;
-    private List<String> servers;
+    private Set<String> servers = new HashSet<>();
 
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
@@ -40,7 +43,7 @@ public class SyncClient implements SyncNetCore {
     /**
      * Initiates the client. This should only be called once, onEnable
      *
-     * @param port       Port of the proxy server
+     * @param port Port of the proxy server
      */
     public void start(String host, int port) {
         if (connection != null) {
@@ -67,7 +70,6 @@ public class SyncClient implements SyncNetCore {
                     plugin.print("Authenticated as " + connection.getName());
                     unableToConnectCount = 0;
 
-                    usermanager.sendPlayers("all", null);
                     usermanager.request("all");
 
                     while (!closed) { // Listen for packets
@@ -85,8 +87,7 @@ public class SyncClient implements SyncNetCore {
                             plugin.debug("received: " + packet);
                         }
                         if (packet.getPacketId() == Packets.SERVER_LIST.id) {
-                            servers = packet.getPayload().getJSONArray("servers").toList().stream()
-                                    .map(o -> (String) o).toList();
+                            servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
                         }
 
                         eventhandler.execute("proxy", packet);
@@ -217,7 +218,7 @@ public class SyncClient implements SyncNetCore {
         return connection.isConnected();
     }
 
-    public List<String> getServers() {
+    public Set<String> getServers() {
         return servers;
     }
 

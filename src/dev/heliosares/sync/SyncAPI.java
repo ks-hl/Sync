@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class SyncAPI {
@@ -73,7 +74,7 @@ public class SyncAPI {
         getInstance().getSync().getEventHandler().unregisterChannel(channel);
     }
 
-    public static List<String> getServers() {
+    public static Set<String> getServers() {
         return getInstance().getSync().getServers();
     }
 

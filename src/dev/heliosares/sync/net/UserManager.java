@@ -24,7 +24,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     /**
      * This field should not be used directly. Use {@link UserManager#withPlayers(Consumer)} instead.
      */
-    private final Map<String, Map<UUID, PlayerData>> playersMap = new HashMap<>();
+    private final Map<UUID, PlayerData> playersMap = new HashMap<>();
     private final ReentrantLock playersLock = new ReentrantLock();
     private int lastHash;
 
@@ -59,7 +59,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, o));
     }
 
-    private void withPlayers(Consumer<Map<String, Map<UUID, PlayerData>>> consumer) {
+    private void withPlayers(Consumer<Map<UUID, PlayerData>> consumer) {
         try {
             if (!playersLock.tryLock(5000L, TimeUnit.MILLISECONDS)) return;
         } catch (InterruptedException e) {
@@ -86,31 +86,35 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 plugin.warning(packet.getForward() + " tried to update " + data.getName() + "'s data on server " + data.getServer());
                 return;
             }
+            if (data == null) {
+                plugin.warning("Tried to update " + field + " of " + of + ", but no PlayerData was found.");
+                return;
+            }
             data.handleUpdate(field, packet.getPayload().get(field));
-        } else if (packet.getPayload().has("request")) {
+        } else if (packet.getPayload().has("request") && plugin.getSync() instanceof SyncServer) {
             try {
                 sendPlayers(packet.getForward(), packet);
             } catch (IOException e) {
                 plugin.print(e);
             }
-        } else if (packet.getPayload().has("join")) {
-            withPlayers(players -> players.computeIfAbsent(packet.getForward(), a -> new HashMap<>()).putAll(getPlayerData(packet.getForward(), packet.getPayload().getJSONArray("join"))));
+        } else if (packet.getPayload().has("join") || packet.getPayload().has("set")) {
+            boolean set = packet.getPayload().has("set");
+            JSONArray array = packet.getPayload().getJSONArray(set ? "set" : "join");
+            Map<UUID, PlayerData> players = getPlayers(packet.getForward());
+            if (set) players.clear();
+            players.putAll(getPlayerData(packet.getForward(), array));
         } else if (packet.getPayload().has("quit")) {
             JSONArray array = packet.getPayload().getJSONArray("quit");
-            if (array.isEmpty()) {
-                withPlayers(players -> players.remove(server));
-            } else {
-                array.toList().stream().map(o -> (String) o).forEach(uuid -> quit(packet.getForward(), UUID.fromString(uuid)));
-            }
+            withPlayers(players -> array.toList().forEach(uuid -> players.remove(UUID.fromString((String) uuid))));
         }
     }
 
     public void sendPlayers(@Nullable String server, @Nullable Packet requester) throws IOException {
-        if (sync instanceof SyncServer) return; // proxy shouldn't be sending player-data
+        if (sync instanceof SyncClient) return; // clients shouldn't be sending player-data
 
-        Set<PlayerData> players = plugin.createNewPlayerDataSet();
-        if (players == null) return;
-        JSONObject payload = new JSONObject().put("join", new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList())));
+        plugin.createNewPlayerDataSet();
+        Collection<PlayerData> players = getPlayers(plugin.getSync().getName()).values();
+        JSONObject payload = new JSONObject().put("set", new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList())));
         Packet packet;
         if (requester == null) {
             packet = new Packet(null, Packets.PLAYER_DATA.id, payload);
@@ -152,7 +156,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 return;
             }
             StringBuilder build = new StringBuilder();
-            for (Entry<String, Map<UUID, PlayerData>> entry : players.entrySet()) {
+            for (Entry<UUID, PlayerData> entry : players.entrySet()) {
                 build.append("§6§l").append(entry.getKey()).append("§7: ");
                 if (entry.getValue().isEmpty()) {
                     build.append("None\n");
@@ -174,8 +178,10 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         return out.get();
     }
 
-    public void addPlayer(String name, UUID uuid, boolean vanished) {
-        PlayerData data = new PlayerData(plugin, sync.getName(), name, uuid, vanished);
+    public void addPlayer(String name, UUID uuid, boolean sendPacket) {
+        PlayerData data = new PlayerData(plugin, sync.getName(), name, uuid, false);
+        getPlayers(plugin.getSync().getName()).put(uuid, data);
+        if (!sendPacket) return;
         plugin.debug("Sending join for " + data.getName());
         plugin.runAsync(() -> {
             try {
@@ -219,14 +225,6 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         }
     }
 
-    private void quit(String server, UUID uuid) {
-        withPlayers(players -> {
-            Map<UUID, PlayerData> data = players.get(server);
-            if (data == null) return;
-            data.remove(uuid);
-        });
-    }
-
     public Set<PlayerData> getAllPlayerData() {
         Set<PlayerData> out = new HashSet<>();
         withPlayers(players -> players.forEach((k, v) -> out.addAll(v.values())));
@@ -234,8 +232,12 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     public Map<UUID, PlayerData> getPlayers(String server) {
+        if (server == null) server = "proxy";
+        if (!server.equals("proxy") && !plugin.getSync().getServers().contains(server) && !server.equals(plugin.getSync().getName()))
+            throw new IllegalArgumentException("Unknown server: " + server);
         AtomicReference<Map<UUID, PlayerData>> out = new AtomicReference<>();
-        withPlayers(players -> out.set(players.getOrDefault(server, new HashMap<>())));
+        final String server_ = server;
+        withPlayers(players -> out.set(players.computeIfAbsent(server_, a -> new HashMap<>())));
         return out.get();
     }
 }

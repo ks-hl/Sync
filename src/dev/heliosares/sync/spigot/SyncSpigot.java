@@ -258,12 +258,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        sync.getUserManager().addPlayer(e.getPlayer().getName(), e.getPlayer().getUniqueId(), isVanished(e.getPlayer()));
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        sync.getUserManager().removePlayer(e.getPlayer().getUniqueId());
+        sync.getUserManager().getPlayer(e.getPlayer().getUniqueId()).setVanished(isVanished(e.getPlayer()));
     }
 
     @Override
@@ -301,7 +296,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     }
 
     @Override
-    public Set<PlayerData> createNewPlayerDataSet() {
-        return Bukkit.getOnlinePlayers().stream().map(player -> new PlayerData(this, getName(), player.getName(), player.getUniqueId(), isVanished(player))).collect(Collectors.toSet());
+    public void createNewPlayerDataSet() {
+        throw new UnsupportedOperationException();
     }
 }
