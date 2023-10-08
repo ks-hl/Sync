@@ -67,7 +67,7 @@ public class Packet {
     /**
      * Generates a packet to respond to this packet.
      *
-     * @param payload The payload with which to respond
+     * @param payload The payload consume which to respond
      * @return The response packet
      */
     public Packet createResponse(JSONObject payload) {

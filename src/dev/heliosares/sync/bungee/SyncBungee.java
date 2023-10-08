@@ -46,7 +46,7 @@ import java.util.logging.Level;
 public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     private static SyncBungee instance;
     protected Configuration config;
-    SyncServer sync;
+    private SyncServer sync;
     boolean debug;
 
     public static SyncBungee getInstance() {
@@ -71,12 +71,12 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         reloadKeys(false);
 
         for (ProxiedPlayer player : getProxy().getPlayers()) {
-            sync.getUserManager().addPlayer(player.getName(), player.getUniqueId(), false);
+            getSync().getUserManager().addPlayer(player.getName(), player.getUniqueId(), player.getServer().getInfo().getName(), false);
         }
 
-        sync.start(config.getString("host", null), config.getInt("port", 8001));
+        getSync().start(config.getString("host", null), config.getInt("port", 8001));
 
-        sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
+        getSync().getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
             @Nullable String msg = packet.getPayload().optString("msg", null);
             @Nullable String json = packet.getPayload().optString("json", null);
             @Nullable String node = packet.getPayload().optString("node", null);
@@ -103,7 +103,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             }
 
         });
-        sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
+        getSync().getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
             try {
                 String message = packet.getPayload().getString("command");
 
@@ -131,14 +131,14 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             }
         });
 
-        getProxy().getScheduler().schedule(this, () -> sync.keepalive(), 1, 1, TimeUnit.SECONDS);
+        getProxy().getScheduler().schedule(this, () -> getSync().keepalive(), 1, 1, TimeUnit.SECONDS);
     }
 
     @Override
     public void onDisable() {
         print("Closing");
-        if (sync != null) {
-            sync.close();
+        if (getSync() != null) {
+            getSync().close();
         }
     }
 
@@ -260,7 +260,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         } else {
             boolean ignored = clientsDir.mkdir();
         }
-        sync.setClientEncryptionRSA(clientEncryptionRSA);
+        getSync().setClientEncryptionRSA(clientEncryptionRSA);
     }
 
     @Override
@@ -270,7 +270,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
 
     @EventHandler
     public void on(LoginEvent e) {
-        getSync().getUserManager().addPlayer(e.getConnection().getName(), e.getConnection().getUniqueId(), true);
+        getSync().getUserManager().addPlayer(e.getConnection().getName(), e.getConnection().getUniqueId(), "proxy", true);
     }
 
     @EventHandler

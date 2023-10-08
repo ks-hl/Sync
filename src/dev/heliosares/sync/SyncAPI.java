@@ -79,14 +79,14 @@ public class SyncAPI {
     }
 
     /**
-     * Broadcasts a message to all players with the node
+     * Broadcasts a message to all players consume the node
      */
     public static void sendMessage(@Nullable String to, BaseComponent[] msg, @Nullable String node) throws Exception {
         sendMessage(to, msg, node, false);
     }
 
     /**
-     * Broadcasts a message to all players with the node
+     * Broadcasts a message to all players consume the node
      *
      * @param othersOnly if true, will not display to players on the sending server
      */
@@ -98,7 +98,7 @@ public class SyncAPI {
     }
 
     /**
-     * Broadcasts a message to all players with the node
+     * Broadcasts a message to all players consume the node
      */
     public static void sendMessage(@Nullable String to, String raw, @Nullable String node) throws Exception {
         broadcastMessage(new JSONObject().put("msg", raw), to, node);

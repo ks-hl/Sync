@@ -7,6 +7,9 @@ import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -52,7 +55,9 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                         sender.sendMessage("§cDebug disabled");
                     return true;
                 } else if (args[0].equalsIgnoreCase("-list")) {
-                    sender.sendMessage(plugin.getSync().getUserManager().toFormattedString());
+                    ComponentBuilder builder = new ComponentBuilder();
+                    plugin.getSync().getUserManager().makeFormattedString(builder::append, s -> builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(s))));
+                    sender.spigot().sendMessage(builder.create());
                     return true;
                 }
             }

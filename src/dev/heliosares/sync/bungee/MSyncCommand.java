@@ -6,6 +6,9 @@ import dev.heliosares.sync.net.ServerClientHandler;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.CommandSender;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.json.JSONObject;
@@ -44,7 +47,7 @@ public class MSyncCommand extends Command implements TabExecutor {
                 return;
             } else if (args[0].equalsIgnoreCase("-serverlist")) {
                 StringBuilder out = new StringBuilder("Server statuses: ");
-                List<ServerClientHandler> clients = plugin.sync.getClients();
+                List<ServerClientHandler> clients = plugin.getSync().getClients();
                 Set<String> servers = new HashSet<>(plugin.getProxy().getServers().keySet());
                 servers.addAll(plugin.getSync().getServers());
                 for (String server : servers) {
@@ -64,7 +67,9 @@ public class MSyncCommand extends Command implements TabExecutor {
                 SyncBungee.tell(sender, out.toString());
                 return;
             } else if (args[0].equalsIgnoreCase("-playerlist")) {
-                SyncBungee.tell(sender, plugin.sync.getUserManager().toFormattedString());
+                ComponentBuilder builder = new ComponentBuilder();
+                plugin.getSync().getUserManager().makeFormattedString(builder::append, s -> builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(s))));
+                sender.sendMessage(builder.create());
                 return;
             } else if (args[0].equalsIgnoreCase("-reloadkeys") && sender.equals(plugin.getProxy().getConsole())) {
                 plugin.reloadKeys(true);
@@ -97,7 +102,7 @@ public class MSyncCommand extends Command implements TabExecutor {
                 if (sender.equals(plugin.getProxy().getConsole())) out.add("-reloadkeys");
             }
             if (args.length > 1 && args[args.length - 2].equalsIgnoreCase("-s")) {
-                plugin.sync.getClients().forEach(c -> out.add(c.getName()));
+                plugin.getSync().getClients().forEach(c -> out.add(c.getName()));
             } else {
                 out.add("-s");
                 out.add("-p");

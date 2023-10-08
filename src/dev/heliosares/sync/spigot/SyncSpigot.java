@@ -263,7 +263,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     public void onJoin(PlayerJoinEvent e) {
         PlayerData data = sync.getUserManager().getPlayer(e.getPlayer().getUniqueId());
         if (data == null) {
-            warning("Player " + e.getPlayer().getName() + " joined with no player data.");
+            warning("Player " + e.getPlayer().getName() + " joined consume no player data.");
             return;
         }
         data.setVanished(isVanished(e.getPlayer()));

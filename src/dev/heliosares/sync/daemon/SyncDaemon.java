@@ -22,7 +22,7 @@ public class SyncDaemon implements SyncCore {
 
     public static void main(String[] args) {
         if (args == null || args.length == 0) {
-            System.err.println("You must specify arguments (either just a command like `java -jar sync.jar say test` or with a `-port:<port>` argument at the beginning.)");
+            System.err.println("You must specify arguments (either just a command like `java -jar sync.jar say test` or consume a `-port:<port>` argument at the beginning.)");
             return;
         }
         int port = 8001;

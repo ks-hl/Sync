@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.utils.ConcurrentMap;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -10,10 +11,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -22,12 +19,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     private final SyncNetCore sync;
     private final SyncCore plugin;
-
-    /**
-     * This field should not be used directly. Use {@link UserManager#withPlayers(Consumer)} instead.
-     */
-    private final Map<UUID, PlayerData> playersMap = new HashMap<>();
-    private final ReentrantLock playersLock = new ReentrantLock();
+    private final ConcurrentMap<UUID, PlayerData> players = new ConcurrentMap<>();
     private int lastHash;
 
     public UserManager(SyncCore plugin, SyncNetCore client) {
@@ -63,7 +55,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 plugin.warning("Tried to update " + field + " of " + of + ", but no PlayerData was found.");
                 return;
             }
-            if (packet.getForward() != null && !data.getServer().equals(packet.getForward())) {
+            if (!field.startsWith("custom.") && packet.getForward() != null && !data.getServer().equals(packet.getForward())) {
                 plugin.warning(packet.getForward() + " tried to update " + data.getName() + "'s data on server " + data.getServer());
                 return;
             }
@@ -77,10 +69,10 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         } else if (packet.getPayload().has("join") || packet.getPayload().has("set")) {
             boolean set = packet.getPayload().has("set");
             JSONArray array = packet.getPayload().getJSONArray(set ? "set" : "join");
-            withPlayers(players -> players.putAll(getPlayerData(array)));
+            players.consume(players -> players.putAll(getPlayerData(array)));
         } else if (packet.getPayload().has("quit")) {
             JSONArray array = packet.getPayload().getJSONArray("quit");
-            withPlayers(players -> array.toList().forEach(uuid -> players.remove(UUID.fromString((String) uuid))));
+            players.consume(players -> array.toList().forEach(uuid -> players.remove(UUID.fromString((String) uuid))));
         }
     }
 
@@ -91,7 +83,8 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             try {
                 PlayerData data = new PlayerData(plugin, (JSONObject) o);
                 list.put(data.getUUID(), data);
-            } catch (JSONException ignored) {
+            } catch (JSONException e) {
+                plugin.print(e);
             }
         });
         return list;
@@ -99,19 +92,6 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     protected void sendUpdatePacket(JSONObject o) throws IOException {
         sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, o));
-    }
-
-    private void withPlayers(Consumer<Map<UUID, PlayerData>> consumer) {
-        try {
-            if (!playersLock.tryLock(5000L, TimeUnit.MILLISECONDS)) return;
-        } catch (InterruptedException e) {
-            return;
-        }
-        try {
-            consumer.accept(playersMap);
-        } finally {
-            playersLock.unlock();
-        }
     }
 
     public void sendPlayers(@Nullable String server, @Nullable Packet requester) throws IOException {
@@ -136,58 +116,54 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     @CheckReturnValue
     @Nullable
     public PlayerData getPlayer(UUID uuid) {
-        AtomicReference<PlayerData> data = new AtomicReference<>();
-        withPlayers(players -> data.set(players.get(uuid)));
-        return data.get();
+        return players.get(uuid);
     }
 
     @CheckReturnValue
     @Nullable
     public PlayerData getPlayer(Predicate<PlayerData> predicate) {
-        AtomicReference<PlayerData> data = new AtomicReference<>();
-        withPlayers(players -> data.set(players.values().stream().filter(predicate).findFirst().orElse(null)));
-        return data.get();
+        return players.get(predicate);
     }
 
-    @CheckReturnValue
-    public String toFormattedString() {
-        AtomicReference<String> out = new AtomicReference<>();
-        withPlayers(players -> {
+    public void makeFormattedString(Consumer<String> lineConsumer, Consumer<String> hoverConsumer) {
+        players.consume(players -> {
             if (players.isEmpty()) {
-                out.set("No servers");
+                lineConsumer.accept("No servers");
                 return;
             }
+            lineConsumer.accept("Network Player Data:");
             Map<String, Map<UUID, PlayerData>> playersByServer = new HashMap<>();
             for (Entry<UUID, PlayerData> entry : players.entrySet()) {
                 playersByServer.computeIfAbsent(entry.getValue().getServer(), a -> new HashMap<>()).put(entry.getKey(), entry.getValue());
             }
-            StringBuilder build = new StringBuilder();
             for (Map.Entry<String, Map<UUID, PlayerData>> entry : playersByServer.entrySet()) {
-                build.append("§6§l").append(entry.getKey()).append("§7: ");
+                lineConsumer.accept("\n§6§l" + entry.getKey() + "§7: ");
+
                 if (entry.getValue().isEmpty()) {
-                    build.append("None\n");
+                    lineConsumer.accept("None\n");
                     continue;
                 }
-                build.append("\n");
-                StringBuilder line = new StringBuilder();
-                for (PlayerData p : entry.getValue().values()) {
-                    if (line.length() > 100) {
-                        build.append(line).append("\n");
-                        line = new StringBuilder();
+                lineConsumer.accept("\n");
+
+                List<PlayerData> data = new ArrayList<>(entry.getValue().values());
+                for (int i = 0; i < data.size(); i++) {
+                    PlayerData playerData = data.get(i);
+                    lineConsumer.accept("§7" + playerData.getName());
+                    hoverConsumer.accept(playerData.toFormattedString());
+                    if (i < data.size() - 1) {
+                        lineConsumer.accept(", ");
                     }
-                    line.append(p.isVanished() ? "§c[V]§7" : "§7").append(p.getName()).append("§8[§7").append(p.getAlts() == null ? 0 : p.getAlts().size()).append("§8]").append(", ");
                 }
-                build.append(line).append("\n");
             }
-            out.set(build.substring(0, build.length() - 1));
         });
-        return out.get();
     }
 
-    public void addPlayer(String name, UUID uuid, boolean sendPacket) {
-        PlayerData data = new PlayerData(plugin, sync.getName(), name, uuid, false);
-        withPlayers(players -> players.put(uuid, data));
+    public void addPlayer(String name, UUID uuid, String server, boolean sendPacket) {
+        PlayerData data = new PlayerData(plugin, server, name, uuid, false);
+        players.consume(players -> players.put(uuid, data));
+
         if (!sendPacket) return;
+
         plugin.debug("Sending join for " + data.getName());
         plugin.runAsync(() -> {
             try {
@@ -196,7 +172,6 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 plugin.print(e);
             }
         });
-
     }
 
     public void removePlayer(UUID uuid) {
@@ -221,9 +196,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     @CheckReturnValue
     @SuppressWarnings("unused")
     public Set<PlayerData> getAllPlayerData() {
-        AtomicReference<Set<PlayerData>> out = new AtomicReference<>();
-        withPlayers(players -> out.set(new HashSet<>(players.values())));
-        return out.get();
+        return players.function(players -> new HashSet<>(players.values()));
     }
 
     @CheckReturnValue
@@ -231,20 +204,15 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         if ("proxy".equals(server)) server = null;
         if (server != null && !plugin.getSync().getServers().contains(server) && !server.equals(plugin.getSync().getName()))
             throw new IllegalArgumentException("Unknown server: " + server);
-        AtomicReference<Map<UUID, PlayerData>> out = new AtomicReference<>();
         final String server_ = server;
-        withPlayers(players -> {
-            if (server_ == null) out.set(new HashMap<>(players));
-            else
-                out.set(players.entrySet().stream().filter(entry -> entry.getValue().getServer().equals(server_)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        return players.function(players -> {
+            if (server_ == null) return new HashMap<>(players);
+            return players.entrySet().stream().filter(entry -> entry.getValue().getServer().equals(server_)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         });
-        return out.get();
     }
 
     @Override
     public int hashCode() {
-        AtomicInteger hash = new AtomicInteger();
-        withPlayers(players -> hash.set(players.values().stream().mapToInt(Object::hashCode).reduce(0, (a, b) -> a ^ b)));
-        return hash.get();
+        return players.hashCode();
     }
 }
