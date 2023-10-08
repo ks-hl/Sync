@@ -1,6 +1,5 @@
 package dev.heliosares.sync.bungee;
 
-import dev.heliosares.sync.BungeeSender;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
@@ -208,12 +207,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     @Override
     public boolean debug() {
         return debug;
-    }
-
-    @Override
-    public MySender getSender(String name) {
-        ProxiedPlayer player = getProxy().getPlayer(name);
-        return player == null ? null : new BungeeSender(this, player);
     }
 
     @Override

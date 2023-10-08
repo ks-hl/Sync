@@ -1,7 +1,6 @@
 package dev.heliosares.sync.spigot;
 
 import dev.heliosares.sync.MySender;
-import dev.heliosares.sync.SpigotSender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.Packets;
@@ -182,9 +181,9 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                     return;
                 }
                 try {
-                    sync.keepalive();
+                    sync.keepAlive();
                 } catch (Exception e) {
-                    warning("Error while sending keepalive:");
+                    warning("Error while sending keepAlive:");
                     print(e);
                 }
             }
@@ -246,12 +245,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     @Override
     public boolean debug() {
         return debug;
-    }
-
-    @Override
-    public MySender getSender(String name) {
-        Player player = getServer().getPlayer(name);
-        return player == null ? null : new SpigotSender(player);
     }
 
     @Override

@@ -123,11 +123,6 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
-    public MySender getSender(String name) {
-        return null;
-    }
-
-    @Override
     public void dispatchCommand(MySender sender, String command) {
     }
 

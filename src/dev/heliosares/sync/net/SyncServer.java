@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.utils.ConcurrentCollection;
 import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,7 +18,7 @@ import java.util.function.Consumer;
 public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
     private final NetEventHandler eventhandler;
-    private final ArrayList<ServerClientHandler> clients = new ArrayList<>();
+    private final ConcurrentCollection<ServerClientHandler> clients = new ConcurrentCollection<>(new ArrayList<>());
     private final UserManager usermanager;
     private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;
@@ -49,8 +50,8 @@ public class SyncServer implements SyncNetCore {
 
     @Override
     public boolean sendConsumer(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
-        boolean any = false;
-        synchronized (clients) {
+        return clients.function(clients -> {
+            boolean any = false;
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
             Iterator<ServerClientHandler> it = clients.iterator();
             while (it.hasNext()) {
@@ -78,8 +79,8 @@ public class SyncServer implements SyncNetCore {
                     it.remove();
                 }
             }
-        }
-        return any;
+            return any;
+        });
     }
 
     /**
@@ -105,9 +106,7 @@ public class SyncServer implements SyncNetCore {
 
                         plugin.debug("Connection accepted on port " + socket.getPort());
 
-                        synchronized (clients) {
-                            clients.add(ch);
-                        }
+                        clients.consume(clients -> clients.add(ch));
                         plugin.newThread(ch);
                     }
                 } catch (SocketException e1) {
@@ -135,10 +134,10 @@ public class SyncServer implements SyncNetCore {
      * Checks for timed out clients. This should be called about once per second.
      * Clients will be timed out after 10 seconds of not sending any packets.
      * <p>
-     * Sends a keepalive packet to all clients
+     * Sends a keepAlive packet to all clients
      */
     public void keepalive() {
-        synchronized (clients) {
+        clients.consume(clients -> {
             Iterator<ServerClientHandler> it = clients.iterator();
             while (it.hasNext()) {
                 ServerClientHandler ch = it.next();
@@ -167,7 +166,7 @@ public class SyncServer implements SyncNetCore {
                     it.remove();
                 }
             }
-        }
+        });
     }
 
     public void updateClientsWithServerList() {
@@ -191,11 +190,7 @@ public class SyncServer implements SyncNetCore {
      */
     @Override
     public void closeTemporary() {
-        synchronized (clients) {
-            for (SocketConnection ch : this.clients) {
-                ch.close();
-            }
-        }
+        clients.forEach(ServerClientHandler::close);
         if (serverSocket == null || serverSocket.isClosed()) {
             return;
         }
@@ -213,9 +208,7 @@ public class SyncServer implements SyncNetCore {
      */
     public void remove(ServerClientHandler ch) {
         ch.close();
-        synchronized (clients) {
-            clients.remove(ch);
-        }
+        clients.consume(clients -> clients.remove(ch));
         updateClientsWithServerList();
     }
 
@@ -223,24 +216,20 @@ public class SyncServer implements SyncNetCore {
      * @return an unmodifiableList of all clients currently connected
      */
     public List<ServerClientHandler> getClients() {
-        synchronized (clients) {
-            return Collections.unmodifiableList(clients);
-        }
+        return clients.function(clients -> clients.stream().toList());
     }
 
     /**
-     * @return a list of all actively connected servers
+     * @return a set of all actively connected servers
      */
     @Override
     public Set<String> getServers() {
         Set<String> out = new HashSet<>();
-        synchronized (clients) {
-            clients.forEach((c) -> {
-                if (c != null && c.isConnected() && c.getName() != null) {
-                    out.add(c.getName());
-                }
-            });
-        }
+        clients.forEach((c) -> {
+            if (c != null && c.isConnected() && c.getName() != null) {
+                out.add(c.getName());
+            }
+        });
         return out;
     }
 

@@ -16,14 +16,13 @@ import java.security.AlgorithmParameters;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class SyncClient implements SyncNetCore {
     private final SyncCore plugin;
-    private final NetEventHandler eventhandler;
+    private final NetEventHandler eventHandler;
     private final UserManager usermanager;
     private final EncryptionRSA encryptionRSA;
     private SocketConnection connection;
@@ -34,10 +33,10 @@ public class SyncClient implements SyncNetCore {
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
-        this.eventhandler = new NetEventHandler(plugin);
+        this.eventHandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
         this.encryptionRSA = encryption;
-        eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
+        eventHandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
     }
 
     /**
@@ -87,7 +86,7 @@ public class SyncClient implements SyncNetCore {
                             servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
                         }
 
-                        eventhandler.execute("proxy", packet);
+                        eventHandler.execute("proxy", packet);
                     }
                 } catch (ConnectException e) {
                     if (!plugin.debug() && ++unableToConnectCount == 3) {
@@ -125,7 +124,7 @@ public class SyncClient implements SyncNetCore {
      * still connected. If no packet is received by the server for 10 seconds, the
      * client will be kicked.
      */
-    public void keepalive() throws Exception {
+    public void keepAlive() throws Exception {
         if (closed || connection == null || !connection.isConnected()) {
             return;
         }
@@ -208,6 +207,7 @@ public class SyncClient implements SyncNetCore {
     /**
      * @return Whether the client is actively connected
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isConnected() {
         if (connection == null) {
             return false;
@@ -221,7 +221,7 @@ public class SyncClient implements SyncNetCore {
 
     @Override
     public NetEventHandler getEventHandler() {
-        return eventhandler;
+        return eventHandler;
     }
 
     public UserManager getUserManager() {

@@ -77,7 +77,7 @@ public class Packet {
 
     @Override
     public String toString() {
-        return toJSON().toString();
+        return toJSON().toString(2);
     }
 
     /**

@@ -84,6 +84,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 PlayerData data = new PlayerData(plugin, (JSONObject) o);
                 list.put(data.getUUID(), data);
             } catch (JSONException e) {
+                plugin.warning("Malformed PlayerData packet: " + ((JSONObject) o).toString(2));
                 plugin.print(e);
             }
         });

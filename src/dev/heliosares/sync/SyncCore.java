@@ -23,8 +23,6 @@ public interface SyncCore {
 
     boolean debug();
 
-    MySender getSender(String name);
-
     void dispatchCommand(MySender sender, String command);
 
     void setDebug(boolean debug);
