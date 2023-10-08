@@ -1,10 +1,8 @@
 package dev.heliosares.sync;
 
-import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
-import javax.annotation.Nullable;
-import java.util.Set;
+import java.util.function.Supplier;
 
 public interface SyncCore {
     void newThread(Runnable run);
@@ -20,6 +18,8 @@ public interface SyncCore {
     void print(Throwable t);
 
     void debug(String msg);
+
+    void debug(Supplier<String> msgSupplier);
 
     boolean debug();
 
@@ -39,5 +39,4 @@ public interface SyncCore {
 
     PlatformType getPlatformType();
 
-    public void createNewPlayerDataSet();
 }

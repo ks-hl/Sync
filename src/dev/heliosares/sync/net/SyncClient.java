@@ -70,7 +70,7 @@ public class SyncClient implements SyncNetCore {
                     plugin.print("Authenticated as " + connection.getName());
                     unableToConnectCount = 0;
 
-                    usermanager.request("all");
+                    usermanager.request();
 
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
@@ -82,9 +82,6 @@ public class SyncClient implements SyncNetCore {
                             packet.setOrigin(packet.getForward());
                         } else {
                             packet.setOrigin("proxy");
-                        }
-                        if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                            plugin.debug("received: " + packet);
                         }
                         if (packet.getPacketId() == Packets.SERVER_LIST.id) {
                             servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());

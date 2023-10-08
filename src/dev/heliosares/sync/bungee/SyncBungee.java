@@ -5,6 +5,7 @@ import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
@@ -17,13 +18,14 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.LoginEvent;
 import net.md_5.bungee.api.event.PlayerDisconnectEvent;
+import net.md_5.bungee.api.event.ServerConnectedEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
-import org.bukkit.event.EventHandler;
+import net.md_5.bungee.event.EventHandler;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -38,6 +40,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 
 public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
@@ -66,6 +69,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
 
         sync = new SyncServer(this);
         reloadKeys(false);
+
+        for (ProxiedPlayer player : getProxy().getPlayers()) {
+            sync.getUserManager().addPlayer(player.getName(), player.getUniqueId(), false);
+        }
+
         sync.start(config.getString("host", null), config.getInt("port", 8001));
 
         sync.getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
@@ -167,8 +175,13 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
 
     @Override
     public void debug(String msg) {
+        debug(() -> msg);
+    }
+
+    @Override
+    public void debug(Supplier<String> msgSupplier) {
         if (debug) {
-            print(msg);
+            print(msgSupplier.get());
         }
     }
 
@@ -228,11 +241,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         return PlatformType.BUNGEE;
     }
 
-    @Override
-    public void createNewPlayerDataSet() {
-        throw new UnsupportedOperationException();
-    }
-
     public void reloadKeys(boolean print) {
         Set<EncryptionRSA> clientEncryptionRSA = new HashSet<>();
         File clientsDir = new File(getDataFolder(), "clients");
@@ -264,8 +272,19 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     public void on(LoginEvent e) {
         getSync().getUserManager().addPlayer(e.getConnection().getName(), e.getConnection().getUniqueId(), true);
     }
+
     @EventHandler
     public void on(PlayerDisconnectEvent e) {
         getSync().getUserManager().removePlayer(e.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void on(ServerConnectedEvent e) {
+        PlayerData data = getSync().getUserManager().getPlayer(e.getPlayer().getUniqueId());
+        if (data == null) {
+            warning("No player data for server switch of " + e.getPlayer().getName());
+            return;
+        }
+        data.setServer(e.getServer().getInfo().getName());
     }
 }

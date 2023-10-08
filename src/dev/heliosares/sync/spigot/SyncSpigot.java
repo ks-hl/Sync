@@ -17,7 +17,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -28,11 +27,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     private static SyncSpigot instance;
@@ -220,8 +218,13 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @Override
     public void debug(String msg) {
+        debug(() -> msg);
+    }
+
+    @Override
+    public void debug(Supplier<String> msgSupplier) {
         if (debug) {
-            print(msg);
+            print(msgSupplier.get());
         }
     }
 
@@ -258,7 +261,12 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        sync.getUserManager().getPlayer(e.getPlayer().getUniqueId()).setVanished(isVanished(e.getPlayer()));
+        PlayerData data = sync.getUserManager().getPlayer(e.getPlayer().getUniqueId());
+        if (data == null) {
+            warning("Player " + e.getPlayer().getName() + " joined with no player data.");
+            return;
+        }
+        data.setVanished(isVanished(e.getPlayer()));
     }
 
     @Override
@@ -268,7 +276,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
-        getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50, period / 50);
+        getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50L, period / 50L);
     }
 
     private void dispatchCommand(CommandSender sender, String command) {
@@ -295,8 +303,4 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         return PlatformType.SPIGOT;
     }
 
-    @Override
-    public void createNewPlayerDataSet() {
-        throw new UnsupportedOperationException();
-    }
 }

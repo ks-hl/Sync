@@ -36,7 +36,7 @@ public class Packet {
      * @see #toJSON()
      */
     Packet(JSONObject packet) {
-        packetID = packet.getInt("pid");
+        packetID = packet.getInt("typ");
         if (packet.has("dir")) { // Get it? Like rid but backwards
             responseID = packet.getLong("dir");
             isResponse = true;
@@ -81,7 +81,7 @@ public class Packet {
     }
 
     /**
-     * pid - Packet ID
+     * typ - Packet ID
      * <br>
      * rid - Response ID
      * <br>
@@ -96,7 +96,7 @@ public class Packet {
      */
     public JSONObject toJSON() {
         JSONObject json = new JSONObject();
-        json.put("pid", packetID);
+        json.put("typ", packetID);
         if (responseID > Long.MIN_VALUE) json.put(isResponse ? "dir" : "rid", responseID);
         if (channel != null) json.put("ch", channel);
         if (payload != null) json.put("pl", payload);

@@ -82,7 +82,6 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 }
                 packet.setOrigin(getName());
                 if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                    plugin.debug("received from " + getName() + ": " + packet);
                     final String forward = packet.getForward();
                     if (packet.getForward() != null) {
                         packet.setForward(getName());

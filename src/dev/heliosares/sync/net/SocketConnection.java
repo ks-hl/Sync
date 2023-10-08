@@ -56,7 +56,8 @@ public class SocketConnection {
         try {
             synchronized (in) {
                 Packet packet = new Packet(new JSONObject(new String(read())));
-                if (packet.getPacketId() != Packets.KEEPALIVE.id) SyncAPI.getInstance().debug("RECV: " + packet);
+                if (packet.getPacketId() != Packets.KEEPALIVE.id)
+                    SyncAPI.getInstance().debug(() -> "RECV" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
                 if (packet.getPacketId() == Packets.BLOB.id) packet.setBlob(read());
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
@@ -98,7 +99,8 @@ public class SocketConnection {
             if (responseConsumer != null)
                 responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), responseConsumer));
             String plain = packet.toString();
-            if (packet.getPacketId() != Packets.KEEPALIVE.id) SyncAPI.getInstance().debug("SEND: " + plain);
+            if (packet.getPacketId() != Packets.KEEPALIVE.id)
+                SyncAPI.getInstance().debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
             send(plain.getBytes());
             if (packet.getPacketId() == Packets.BLOB.id) send(packet.getBlob());
             out.flush();

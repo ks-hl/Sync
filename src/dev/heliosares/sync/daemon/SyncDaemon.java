@@ -10,7 +10,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Set;
+import java.util.function.Supplier;
 
 public class SyncDaemon implements SyncCore {
 
@@ -113,6 +113,11 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
+    public void debug(Supplier<String> msgSupplier) {
+        print(msgSupplier.get());
+    }
+
+    @Override
     public boolean debug() {
         return true;
     }
@@ -149,8 +154,4 @@ public class SyncDaemon implements SyncCore {
         return true;
     }
 
-    @Override
-    public void createNewPlayerDataSet() {
-        throw new UnsupportedOperationException();
-    }
 }

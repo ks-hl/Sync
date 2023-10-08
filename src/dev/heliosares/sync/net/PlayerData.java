@@ -7,6 +7,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.HashSet;
@@ -20,10 +21,12 @@ public class PlayerData {
 
     private abstract class Variable<T> {
         public final String name;
+        private final boolean isFinal;
         private T value;
 
-        protected Variable(String name, T def) {
+        protected Variable(String name, T def, boolean isFinal) {
             this.name = name;
+            this.isFinal = isFinal;
             value = def;
         }
 
@@ -33,7 +36,14 @@ public class PlayerData {
          * @param value The value to set
          * @return whether the update packet was sent successfully. If not, the set operation fails.
          */
+        @SuppressWarnings("UnusedReturnValue")
         public final CompletableFuture<Boolean> setValue(T value) {
+            if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer)) {
+                throw new IllegalArgumentException("Cannot update the value of " + name + " from spigot servers.");
+            }
+            if (isFinal) {
+                throw new IllegalArgumentException(name + " is final.");
+            }
             CompletableFuture<Boolean> result = new CompletableFuture<>();
             if (Objects.equals(getValue(), value)) {
                 result.complete(true);
@@ -98,8 +108,8 @@ public class PlayerData {
     }
 
     public final class VariableString extends Variable<String> {
-        public VariableString(String name, String def) {
-            super(name, def);
+        public VariableString(String name, String def, boolean isFinal) {
+            super(name, def, isFinal);
         }
 
         @Override
@@ -111,8 +121,8 @@ public class PlayerData {
     }
 
     public final class VariableUUID extends Variable<UUID> {
-        public VariableUUID(String name, UUID def) {
-            super(name, def);
+        public VariableUUID(String name, UUID def, boolean isFinal) {
+            super(name, def, isFinal);
         }
 
         @Override
@@ -128,8 +138,8 @@ public class PlayerData {
     }
 
     public final class VariableBoolean extends Variable<Boolean> {
-        public VariableBoolean(String name, boolean def) {
-            super(name, def);
+        public VariableBoolean(String name, boolean def, boolean isFinal) {
+            super(name, def, isFinal);
         }
 
         @Override
@@ -141,8 +151,8 @@ public class PlayerData {
     }
 
     public final class VariableSetUUID extends Variable<Set<UUID>> {
-        public VariableSetUUID(String name, Set<UUID> def) {
-            super(name, def);
+        public VariableSetUUID(String name, Set<UUID> def, boolean isFinal) {
+            super(name, def, isFinal);
         }
 
         @Override
@@ -169,21 +179,23 @@ public class PlayerData {
 
     PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
         this.plugin = plugin;
-        this.server = new VariableString("server", server);
-        this.name = new VariableString("name", name);
-        this.uuid = new VariableUUID("uuid", uuid);
-        this.vanished = new VariableBoolean("v", vanished);
-        this.alts = new VariableSetUUID("alts", new HashSet<>());
+        this.server = new VariableString("server", server, false);
+        this.name = new VariableString("name", name, true);
+        this.uuid = new VariableUUID("uuid", uuid, true);
+        this.vanished = new VariableBoolean("v", vanished, false);
+        this.alts = new VariableSetUUID("alts", new HashSet<>(), false);
     }
 
-    PlayerData(SyncCore plugin, String server, JSONObject o) throws JSONException {
-        this(plugin, server, null, null, false);
+    PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
+        this(plugin, null, null, null, false);
+        this.server.processJSON(o);
         this.name.processJSON(o);
         this.uuid.processJSON(o);
         this.vanished.processJSON(o);
         this.alts.processJSON(o);
     }
 
+    @CheckReturnValue
     public JSONObject toJSON() {
         JSONObject o = new JSONObject();
         this.server.putJSON(o);
@@ -213,18 +225,22 @@ public class PlayerData {
     }
 
 
+    @CheckReturnValue
     public String getServer() {
         return server.getValue();
     }
 
+    @CheckReturnValue
     public String getName() {
         return name.getValue();
     }
 
+    @CheckReturnValue
     public UUID getUUID() {
         return uuid.getValue();
     }
 
+    @CheckReturnValue
     public boolean isVanished() {
         return vanished.getValue();
     }
@@ -233,26 +249,36 @@ public class PlayerData {
         this.vanished.setValue(vanished);
     }
 
+    @SuppressWarnings("unused")
     public void setAlts(Set<UUID> alts) {
         this.alts.setValue(alts);
     }
 
+    @CheckReturnValue
     public Set<UUID> getAlts() {
         return alts.getValue();
     }
 
+    public void setServer(String server) {
+        this.server.setValue(server);
+    }
+
+    @SuppressWarnings("unused")
     public void sendMessage(String msg) throws Exception {
         SyncAPI.sendMessage(getName(), msg, null);
     }
 
+    @SuppressWarnings("unused")
     public void sendMessage(BaseComponent[] msg) throws Exception {
         SyncAPI.sendMessage(getName(), msg, null);
     }
 
+    @SuppressWarnings("unused")
     public void sendTitle(@Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
         SyncAPI.sendTitle(getUUID(), title, subtitle, fadein, duration, fadeout);
     }
 
+    @SuppressWarnings("unused")
     public void playSound(String sound, float volume, float pitch) throws Exception {
         SyncAPI.send(getServer(), new Packet(null, Packets.PLAY_SOUND.id, new JSONObject()
                 .put("to", getUUID())
