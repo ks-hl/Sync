@@ -234,6 +234,10 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         return PlatformType.BUNGEE;
     }
 
+    @Override
+    public void onNewPlayerData(PlayerData data) {
+    }
+
     public void reloadKeys(boolean print) {
         Set<EncryptionRSA> clientEncryptionRSA = new HashSet<>();
         File clientsDir = new File(getDataFolder(), "clients");

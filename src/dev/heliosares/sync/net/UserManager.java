@@ -83,6 +83,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             try {
                 PlayerData data = new PlayerData(plugin, (JSONObject) o);
                 list.put(data.getUUID(), data);
+                plugin.onNewPlayerData(data);
             } catch (JSONException e) {
                 plugin.warning("Malformed PlayerData packet: " + ((JSONObject) o).toString(2));
                 plugin.print(e);
@@ -161,6 +162,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     public void addPlayer(String name, UUID uuid, String server, boolean sendPacket) {
         PlayerData data = new PlayerData(plugin, server, name, uuid, false);
+
         players.consume(players -> players.put(uuid, data));
 
         if (!sendPacket) return;
@@ -172,6 +174,8 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             } catch (JSONException | IOException e) {
                 plugin.print(e);
             }
+
+            plugin.onNewPlayerData(data);
         });
     }
 

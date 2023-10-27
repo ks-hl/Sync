@@ -60,6 +60,27 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     sender.spigot().sendMessage(builder.create());
                     return true;
                 }
+            } else if (args[0].equalsIgnoreCase("-set") || args[0].equalsIgnoreCase("-get")) {
+                boolean set = args[0].equalsIgnoreCase("-set");
+                if (args.length != (set ? 4 : 3)) {
+                    sender.sendMessage("§cInvalid syntax.");
+                    return true;
+                }
+                Player target = plugin.getPlayer(args[1]);
+                PlayerData data;
+                if (target == null || (data = plugin.getSync().getUserManager().getPlayer(target.getUniqueId())) == null) {
+                    sender.sendMessage("§cPlayer not found.");
+                    return true;
+                }
+
+                String value;
+                if (set) {
+                    data.setCustom(args[2], value = args[3]);
+                } else {
+                    value = data.getCustomString(args[2]);
+                }
+                target.sendMessage(target.getName() + " - " + args[2] + "=" + value);
+                return true;
             }
 
             plugin.runAsync(() -> {

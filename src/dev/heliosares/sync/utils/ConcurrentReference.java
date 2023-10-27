@@ -51,12 +51,12 @@ public class ConcurrentReference<T> {
 
     @Override
     public int hashCode() {
-        return t.hashCode();
+        return function(Object::hashCode);
     }
 
     @Override
     public boolean equals(Object other) {
         if (!(other instanceof ConcurrentReference<?> concurrentReference)) return false;
-        return t.equals(concurrentReference);
+        return function(t->t.equals(concurrentReference));
     }
 }

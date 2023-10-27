@@ -1,5 +1,6 @@
 package dev.heliosares.sync;
 
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
 import java.util.function.Supplier;
@@ -36,5 +37,7 @@ public interface SyncCore {
     SyncNetCore getSync();
 
     PlatformType getPlatformType();
+
+    void onNewPlayerData(PlayerData data);
 
 }

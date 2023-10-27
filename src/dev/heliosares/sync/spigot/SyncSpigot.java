@@ -296,4 +296,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         return PlatformType.SPIGOT;
     }
 
+    @Override
+    public void onNewPlayerData(PlayerData data) {
+        Player player = getServer().getPlayer(data.getUUID());
+        if (player == null) return;
+        data.setVanished(isVanished(player));
+    }
 }

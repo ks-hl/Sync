@@ -261,7 +261,7 @@ public class PlayerData {
             case "server" -> server;
             case "name" -> name;
             case "uuid" -> uuid;
-            case "vanished" -> vanished;
+            case "v" -> vanished;
             case "alts" -> alts;
             default -> {
                 if (field.startsWith("custom.s.")) {
@@ -273,7 +273,7 @@ public class PlayerData {
                     VariableBoolean variableBoolean = customBooleans.get(field);
                     if (variableBoolean != null) yield variableBoolean;
                 }
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Invalid field to update: " + field);
             }
         }).processVariable(value);
     }

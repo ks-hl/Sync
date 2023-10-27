@@ -149,4 +149,7 @@ public class SyncDaemon implements SyncCore {
         return true;
     }
 
+    @Override
+    public void onNewPlayerData(PlayerData data) {
+    }
 }

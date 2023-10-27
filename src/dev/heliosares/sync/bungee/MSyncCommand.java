@@ -2,6 +2,7 @@ package dev.heliosares.sync.bungee;
 
 import dev.heliosares.sync.net.Packet;
 import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.ServerClientHandler;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
@@ -9,14 +10,12 @@ import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.hover.content.Text;
+import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class MSyncCommand extends Command implements TabExecutor {
     private final SyncBungee plugin;
@@ -37,42 +36,70 @@ public class MSyncCommand extends Command implements TabExecutor {
             return;
         }
 
-        if (args.length == 1) {
-            if (args[0].equalsIgnoreCase("-debug")) {
-                plugin.debug = !plugin.debug;
-                if (plugin.debug)
-                    SyncBungee.tell(sender, "§aDebug enabled");
-                else
-                    SyncBungee.tell(sender, "§cDebug disabled");
-                return;
-            } else if (args[0].equalsIgnoreCase("-serverlist")) {
-                StringBuilder out = new StringBuilder("Server statuses: ");
-                List<ServerClientHandler> clients = plugin.getSync().getClients();
-                Set<String> servers = new HashSet<>(plugin.getProxy().getServers().keySet());
-                servers.addAll(plugin.getSync().getServers());
-                for (String server : servers) {
-                    ServerClientHandler ch = null;
-                    for (ServerClientHandler other : clients) {
-                        if (server.equalsIgnoreCase(other.getName())) {
-                            ch = other;
-                            break;
+        if (args[0].startsWith("-")) {
+            if (args.length == 1) {
+                if (args[0].equalsIgnoreCase("-debug")) {
+                    plugin.debug = !plugin.debug;
+                    if (plugin.debug)
+                        SyncBungee.tell(sender, "§aDebug enabled");
+                    else
+                        SyncBungee.tell(sender, "§cDebug disabled");
+                    return;
+                } else if (args[0].equalsIgnoreCase("-serverlist")) {
+                    StringBuilder out = new StringBuilder("Server statuses: ");
+                    List<ServerClientHandler> clients = plugin.getSync().getClients();
+                    Set<String> servers = new HashSet<>(plugin.getProxy().getServers().keySet());
+                    servers.addAll(plugin.getSync().getServers());
+                    for (String server : servers) {
+                        ServerClientHandler ch = null;
+                        for (ServerClientHandler other : clients) {
+                            if (server.equalsIgnoreCase(other.getName())) {
+                                ch = other;
+                                break;
+                            }
                         }
+                        boolean connected = ch != null && ch.isConnected();
+                        out.append("\n");
+                        out.append(connected ? "§a" : "§c");
+                        out.append(server).append(": ");
+                        out.append(connected ? "Online" : "Offline");
                     }
-                    boolean connected = ch != null && ch.isConnected();
-                    out.append("\n");
-                    out.append(connected ? "§a" : "§c");
-                    out.append(server).append(": ");
-                    out.append(connected ? "Online" : "Offline");
+                    SyncBungee.tell(sender, out.toString());
+                    return;
+                } else if (args[0].equalsIgnoreCase("-playerlist")) {
+                    ComponentBuilder builder = new ComponentBuilder();
+                    plugin.getSync().getUserManager().makeFormattedString(builder::append, s -> builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(s))));
+                    sender.sendMessage(builder.create());
+                    return;
+                } else if (args[0].equalsIgnoreCase("-reloadkeys") && sender.equals(plugin.getProxy().getConsole())) {
+                    plugin.reloadKeys(true);
+                    return;
                 }
-                SyncBungee.tell(sender, out.toString());
-                return;
-            } else if (args[0].equalsIgnoreCase("-playerlist")) {
-                ComponentBuilder builder = new ComponentBuilder();
-                plugin.getSync().getUserManager().makeFormattedString(builder::append, s -> builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(s))));
-                sender.sendMessage(builder.create());
-                return;
-            } else if (args[0].equalsIgnoreCase("-reloadkeys") && sender.equals(plugin.getProxy().getConsole())) {
-                plugin.reloadKeys(true);
+            } else if (args[0].equalsIgnoreCase("-set") || args[0].equalsIgnoreCase("-get")) {
+                boolean set = args[0].equalsIgnoreCase("-set");
+                if (args.length != (set ? 4 : 3)) {
+                    SyncBungee.tell(sender, "§cInvalid syntax.");
+                    return;
+                }
+                ProxiedPlayer target;
+                try {
+                    target = plugin.getProxy().getPlayer(UUID.fromString(args[1]));
+                } catch (IllegalArgumentException ignored) {
+                    target = plugin.getProxy().getPlayer(args[1]);
+                }
+                PlayerData data;
+                if (target == null || (data = plugin.getSync().getUserManager().getPlayer(target.getUniqueId())) == null) {
+                    SyncBungee.tell(sender, "§cPlayer not found.");
+                    return;
+                }
+
+                String value;
+                if (set) {
+                    data.setCustom(args[2], value = args[3]);
+                } else {
+                    value = data.getCustomString(args[2]);
+                }
+                SyncBungee.tell(target, target.getName() + " - " + args[2] + "=" + value);
                 return;
             }
         }
