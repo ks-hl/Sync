@@ -59,7 +59,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     @Override
     public void onEnable() {
         instance = this;
-        System.out.println(SyncAPI.getInstance());
         loadConfig();
 
         print("Enabling");
