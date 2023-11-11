@@ -214,6 +214,7 @@ public class PlayerData {
     private final VariableUUID uuid;
     private final VariableBoolean vanished;
     private final VariableSetUUID alts;
+    private final VariableSetUUID ignoring;
     private final VariableMap<VariableString> customStrings = new VariableMap<>(name -> new VariableString("custom.s." + name, null, false), "s");
     private final VariableMap<VariableBoolean> customBooleans = new VariableMap<>(name -> new VariableBoolean("custom.b." + name, false, false), "b");
 
@@ -224,6 +225,7 @@ public class PlayerData {
         this.uuid = new VariableUUID("uuid", uuid, true);
         this.vanished = new VariableBoolean("v", vanished, false);
         this.alts = new VariableSetUUID("alts", new HashSet<>(), false);
+        this.ignoring = new VariableSetUUID("ignoring", new HashSet<>(), false);
     }
 
     PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
@@ -233,6 +235,7 @@ public class PlayerData {
         this.uuid.processJSON(o);
         this.vanished.processJSON(o);
         this.alts.processJSON(o);
+        this.ignoring.processJSON(o);
 
         if (o.has("custom")) {
             JSONObject custom = o.getJSONObject("custom");
@@ -249,6 +252,7 @@ public class PlayerData {
         this.uuid.putJSON(o);
         this.vanished.putJSON(o);
         this.alts.putJSON(o);
+        this.ignoring.putJSON(o);
         JSONObject custom = new JSONObject();
         custom.put("s", customStrings.toJSON());
         custom.put("b", customBooleans.toJSON());
@@ -263,6 +267,7 @@ public class PlayerData {
             case "uuid" -> uuid;
             case "v" -> vanished;
             case "alts" -> alts;
+            case "ignoring" -> ignoring;
             default -> {
                 if (field.startsWith("custom.s.")) {
                     field = field.substring(9);
@@ -308,6 +313,7 @@ public class PlayerData {
         out.append(formatter.apply("server", server.getValue()));
         out.append(formatter.apply("vanished", vanished.getValue()));
         out.append(formatter.apply("alts", alts));
+        out.append(formatter.apply("ignoring", ignoring));
         out.append(formatter.apply("custom", ""));
         out.append(formatter.apply("  strings", ""));
         customStrings.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.getValue())));
@@ -319,7 +325,7 @@ public class PlayerData {
 
     @Override
     public int hashCode() {
-        return Objects.hash(server, name, uuid, vanished, alts, customStrings, customBooleans);
+        return Objects.hash(server, name, uuid, vanished, alts, ignoring, customStrings, customBooleans);
     }
 
 
@@ -353,8 +359,20 @@ public class PlayerData {
     }
 
     @CheckReturnValue
+    @SuppressWarnings("unused")
     public Set<UUID> getAlts() {
         return alts.getValue();
+    }
+
+    @SuppressWarnings("unused")
+    public void setIgnoring(Set<UUID> ignoring) {
+        this.ignoring.setValue(ignoring);
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public Set<UUID> getIgnoring() {
+        return ignoring.getValue();
     }
 
     public void setServer(String server) {
