@@ -21,6 +21,7 @@ import java.util.function.Function;
 
 public class PlayerData {
 
+
     private abstract class Variable<T> {
         public final String name;
         public final String nameOnly;
@@ -42,6 +43,9 @@ public class PlayerData {
          */
         @SuppressWarnings("UnusedReturnValue")
         public final CompletableFuture<Boolean> setValue(T value) {
+            if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer)) {
+                throw new IllegalArgumentException("Cannot update the value of " + name + " from spigot servers.");
+            }
             if (isFinal) {
                 throw new IllegalArgumentException(name + " is final.");
             }
@@ -341,7 +345,6 @@ public class PlayerData {
     }
 
     @CheckReturnValue
-    @SuppressWarnings("unused")
     public boolean isVanished() {
         return vanished.getValue();
     }
