@@ -345,6 +345,7 @@ public class PlayerData {
     }
 
     @CheckReturnValue
+    @SuppressWarnings("unused")
     public boolean isVanished() {
         return vanished.getValue();
     }
