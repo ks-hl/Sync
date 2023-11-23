@@ -11,10 +11,7 @@ import org.json.JSONObject;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -155,28 +152,70 @@ public class PlayerData {
         }
     }
 
-    public final class VariableSetUUID extends Variable<Set<UUID>> {
+    public final class VariableSetUUID extends VariableSet<UUID> {
         public VariableSetUUID(String name, Set<UUID> def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected UUID map(Object o) {
+            return UUID.fromString(o.toString());
+        }
+    }
+
+    public abstract class VariableSet<V> extends VariableCollection<V, Set<V>> {
+
+        public VariableSet(String name, Set<V> def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected Set<V> make(JSONArray array) {
+            Set<V> set = new HashSet<>();
+            array.forEach(e -> set.add(map(e)));
+            return set;
+        }
+    }
+
+    public abstract class VariableList<V> extends VariableCollection<V, List<V>> {
+
+        public VariableList(String name, List<V> def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected List<V> make(JSONArray array) {
+            List<V> set = new ArrayList<>();
+            array.forEach(e -> set.add(map(e)));
+            return set;
+        }
+    }
+
+    public abstract class VariableCollection<V, T extends Collection<V>> extends Variable<T> {
+        public VariableCollection(String name, T def, boolean isFinal) {
             super(name, def, isFinal);
         }
 
         @Override
         protected void processVariable(Object o) {
             if (o instanceof JSONArray array) {
-                Set<UUID> set = new HashSet<>();
-                array.forEach(e -> set.add(UUID.fromString((String) e)));
+                T set = make(array);
                 setValueWithoutUpdate(set);
             } else throwInvalidVariableType();
         }
 
+        protected abstract T make(JSONArray array);
+
+        protected abstract V map(Object o);
+
         @Override
         public int hashCode() {
-            return getValue().stream().mapToInt(UUID::hashCode).reduce(0, (a, b) -> a ^ b);
+            return getValue().stream().mapToInt(Object::hashCode).reduce(0, (a, b) -> a ^ b);
         }
 
         @Override
         public String toString() {
-            return "[" + alts.getValue().stream().map(UUID::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
+            return "[" + alts.getValue().stream().map(Object::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
         }
     }
 
@@ -216,6 +255,7 @@ public class PlayerData {
     private final VariableSetUUID alts;
     private final VariableSetUUID ignoring;
     private final VariableMap<VariableString> customStrings = new VariableMap<>(name -> new VariableString("custom.s." + name, null, false), "s");
+    private final VariableMap<VariableString> customStringList = new VariableMap<>(name -> new VariableString("custom.s." + name, null, false), "s");
     private final VariableMap<VariableBoolean> customBooleans = new VariableMap<>(name -> new VariableBoolean("custom.b." + name, false, false), "b");
 
     PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
