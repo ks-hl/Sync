@@ -260,4 +260,5 @@ public class SyncServer implements SyncNetCore {
     public boolean hasWritePermission(String user) {
         return plugin.hasWritePermission(user);
     }
+
 }

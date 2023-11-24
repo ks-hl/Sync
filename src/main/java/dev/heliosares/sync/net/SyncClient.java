@@ -117,6 +117,7 @@ public class SyncClient implements SyncNetCore {
                 }
             }
         });
+        plugin.scheduleAsync(this::keepAlive, 1000, 1000);
     }
 
     /**
@@ -124,14 +125,19 @@ public class SyncClient implements SyncNetCore {
      * still connected. If no packet is received by the server for 10 seconds, the
      * client will be kicked.
      */
-    public void keepAlive() throws Exception {
-        if (closed || connection == null || !connection.isConnected()) {
-            return;
-        }
-        connection.sendKeepalive();
-        if (System.currentTimeMillis() - connection.getTimeOfLastPacketReceived() > 10000) {
-            closeTemporary();
-            plugin.warning("timed out from proxy");
+    public void keepAlive() {
+        try {
+            if (!isConnected() || closed || connection == null || !connection.isConnected()) {
+                return;
+            }
+            connection.sendKeepalive();
+            if (System.currentTimeMillis() - connection.getTimeOfLastPacketReceived() > 10000) {
+                closeTemporary();
+                plugin.warning("timed out from proxy");
+            }
+        } catch (Exception e) {
+            plugin.warning("Error while sending keepAlive:");
+            plugin.print(e);
         }
     }
 

@@ -172,22 +172,6 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 }
             }
         });
-
-        new BukkitRunnable() {
-
-            @Override
-            public void run() {
-                if (!sync.isConnected()) {
-                    return;
-                }
-                try {
-                    sync.keepAlive();
-                } catch (Exception e) {
-                    warning("Error while sending keepAlive:");
-                    print(e);
-                }
-            }
-        }.runTaskTimerAsynchronously(this, 20, 20);
     }
 
     public Player getPlayer(String key) {
