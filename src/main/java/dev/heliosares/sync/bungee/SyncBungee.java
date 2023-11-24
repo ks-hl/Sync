@@ -202,6 +202,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     }
 
     @Override
+    public void scheduleAsync(Runnable run, long delay) {
+        getProxy().getScheduler().schedule(this, run, delay, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
     public void warning(String msg) {
         getLogger().warning(msg);
     }

@@ -251,6 +251,11 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         getServer().getScheduler().runTaskTimerAsynchronously(this, run, delay / 50L, period / 50L);
     }
 
+    @Override
+    public void scheduleAsync(Runnable run, long delay) {
+        getServer().getScheduler().runTaskLaterAsynchronously(this, run, delay / 50L + 1);
+    }
+
     private void dispatchCommand(CommandSender sender, String command) {
         new BukkitRunnable() {
             @Override

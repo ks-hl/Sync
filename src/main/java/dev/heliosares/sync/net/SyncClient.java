@@ -35,7 +35,7 @@ public class SyncClient implements SyncNetCore {
     private Set<String> servers = new HashSet<>();
 
     private IDProvider idProvider;
-
+    private boolean handShookComplete;
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
@@ -45,49 +45,61 @@ public class SyncClient implements SyncNetCore {
         eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
+    protected void handshake(SocketConnection connection) throws Exception {
+        AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
+        PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
+        KeyPair keyPair = EncryptionDH.generate(params);
+        SecretKey keyDB = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
+        connection.sendRaw(keyPair.getPublic().getEncoded());
+        connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
+        connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
+        connection.send("ACK".getBytes());
+        byte[] myVersion = PROTOCOL_VERSION.getBytes();
+        connection.send(myVersion);
+        byte[] otherVersion = connection.read();
+        if (!Arrays.equals(otherVersion, myVersion)) {
+            plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
+            close();
+            return;
+        }
+        connection.setName(new String(connection.read()));
+        byte[] connectionIDBytes = connection.read();
+        idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
+
+        plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
+    }
+
+    protected void connect() {
+        if (connection != null) {
+            throw new IllegalStateException("Client already started");
+        }
+
+    }
+
     /**
      * Initiates the client. This should only be called once, onEnable
      *
      * @param port Port of the proxy server
      */
     public void start(String host, int port) {
-        if (connection != null) {
-            throw new IllegalStateException("Client already started");
-        }
+        plugin.scheduleAsync(this::keepAlive, 250, 500);
+        connect();
         plugin.newThread(() -> {
             while (!closed) {
+                handShookComplete = false;
                 if (unableToConnectCount < 3 || plugin.debug()) {
                     plugin.print("Client connecting on " + host + ":" + port + "...");
                 }
                 try {
                     connection = new SocketConnection(plugin, new Socket(host, port));
 
-                    AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
-                    PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
-                    KeyPair keyPair = EncryptionDH.generate(params);
-                    SecretKey keyDB = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
-                    connection.sendRaw(keyPair.getPublic().getEncoded());
-                    connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
-                    connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
-                    connection.send("ACK".getBytes());
-                    byte[] myVersion = PROTOCOL_VERSION.getBytes();
-                    connection.send(myVersion);
-                    byte[] otherVersion = connection.read();
-                    if (!Arrays.equals(otherVersion, myVersion)) {
-                        plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
-                        close();
-                        return;
-                    }
-                    connection.setName(new String(connection.read()));
-                    byte[] connectionIDBytes = connection.read();
-                    idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
+                    handshake(connection);
 
-                    plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
+                    handShookComplete = true;
                     unableToConnectCount = 0;
 
                     usermanager.request();
 
-                    plugin.scheduleAsync(this::keepAlive, 100, 1000);
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
                         if (packet.getForward() != null) {
@@ -109,7 +121,7 @@ public class SyncClient implements SyncNetCore {
                     }
                 } catch (NullPointerException | SocketException | EOFException e) {
                     plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
-                    if (plugin.debug()) {
+                    if (plugin.debug() && !(e instanceof EOFException)) {
                         plugin.print(e);
                     }
                     if (closed) {
@@ -172,6 +184,7 @@ public class SyncClient implements SyncNetCore {
         if (connection == null) {
             return;
         }
+        handShookComplete = false;
         connection.close();
     }
 
@@ -204,12 +217,17 @@ public class SyncClient implements SyncNetCore {
     }
 
     @Override
-    public boolean send(@Nullable String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
+    public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
+        return send(server, packet, responseConsumer, 0, null);
+    }
+
+    @Override
+    public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) throws IOException {
         checkAsync();
         if (server != null) packet.setForward(server);
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
         packet.assignResponseID(idProvider);
-        connection.send(packet, responseConsumer);
+        connection.send(packet, responseConsumer, timeoutMillis, timeoutAction);
         return true;
     }
 
@@ -240,6 +258,10 @@ public class SyncClient implements SyncNetCore {
         return connection.isConnected() && connection.getEncryption() != null;
     }
 
+    public boolean isHandShookComplete() {
+        return handShookComplete;
+    }
+
     public Set<String> getServers() {
         return servers;
     }
@@ -257,6 +279,7 @@ public class SyncClient implements SyncNetCore {
         return connection.getTimeOfLastPacketReceived();
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isClosed() {
         return closed;
     }

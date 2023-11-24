@@ -52,6 +52,11 @@ public class SyncServer implements SyncNetCore {
 
     @Override
     public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
+        return send(server, packet, responseConsumer, 0, null);
+    }
+
+    @Override
+    public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) {
         packet.assignResponseID(idProvider);
         return clients.function(clients -> {
             boolean any = false;
@@ -73,7 +78,7 @@ public class SyncServer implements SyncNetCore {
                     continue;
                 }
                 try {
-                    ch.send(packet, responseConsumer);
+                    ch.send(packet, responseConsumer, timeoutMillis, timeoutAction);
                     any = true;
                 } catch (IOException e) {
                     plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");

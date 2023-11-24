@@ -2,7 +2,10 @@ package dev.heliosares.sync.daemon;
 
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.net.*;
+import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.SyncClient;
+import dev.heliosares.sync.net.SyncNetCore;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.EncryptionRSA;
@@ -11,10 +14,14 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class SyncDaemon implements SyncCore {
 
+    private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(10);
     private static SyncDaemon instance;
 
     public SyncDaemon() {
@@ -131,8 +138,15 @@ public class SyncDaemon implements SyncCore {
     public void setDebug(boolean debug) {
     }
 
+
     @Override
     public void scheduleAsync(Runnable run, long delay, long period) {
+        scheduler.scheduleAtFixedRate(run, delay, period, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void scheduleAsync(Runnable run, long delay) {
+        scheduler.schedule(run, delay, TimeUnit.MILLISECONDS);
     }
 
     @Override

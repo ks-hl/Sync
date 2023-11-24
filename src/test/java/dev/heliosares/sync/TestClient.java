@@ -1,6 +1,5 @@
 package dev.heliosares.sync;
 
-import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.utils.EncryptionRSA;
 
@@ -8,14 +7,18 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import java.util.function.BiFunction;
 
-public class TestClient implements SyncCore {
+public class TestClient extends TestPlatform {
     private final SyncClient syncNetCore;
     private final String name;
 
     public TestClient(String name) throws InvalidKeySpecException {
+        this(name, true, null);
+    }
+
+    public TestClient(String name, boolean implKey, BiFunction<TestPlatform, EncryptionRSA, SyncClient> clientCreator) throws InvalidKeySpecException {
+        if (clientCreator == null) clientCreator = SyncClient::new;
         this.name = name;
         File file = new File("test/" + name + "/private.key");
         //noinspection ResultOfMethodCallIgnored
@@ -25,39 +28,24 @@ public class TestClient implements SyncCore {
             File publicKeyFile = new File("test/clients/" + name + ".public.key");
             try {
                 boolean ignored = file.createNewFile();
-                if (!publicKeyFile.exists()) {
+                if (implKey && !publicKeyFile.exists()) {
                     //noinspection ResultOfMethodCallIgnored
                     publicKeyFile.getParentFile().mkdirs();
                     boolean ignored2 = publicKeyFile.createNewFile();
                 }
                 EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
                 pair.privateKey().write(file);
-                pair.publicKey().write(publicKeyFile);
+                if (implKey) pair.publicKey().write(publicKeyFile);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
         try {
-            syncNetCore = new SyncClient(this, EncryptionRSA.load(file));
+            syncNetCore = clientCreator.apply(this, EncryptionRSA.load(file));
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public void newThread(Runnable run) {
-        TestMain.getScheduler().execute(run);
-    }
-
-    @Override
-    public void runAsync(Runnable run) {
-        TestMain.getScheduler().execute(run);
-    }
-
-    @Override
-    public void scheduleAsync(Runnable run, long delay, long period) {
-        TestMain.getScheduler().scheduleAtFixedRate(run, delay, period, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -71,51 +59,7 @@ public class TestClient implements SyncCore {
     }
 
     @Override
-    public void print(Throwable t) {
-        t.printStackTrace();
-    }
-
-    @Override
-    public void debug(String msg) {
-        print(msg);
-    }
-
-    @Override
-    public void debug(Supplier<String> msgSupplier) {
-        print(msgSupplier.get());
-    }
-
-    @Override
-    public boolean debug() {
-        return true;
-    }
-
-    @Override
-    public void dispatchCommand(MySender sender, String command) {
-
-    }
-
-    @Override
-    public void setDebug(boolean debug) {
-
-    }
-
-    @Override
-    public boolean isAsync() {
-        return true;
-    }
-
-    @Override
     public SyncClient getSync() {
         return syncNetCore;
-    }
-
-    @Override
-    public PlatformType getPlatformType() {
-        return PlatformType.DAEMON;
-    }
-
-    @Override
-    public void onNewPlayerData(PlayerData data) {
     }
 }

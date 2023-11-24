@@ -48,12 +48,12 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             UUID user_uuid = UUID.fromString(new String(EncryptionDH.decrypt(keyDH, readRaw())));
             EncryptionRSA clientRSA = server.getEncryptionFor(user_uuid);
             if (clientRSA == null) {
-                throw new InvalidKeyException();
+                throw new InvalidKeyException("No key matching provided");
             }
             sendRaw(EncryptionDH.encrypt(keyDH, clientRSA.encrypt(getEncryption().encodeKey())));
             if (!new String(read()).equals("ACK")) {
                 // Tests that the client has the decrypted AES key
-                throw new InvalidKeyException();
+                throw new InvalidKeyException("Invalid key");
             }
             byte[] myVersion = PROTOCOL_VERSION.getBytes();
             byte[] otherVersion = read();
@@ -73,12 +73,9 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             server.getUserManager().sendPlayers(getName(), null);
 
         } catch (GeneralSecurityException e) {
-            plugin.print("Client failed to authenticate. " + getIP());
+            plugin.print("Client failed to authenticate. " + getIP() + (plugin.debug() && e.getMessage() != null ? (", " + e.getMessage()) : ""));
             close();
             server.remove(this);
-            if (plugin.debug()) {
-                plugin.print(e);
-            }
             return;
         } catch (IOException e) {
             plugin.print("Error during handshake.");

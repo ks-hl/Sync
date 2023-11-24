@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.EncryptionAES;
+import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -15,7 +16,6 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -28,7 +28,7 @@ public class SocketConnection {
     private final DataOutputStream out;
     private final DataInputStream in;
     private final long created;
-    private final Map<Long, ResponseAction> responses = new HashMap<>();
+    private final ConcurrentMap<HashMap<Long, ResponseAction>, Long, ResponseAction> responses = new ConcurrentMap<>(new HashMap<>());
     private boolean closed;
     private String name;
     private long lastPacketSent = System.currentTimeMillis();
@@ -98,16 +98,21 @@ public class SocketConnection {
 
         if (getName() == null) return;
 
-        send(new Packet(null, PacketType.KEEP_ALIVE, null), null);
+        send(new Packet(null, PacketType.KEEP_ALIVE, null), null, 0, null);
     }
 
-    protected void send(Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
+    protected void send(Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) throws IOException {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
         synchronized (out) {
-            if (responseConsumer != null)
-                responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), responseConsumer));
+            if (responseConsumer != null) {
+                ResponseAction responseAction = new ResponseAction(packet.getResponseID(), System.currentTimeMillis(), responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
+                responses.put(packet.getResponseID(), responseAction);
+                if (timeoutAction != null) {
+                    plugin.scheduleAsync(() -> timeOut(responseAction), responseAction.timeoutMillis());
+                }
+            }
             String plain = packet.toString();
             if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
@@ -154,12 +159,21 @@ public class SocketConnection {
     private void cleanup() {
         if (System.currentTimeMillis() - lastCleanup < 60000) return;
         lastCleanup = System.currentTimeMillis();
-        responses.values().removeIf(ResponseAction::shouldRemove);
+        responses.consume(responses -> responses.values().removeIf(ResponseAction::removeIf));
     }
 
-    private record ResponseAction(long created, @Nonnull Consumer<Packet> action) {
-        boolean shouldRemove() {
-            return System.currentTimeMillis() - created > 300000L;
+    private void timeOut(ResponseAction action) {
+        action = responses.remove(action.id());
+        if (action == null) return;
+        if (action.timeoutAction() != null) action.timeoutAction().run();
+    }
+
+    private record ResponseAction(long id, long created, @Nonnull Consumer<Packet> action, long timeoutMillis,
+                                  Runnable timeoutAction) {
+        boolean removeIf() {
+            if (System.currentTimeMillis() - created < timeoutMillis) return false;
+            if (timeoutAction != null) timeoutAction.run();
+            return true;
         }
     }
 
