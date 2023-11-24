@@ -1,14 +1,14 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.utils.ConcurrentCollection;
+import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 
 import java.util.ArrayList;
 import java.util.Objects;
 
 public final class NetEventHandler {
 
-    private final ConcurrentCollection<EventHandler> listeners = new ConcurrentCollection<>(new ArrayList<>());
+    private final ConcurrentCollection<ArrayList<EventHandler>, EventHandler> listeners = new ConcurrentCollection<>(new ArrayList<>());
     private final SyncCore plugin;
 
     public NetEventHandler(SyncCore plugin) {

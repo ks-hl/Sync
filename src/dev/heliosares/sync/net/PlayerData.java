@@ -2,7 +2,7 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.utils.ConcurrentMap;
+import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import net.md_5.bungee.api.chat.BaseComponent;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -163,6 +163,17 @@ public class PlayerData {
         }
     }
 
+    public final class VariableSetString extends VariableSet<String> {
+        public VariableSetString(String name, Set<String> def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected String map(Object o) {
+            return o.toString();
+        }
+    }
+
     public abstract class VariableSet<V> extends VariableCollection<V, Set<V>> {
 
         public VariableSet(String name, Set<V> def, boolean isFinal) {
@@ -172,20 +183,6 @@ public class PlayerData {
         @Override
         protected Set<V> make(JSONArray array) {
             Set<V> set = new HashSet<>();
-            array.forEach(e -> set.add(map(e)));
-            return set;
-        }
-    }
-
-    public abstract class VariableList<V> extends VariableCollection<V, List<V>> {
-
-        public VariableList(String name, List<V> def, boolean isFinal) {
-            super(name, def, isFinal);
-        }
-
-        @Override
-        protected List<V> make(JSONArray array) {
-            List<V> set = new ArrayList<>();
             array.forEach(e -> set.add(map(e)));
             return set;
         }
@@ -219,13 +216,16 @@ public class PlayerData {
         }
     }
 
-    private static class VariableMap<V extends Variable<?>> extends ConcurrentMap<String, V> {
-        private final Function<String, V> creator;
+    private class MapOfVariables<V extends Variable<?>> extends ConcurrentMap<HashMap<String, V>, String, V> {
         private final String keyName;
+        private final Function<String, V> creator;
 
-        protected VariableMap(Function<String, V> creator, String keyName) {
-            this.creator = creator;
+        protected MapOfVariables(String keyName, Function<String, V> creator) {
+            super(new HashMap<>());
             this.keyName = keyName;
+            this.creator = creator;
+
+            customMaps.put(keyName, this);
         }
 
         public JSONObject toJSON() {
@@ -254,9 +254,10 @@ public class PlayerData {
     private final VariableBoolean vanished;
     private final VariableSetUUID alts;
     private final VariableSetUUID ignoring;
-    private final VariableMap<VariableString> customStrings = new VariableMap<>(name -> new VariableString("custom.s." + name, null, false), "s");
-    private final VariableMap<VariableString> customStringList = new VariableMap<>(name -> new VariableString("custom.s." + name, null, false), "s");
-    private final VariableMap<VariableBoolean> customBooleans = new VariableMap<>(name -> new VariableBoolean("custom.b." + name, false, false), "b");
+    private final MapOfVariables<VariableString> customStrings;
+    private final MapOfVariables<VariableSetString> customStringSets;
+    private final MapOfVariables<VariableBoolean> customBooleans;
+    private final ConcurrentMap<HashMap<String, MapOfVariables<?>>, String, MapOfVariables<?>> customMaps = new ConcurrentMap<>(new HashMap<>());
 
     PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
         this.plugin = plugin;
@@ -266,6 +267,10 @@ public class PlayerData {
         this.vanished = new VariableBoolean("v", vanished, false);
         this.alts = new VariableSetUUID("alts", new HashSet<>(), false);
         this.ignoring = new VariableSetUUID("ignoring", new HashSet<>(), false);
+
+        this.customStrings = new MapOfVariables<>("s", varName -> new VariableString("custom.s." + varName, null, false));
+        this.customStringSets = new MapOfVariables<>("ss", varName -> new VariableSetString("custom.ss." + varName, null, false));
+        this.customBooleans = new MapOfVariables<>("b", varName -> new VariableBoolean("custom.b." + varName, false, false));
     }
 
     PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
@@ -279,8 +284,7 @@ public class PlayerData {
 
         if (o.has("custom")) {
             JSONObject custom = o.getJSONObject("custom");
-            this.customBooleans.processJSON(custom);
-            this.customStrings.processJSON(custom);
+            customMaps.forEach((key, map) -> map.processJSON(custom));
         }
     }
 
@@ -294,8 +298,7 @@ public class PlayerData {
         this.alts.putJSON(o);
         this.ignoring.putJSON(o);
         JSONObject custom = new JSONObject();
-        custom.put("s", customStrings.toJSON());
-        custom.put("b", customBooleans.toJSON());
+        customMaps.forEach((key, map) -> custom.put(key, map.toJSON()));
         o.put("custom", custom.isEmpty() ? null : custom);
         return o;
     }
@@ -309,14 +312,13 @@ public class PlayerData {
             case "alts" -> alts;
             case "ignoring" -> ignoring;
             default -> {
-                if (field.startsWith("custom.s.")) {
-                    field = field.substring(9);
-                    VariableString variableString = customStrings.get(field);
-                    if (variableString != null) yield variableString;
-                } else if (field.startsWith("custom.b.")) {
-                    field = field.substring(9);
-                    VariableBoolean variableBoolean = customBooleans.get(field);
-                    if (variableBoolean != null) yield variableBoolean;
+                if (field.startsWith("custom.")) {
+                    String key = field.split("\\.")[1];
+                    MapOfVariables<?> map = customMaps.get(key);
+                    if (map != null) {
+                        Variable<?> var = map.get(field);
+                        if (var != null) yield var;
+                    }
                 }
                 throw new IllegalArgumentException("Invalid field to update: " + field);
             }
@@ -355,17 +357,17 @@ public class PlayerData {
         out.append(formatter.apply("alts", alts));
         out.append(formatter.apply("ignoring", ignoring));
         out.append(formatter.apply("custom", ""));
-        out.append(formatter.apply("  strings", ""));
-        customStrings.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.getValue())));
-        out.append(formatter.apply("  booleans", ""));
-        customBooleans.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.getValue())));
+        customMaps.forEach((key, map) -> {
+            out.append(formatter.apply("  " + key, ""));
+            map.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.getValue())));
+        });
 
         return out.substring(0, out.length() - 1);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(server, name, uuid, vanished, alts, ignoring, customStrings, customBooleans);
+        return Objects.hash(server, name, uuid, vanished, alts, ignoring, customMaps);
     }
 
 
@@ -456,7 +458,7 @@ public class PlayerData {
 
     @SuppressWarnings("unused")
     public void setCustom(String name, boolean value) {
-        customBooleans.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableBoolean(name2, !value, false))).setValue(value);
+        customBooleans.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableBoolean(name2, !value /* Set negated so there is a change when set */, false))).setValue(value);
     }
 
     @CheckReturnValue
@@ -464,6 +466,20 @@ public class PlayerData {
     @SuppressWarnings("unused")
     public Boolean getCustomBoolean(String name) {
         VariableBoolean variable = customBooleans.get(name);
+        if (variable == null) return null;
+        return variable.getValue();
+    }
+
+    @SuppressWarnings("unused")
+    public void setCustom(String name, Set<String> value) {
+        customStringSets.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableSetString(name2, null, false))).setValue(value);
+    }
+
+    @CheckReturnValue
+    @Nullable
+    @SuppressWarnings("unused")
+    public Set<String> getCustomStringSet(String name) {
+        VariableSetString variable = customStringSets.get(name);
         if (variable == null) return null;
         return variable.getValue();
     }

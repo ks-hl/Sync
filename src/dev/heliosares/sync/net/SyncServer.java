@@ -1,8 +1,8 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
-import dev.heliosares.sync.utils.ConcurrentCollection;
 import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 public class SyncServer implements SyncNetCore {
     final SyncCoreProxy plugin;
     private final NetEventHandler eventhandler;
-    private final ConcurrentCollection<ServerClientHandler> clients = new ConcurrentCollection<>(new ArrayList<>());
+    private final ConcurrentCollection<ArrayList<ServerClientHandler>, ServerClientHandler> clients = new ConcurrentCollection<>(new ArrayList<>());
     private final UserManager usermanager;
     private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;

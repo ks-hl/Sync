@@ -41,6 +41,7 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.json:json</include>
+                                    <include>com.github.ks-hl:KshLib</include>
                                 </includes>
                             </artifactSet>
                         </configuration>
@@ -146,6 +147,7 @@
 
         <!--        JSON-->
         <!--        SuperVanish-->
+        <!--        KshLib-->
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
@@ -194,6 +196,17 @@
             <artifactId>placeholderapi</artifactId>
             <version>2.11.2</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ks-hl</groupId>
+            <artifactId>KshLib</artifactId>
+            <version>b5b066525e</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <properties>

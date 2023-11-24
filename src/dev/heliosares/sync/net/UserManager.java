@@ -1,7 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.utils.ConcurrentMap;
+import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,7 +19,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     private final SyncNetCore sync;
     private final SyncCore plugin;
-    private final ConcurrentMap<UUID, PlayerData> players = new ConcurrentMap<>();
+    private final ConcurrentMap<HashMap<UUID, PlayerData>, UUID, PlayerData> players = new ConcurrentMap<>(new HashMap<>());
     private int lastHash;
 
     public UserManager(SyncCore plugin, SyncNetCore client) {
@@ -124,7 +124,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     @CheckReturnValue
     @Nullable
     public PlayerData getPlayer(Predicate<PlayerData> predicate) {
-        return players.get(predicate);
+        return players.function(map -> map.values().stream().filter(predicate).findAny().orElse(null));
     }
 
     public void makeFormattedString(Consumer<String> lineConsumer, Consumer<String> hoverConsumer) {
