@@ -86,7 +86,7 @@ public class Packet {
     }
 
     public void assignResponseID(IDProvider provider) {
-        if (responseID == null) responseID = provider.getNextID();
+        if (responseID == null) responseID = provider.getNextID().combined();
     }
 
     @Override

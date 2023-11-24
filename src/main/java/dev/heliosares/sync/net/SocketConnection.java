@@ -64,8 +64,16 @@ public class SocketConnection {
         try {
             synchronized (in) {
                 Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(read())));
-                if (packet.getType() != PacketType.KEEP_ALIVE)
-                    plugin.debug(() -> "RECV" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
+                if (packet.getType() != PacketType.KEEP_ALIVE) plugin.debug(() -> {
+                    String action = "RECV";
+                    if (this instanceof ServerClientHandler sch) {
+                        if (packet.getForward() != null) action = "FWD";
+                        action += " (" + sch.getName();
+                        if (packet.getForward() != null) action += " -> " + packet.getForward();
+                        action += ")";
+                    }
+                    return action + ": " + packet.toJSON().toString(2);
+                });
                 if (packet instanceof BlobPacket blobPacket) blobPacket.setBlob(read());
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
@@ -101,7 +109,7 @@ public class SocketConnection {
             if (responseConsumer != null)
                 responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), responseConsumer));
             String plain = packet.toString();
-            if (packet.getType() != PacketType.KEEP_ALIVE)
+            if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
             send(plain.getBytes());
             if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
