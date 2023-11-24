@@ -91,21 +91,6 @@
                 <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>replace-version</id>
-                        <phase>prepare-package</phase>
-                        <configuration>
-                            <target>
-                                <replace token="%VERSION%" value="${project.version}" dir="target/classes/">
-                                    <include name="**plugin.yml"/>
-                                    <include name="**bungee.yml"/>
-                                </replace>
-                            </target>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                    <execution>
                         <phase>package</phase>
                         <configuration>
                             <target>

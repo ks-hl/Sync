@@ -1,5 +1,5 @@
 name: Sync
-version: '%VERSION%'
+version: '${project.version}'
 main: main.sync.spigot.SyncSpigot
 description: Sync
 api-version: 1.13
