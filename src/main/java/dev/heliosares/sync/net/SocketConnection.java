@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net;
 
-import dev.heliosares.sync.SyncAPI;
+import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.packet.BlobPacket;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.EncryptionAES;
 import org.json.JSONObject;
 
@@ -18,6 +20,7 @@ import java.util.function.Consumer;
 
 public class SocketConnection {
     private EncryptionAES encryption;
+    private final SyncCore plugin;
     private final Socket socket;
     private final DataOutputStream out;
     private final DataInputStream in;
@@ -29,7 +32,8 @@ public class SocketConnection {
     private long lastPacketReceived = System.currentTimeMillis();
     private long lastCleanup;
 
-    public SocketConnection(Socket socket) throws IOException, InvalidKeyException {
+    public SocketConnection(SyncCore plugin, Socket socket) throws IOException {
+        this.plugin = plugin;
         this.socket = socket;
         this.created = System.currentTimeMillis();
         out = new DataOutputStream(socket.getOutputStream());
@@ -52,20 +56,21 @@ public class SocketConnection {
         }
     }
 
+    @Nonnull
     public Packet listen() throws Exception {
         try {
             synchronized (in) {
-                Packet packet = new Packet(new JSONObject(new String(read())));
-                if (packet.getPacketId() != Packets.KEEPALIVE.id)
-                    SyncAPI.getInstance().debug(() -> "RECV" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
-                if (packet.getPacketId() == Packets.BLOB.id) packet.setBlob(read());
+                Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(read())));
+                if (packet.getType() != PacketType.KEEP_ALIVE)
+                    plugin.debug(() -> "RECV" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
+                if (packet instanceof BlobPacket blobPacket) blobPacket.setBlob(read());
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
                     try {
                         if (action != null) action.action().accept(packet);
                     } catch (Throwable t) {
-                        SyncAPI.getInstance().warning("Error while handling response packet " + packet);
-                        SyncAPI.getInstance().print(t);
+                        plugin.warning("Error while handling response packet " + packet);
+                        plugin.print(t);
                     }
                 }
                 this.lastPacketReceived = System.currentTimeMillis();
@@ -77,21 +82,15 @@ public class SocketConnection {
         }
     }
 
-    public void sendKeepalive() throws IOException {
-        if (System.currentTimeMillis() - getTimeOfLastPacketSent() < 750) {
-            return;
-        }
-        if (getName() == null) {
-            return;
-        }
-        send(new Packet(null, Packets.KEEPALIVE.id, null));
+    public void sendKeepAlive() throws IOException {
+        if (System.currentTimeMillis() - getTimeOfLastPacketSent() < 500) return;
+
+        if (getName() == null) return;
+
+        send(new Packet(null, PacketType.KEEP_ALIVE, null), null);
     }
 
-    protected void send(Packet packet) throws IOException {
-        sendConsumer(packet, null);
-    }
-
-    protected void sendConsumer(Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
+    protected void send(Packet packet, @Nullable Consumer<Packet> responseConsumer) throws IOException {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
@@ -99,10 +98,10 @@ public class SocketConnection {
             if (responseConsumer != null)
                 responses.put(packet.getResponseID(), new ResponseAction(System.currentTimeMillis(), responseConsumer));
             String plain = packet.toString();
-            if (packet.getPacketId() != Packets.KEEPALIVE.id)
-                SyncAPI.getInstance().debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
+            if (packet.getType() != PacketType.KEEP_ALIVE)
+                plugin.debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
             send(plain.getBytes());
-            if (packet.getPacketId() == Packets.BLOB.id) send(packet.getBlob());
+            if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
             out.flush();
         }
         this.lastPacketSent = System.currentTimeMillis();
@@ -186,5 +185,9 @@ public class SocketConnection {
 
     public void setEncryption(EncryptionAES encryption) {
         if (this.encryption == null) this.encryption = encryption;
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 }

@@ -1,23 +1,26 @@
-package dev.heliosares.sync.net;
+package dev.heliosares.sync.net.packet;
 
+import dev.heliosares.sync.net.IDProvider;
+import dev.heliosares.sync.net.PacketType;
 import org.json.JSONObject;
 
 public class Packet {
     private final String channel;
-    private final int packetID;
+    private final PacketType type;
     private final JSONObject payload;
-    private final long responseID;
+    private Long responseID;
     private final boolean isResponse;
     private String origin;
-    private byte[] blob;
     private String forward;
 
+    @Deprecated
     public Packet(String channel, int packetID, JSONObject payload) {
-        this(channel, packetID, payload, IDProvider.getNextID(), false);
+        this(channel, PacketType.getByID(packetID), payload, null, false);
     }
 
-    public Packet(String channel, int packetID, JSONObject payload, long responseID) {
-        this(channel, packetID, payload, responseID, true);
+    @Deprecated
+    public Packet(String channel, int packetID, JSONObject payload, Long responseID) {
+        this(channel, PacketType.getByID(packetID), payload, responseID, true);
     }
 
     /**
@@ -26,7 +29,11 @@ public class Packet {
     @Deprecated
     public Packet(String channel, int packetID, JSONObject payload, byte[] blob) {
         this(channel, packetID, payload);
-        setBlob(blob);
+        throw new UnsupportedOperationException();
+    }
+
+    public Packet(String channel, PacketType type, JSONObject payload) {
+        this(channel, type, payload, null, false);
     }
 
     /**
@@ -35,17 +42,20 @@ public class Packet {
      * @param packet The packet to parse
      * @see #toJSON()
      */
-    Packet(JSONObject packet) {
-        packetID = packet.getInt("typ");
-        if (packet.has("dir")) { // Get it? Like rid but backwards
+    public Packet(JSONObject packet) throws MalformedPacketException {
+        if (!packet.has("typ")) throw new MalformedPacketException("No type specified");
+        type = PacketType.getByID(packet.getInt("typ"));
+        if (type == PacketType.KEEP_ALIVE) {
+            responseID = null;
+            isResponse = false;
+        } else if (packet.has("dir")) { // Get it? Like rid but backwards
             responseID = packet.getLong("dir");
             isResponse = true;
         } else if (packet.has("rid")) {
             responseID = packet.getLong("rid");
             isResponse = false;
         } else {
-            responseID = Long.MIN_VALUE;
-            isResponse = false;
+            throw new MalformedPacketException("No response ID");
         }
         if (packet.has("ch")) channel = packet.getString("ch");
         else channel = null;
@@ -56,10 +66,10 @@ public class Packet {
         if (packet.has("fw")) forward = packet.getString("fw");
     }
 
-    Packet(String channel, int packetID, JSONObject payload, long responseID, boolean isResponse) {
+    protected Packet(String channel, PacketType type, JSONObject payload, Long responseID, boolean isResponse) {
         this.responseID = responseID;
         this.channel = channel;
-        this.packetID = packetID;
+        this.type = type;
         this.payload = payload;
         this.isResponse = isResponse;
     }
@@ -72,7 +82,11 @@ public class Packet {
      */
     public Packet createResponse(JSONObject payload) {
         if (isResponse()) throw new IllegalArgumentException("Cannot reply to a response!");
-        return new Packet(channel, packetID, payload, responseID, true).setForward(origin);
+        return new Packet(channel, type, payload, responseID, true).setForward(origin);
+    }
+
+    public void assignResponseID(IDProvider provider) {
+        if (responseID == null) responseID = provider.getNextID();
     }
 
     @Override
@@ -95,24 +109,22 @@ public class Packet {
      * <br>
      */
     public JSONObject toJSON() {
+        if (responseID == null && getType() != PacketType.KEEP_ALIVE)
+            throw new IllegalStateException("Can not send packet before assigning response ID");
         JSONObject json = new JSONObject();
-        json.put("typ", packetID);
-        if (responseID > Long.MIN_VALUE) json.put(isResponse ? "dir" : "rid", responseID);
+        json.put("typ", type.id);
+        if (responseID != null) json.put(isResponse ? "dir" : "rid", responseID);
         if (channel != null) json.put("ch", channel);
         if (payload != null) json.put("pl", payload);
         if (forward != null) json.put("fw", forward);
         return json;
     }
 
-    public Packet unmodifiable() {
-        return new UnmodifiablePacket(this);
-    }
-
     public String getOrigin() {
         return origin;
     }
 
-    void setOrigin(String origin) {
+    public void setOrigin(String origin) {
         if (this.origin != null) throw new IllegalStateException("Cannot reset packet origin");
         this.origin = origin;
     }
@@ -129,23 +141,17 @@ public class Packet {
         return channel;
     }
 
+    @Deprecated
     public int getPacketId() {
-        return packetID;
+        return getType().id;
+    }
+
+    public PacketType getType() {
+        return type;
     }
 
     public JSONObject getPayload() {
         return payload;
-    }
-
-    public byte[] getBlob() {
-        return blob;
-    }
-
-    public Packet setBlob(byte[] blob) {
-        if (this.getPacketId() != Packets.BLOB.id)
-            throw new IllegalArgumentException("Can not set a blob for a packet other than type Packets#BLOB");
-        this.blob = blob;
-        return this;
     }
 
     public String getForward() {

@@ -1,19 +1,16 @@
 package dev.heliosares.sync.net;
 
+@Deprecated
 public enum Packets {
-    //HANDSHAKE(0), //
-    KEEPALIVE(1), //
-    COMMAND(2), //
-    API(3), //
-    BLOB(4), //
-    SERVER_LIST(5), //
-    PLAYER_DATA(6),//
-
-    MESSAGE(7),//
-
-    PLAY_SOUND(8),
-
-    TITLE(9);//
+    KEEPALIVE(PacketType.KEEP_ALIVE.id), //
+    COMMAND(PacketType.COMMAND.id), //
+    API(PacketType.API.id), //
+    BLOB(PacketType.API_WITH_BLOB.id), //
+    SERVER_LIST(PacketType.SERVER_LIST.id), //
+    PLAYER_DATA(PacketType.PLAYER_DATA.id),//
+    MESSAGE(PacketType.MESSAGE.id),//
+    PLAY_SOUND(PacketType.PLAY_SOUND.id),//
+    TITLE(PacketType.SHOW_TITLE.id);//
 
     public final int id;
 

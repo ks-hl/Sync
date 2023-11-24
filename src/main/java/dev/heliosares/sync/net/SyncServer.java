@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.EncryptionRSA;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 import org.json.JSONArray;
@@ -23,12 +24,13 @@ public class SyncServer implements SyncNetCore {
     private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;
     private boolean closed = false;
+    private final IDProvider idProvider = new IDProvider((short) 0);
 
     public SyncServer(SyncCoreProxy plugin) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
-        eventhandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
+        eventhandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
     /**
@@ -45,11 +47,12 @@ public class SyncServer implements SyncNetCore {
      *               null or "all" for all servers.
      */
     public boolean send(@Nullable String server, Packet packet) {
-        return sendConsumer(server, packet, null);
+        return send(server, packet, null);
     }
 
     @Override
-    public boolean sendConsumer(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
+    public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
+        packet.assignResponseID(idProvider);
         return clients.function(clients -> {
             boolean any = false;
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
@@ -70,7 +73,7 @@ public class SyncServer implements SyncNetCore {
                     continue;
                 }
                 try {
-                    ch.sendConsumer(packet, responseConsumer);
+                    ch.send(packet, responseConsumer);
                     any = true;
                 } catch (IOException e) {
                     plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");
@@ -81,6 +84,12 @@ public class SyncServer implements SyncNetCore {
             }
             return any;
         });
+    }
+
+    @Override
+    @Deprecated
+    public boolean sendConsumer(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer) {
+        return send(server, packet, responseConsumer);
     }
 
     /**
@@ -128,6 +137,8 @@ public class SyncServer implements SyncNetCore {
                 }
             }
         });
+
+        plugin.scheduleAsync(this::keepAlive, 100, 1000);
     }
 
     /**
@@ -136,7 +147,7 @@ public class SyncServer implements SyncNetCore {
      * <p>
      * Sends a keepAlive packet to all clients
      */
-    public void keepalive() {
+    public void keepAlive() {
         clients.consume(clients -> {
             Iterator<ServerClientHandler> it = clients.iterator();
             while (it.hasNext()) {
@@ -155,7 +166,7 @@ public class SyncServer implements SyncNetCore {
                     remove = true;
                 } else {
                     try {
-                        ch.sendKeepalive();
+                        ch.sendKeepAlive();
                     } catch (IOException e) {
                         plugin.print(ch.getName() + " timed out");
                         remove = true;
@@ -170,7 +181,7 @@ public class SyncServer implements SyncNetCore {
     }
 
     public void updateClientsWithServerList() {
-        send(new Packet(null, Packets.SERVER_LIST.id, new JSONObject().put("servers", new JSONArray(getServers()))));
+        send(new Packet(null, PacketType.SERVER_LIST, new JSONObject().put("servers", new JSONArray(getServers()))));
     }
 
     /**
@@ -208,7 +219,7 @@ public class SyncServer implements SyncNetCore {
      */
     public void remove(ServerClientHandler ch) {
         ch.close();
-        clients.consume(clients -> clients.remove(ch));
+        clients.remove(ch);
         updateClientsWithServerList();
     }
 

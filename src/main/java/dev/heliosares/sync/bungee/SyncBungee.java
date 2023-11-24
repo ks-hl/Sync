@@ -3,9 +3,11 @@ package dev.heliosares.sync.bungee;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
-import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
+import dev.heliosares.sync.net.packet.CommandPacket;
+import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import dev.heliosares.sync.utils.EncryptionRSA;
@@ -75,12 +77,13 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
 
         getSync().start(config.getString("host", null), config.getInt("port", 8001));
 
-        getSync().getEventHandler().registerListener(Packets.MESSAGE.id, null, (server, packet) -> {
-            @Nullable String msg = packet.getPayload().optString("msg", null);
-            @Nullable String json = packet.getPayload().optString("json", null);
-            @Nullable String node = packet.getPayload().optString("node", null);
-            @Nullable String to = packet.getPayload().optString("to", null);
-            boolean others_only = packet.getPayload().optBoolean("others_only");
+        getSync().getEventHandler().registerListener(PacketType.MESSAGE, null, (server, packet) -> {
+            if (!(packet instanceof MessagePacket messagePacket)) return;
+            @Nullable String msg = messagePacket.msg().get();
+            @Nullable String json = messagePacket.json().get();
+            @Nullable String node = messagePacket.node().get();
+            @Nullable String to = messagePacket.to().get();
+            boolean others_only = messagePacket.otherServersOnly().get();
             if (to != null) {
                 ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
                 if (toPlayer == null) {
@@ -102,9 +105,10 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             }
 
         });
-        getSync().getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
+        getSync().getEventHandler().registerListener(PacketType.COMMAND, null, (server, packet) -> {
+            if (!(packet instanceof CommandPacket commandPacket)) return;
             try {
-                String message = packet.getPayload().getString("command");
+                String message = commandPacket.command().get();
 
                 print("Executing (from " + server + "): /" + message);
 
@@ -129,8 +133,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
                 print(e);
             }
         });
-
-        getProxy().getScheduler().schedule(this, () -> getSync().keepalive(), 1, 1, TimeUnit.SECONDS);
     }
 
     @Override

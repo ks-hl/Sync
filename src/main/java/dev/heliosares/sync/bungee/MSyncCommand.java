@@ -1,7 +1,7 @@
 package dev.heliosares.sync.bungee;
 
-import dev.heliosares.sync.net.Packet;
-import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.ServerClientHandler;
 import dev.heliosares.sync.utils.CommandParser;
@@ -107,9 +107,9 @@ public class MSyncCommand extends Command implements TabExecutor {
         String message = CommandParser.concat(0, args);
         Result serverR = CommandParser.parse("-s", message);
         message = serverR.remaining();
-        Packet packet = new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", message));
+        Packet packet = new Packet(null, PacketType.COMMAND, new JSONObject().put("command", message));
 
-        if (plugin.getSync().sendConsumer(serverR.value(), packet, response -> SyncBungee.tell(sender, response.getPayload().getString("msg")))) {
+        if (plugin.getSync().send(serverR.value(), packet, response -> SyncBungee.tell(sender, response.getPayload().getString("msg")))) {
             SyncBungee.tell(sender, "§aCommand sent.");
         } else {
             SyncBungee.tell(sender, "No servers found matching this name: " + serverR.value());

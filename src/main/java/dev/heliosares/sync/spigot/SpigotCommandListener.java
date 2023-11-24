@@ -1,8 +1,8 @@
 package dev.heliosares.sync.spigot;
 
 import dev.heliosares.sync.SyncAPI;
-import dev.heliosares.sync.net.Packet;
-import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
@@ -92,8 +92,8 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                         server = serverR.value();
                         command = serverR.remaining();
                     }
-                    Packet packet = new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", command));
-                    plugin.getSync().sendConsumer(server, packet, response -> sender.sendMessage(response.getPayload().getString("msg")));
+                    Packet packet = new Packet(null, PacketType.COMMAND, new JSONObject().put("command", command));
+                    plugin.getSync().send(server, packet, response -> sender.sendMessage(response.getPayload().getString("msg")));
                 } catch (Exception e) {
                     sender.sendMessage("§cAn error occured");
                     plugin.print(e);

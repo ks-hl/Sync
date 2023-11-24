@@ -1,7 +1,9 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -16,22 +18,26 @@ public final class NetEventHandler {
     }
 
 
+    @Deprecated
     public void registerListener(int id, String channel, PacketConsumer consumer) {
+        registerListener(PacketType.getByID(id), channel, consumer);
+    }
+
+    public void registerListener(PacketType type, String channel, PacketConsumer consumer) {
         if (channel != null && !channel.matches("\\w+:\\w+")) {
             throw new IllegalArgumentException("Channel name must conform to 'PluginName:Channel'");
         }
-        listeners.consume(listeners -> listeners.add(new EventHandler(id, channel, consumer)));
+        listeners.consume(listeners -> listeners.add(new EventHandler(type, channel, consumer)));
     }
 
     public void unregisterChannel(String channel) {
         listeners.consume(listeners -> listeners.removeIf(netListener -> Objects.equals(channel, netListener.channel())));
     }
 
-    void execute(String server, Packet packet_) {
-        Packet packet = packet_.unmodifiable();
+    void execute(String server, Packet packet) {
         listeners.forEach(handler -> {
             if (!Objects.equals(packet.getChannel(), handler.channel())) return;
-            if (packet.getPacketId() != handler.id()) return;
+            if (packet.getType() != handler.type()) return;
 
             try {
                 handler.d.execute(server, packet);
@@ -51,6 +57,6 @@ public final class NetEventHandler {
         void execute(String server, Packet packet);
     }
 
-    record EventHandler(int id, String channel, PacketConsumer d) {
+    record EventHandler(PacketType type, String channel, PacketConsumer d) {
     }
 }

@@ -1,7 +1,9 @@
 package dev.heliosares.sync.net;
 
-import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.packet.MessagePacket;
+import dev.heliosares.sync.net.packet.PlaySoundPacket;
+import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import net.md_5.bungee.api.chat.BaseComponent;
 import org.json.JSONArray;
@@ -140,7 +142,7 @@ public class PlayerData {
     }
 
     public final class VariableBoolean extends Variable<Boolean> {
-        public VariableBoolean(String name, boolean def, boolean isFinal) {
+        public VariableBoolean(String name, Boolean def, boolean isFinal) {
             super(name, def, isFinal);
         }
 
@@ -241,9 +243,13 @@ public class PlayerData {
             consume(map -> {
                 for (String key : customSub.keySet()) {
                     Object value = customSub.get(key);
-                    map.computeIfAbsent(key, k -> creator.apply(key)).processVariable(value);
+                    computeIfAbsent(key).processVariable(value);
                 }
             });
+        }
+
+        public V computeIfAbsent(String key) {
+            return function(map -> map.computeIfAbsent(key, k -> creator.apply(key)));
         }
     }
 
@@ -270,7 +276,7 @@ public class PlayerData {
 
         this.customStrings = new MapOfVariables<>("s", varName -> new VariableString("custom.s." + varName, null, false));
         this.customStringSets = new MapOfVariables<>("ss", varName -> new VariableSetString("custom.ss." + varName, null, false));
-        this.customBooleans = new MapOfVariables<>("b", varName -> new VariableBoolean("custom.b." + varName, false, false));
+        this.customBooleans = new MapOfVariables<>("b", varName -> new VariableBoolean("custom.b." + varName, null, false));
     }
 
     PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
@@ -303,7 +309,10 @@ public class PlayerData {
         return o;
     }
 
-    protected void handleUpdate(String field, Object value) {
+    protected void handleUpdate(String field, JSONObject payload) {
+        String nameOnly = field;
+        for (int i = 0; i < 2; i++) nameOnly = nameOnly.substring(nameOnly.indexOf(".") + 1);
+
         (switch (field) {
             case "server" -> server;
             case "name" -> name;
@@ -316,13 +325,15 @@ public class PlayerData {
                     String key = field.split("\\.")[1];
                     MapOfVariables<?> map = customMaps.get(key);
                     if (map != null) {
-                        Variable<?> var = map.get(field);
+                        map.processJSON(payload);
+                        Variable<?> var = map.computeIfAbsent(nameOnly);
                         if (var != null) yield var;
                     }
+                    throw new IllegalArgumentException("Invalid variable type '" + key + "' for field " + field);
                 }
                 throw new IllegalArgumentException("Invalid field to update: " + field);
             }
-        }).processVariable(value);
+        }).processVariable(payload.get(nameOnly));
     }
 
     @Override
@@ -424,27 +435,27 @@ public class PlayerData {
 
     @SuppressWarnings("unused")
     public void sendMessage(String msg) throws Exception {
-        SyncAPI.sendMessage(getName(), msg, null);
+        plugin.getSync().send(getServer(), new MessagePacket(null, getUUID(), null, msg, null, false));
     }
 
     @SuppressWarnings("unused")
     public void sendMessage(BaseComponent[] msg) throws Exception {
-        SyncAPI.sendMessage(getName(), msg, null);
+        plugin.getSync().send(getServer(), new MessagePacket(null, getUUID(), null, msg, false));
     }
 
     @SuppressWarnings("unused")
     public void sendTitle(@Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
-        SyncAPI.sendTitle(getUUID(), title, subtitle, fadein, duration, fadeout);
+        plugin.getSync().send(getServer(), new ShowTitlePacket(title, subtitle, fadein, duration, fadeout, getUUID(), null));
     }
 
     @SuppressWarnings("unused")
     public void playSound(String sound, float volume, float pitch) throws Exception {
-        SyncAPI.send(getServer(), new Packet(null, Packets.PLAY_SOUND.id, new JSONObject().put("to", getUUID()).put("sound", sound).put("pitch", pitch).put("volume", volume)));
+        plugin.getSync().send(getServer(), new PlaySoundPacket(sound, pitch, volume, getUUID(), null));
     }
 
     @SuppressWarnings("unused")
     public void setCustom(String name, String value) {
-        customStrings.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableString(name2, null, false))).setValue(value);
+        customStrings.function(vars -> vars.computeIfAbsent(name, customStrings.creator)).setValue(value);
     }
 
     @CheckReturnValue
@@ -458,7 +469,7 @@ public class PlayerData {
 
     @SuppressWarnings("unused")
     public void setCustom(String name, boolean value) {
-        customBooleans.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableBoolean(name2, !value /* Set negated so there is a change when set */, false))).setValue(value);
+        customBooleans.function(vars -> vars.computeIfAbsent(name, customBooleans.creator)).setValue(value);
     }
 
     @CheckReturnValue
@@ -472,7 +483,7 @@ public class PlayerData {
 
     @SuppressWarnings("unused")
     public void setCustom(String name, Set<String> value) {
-        customStringSets.function(vars -> vars.computeIfAbsent(name, name2 -> new VariableSetString(name2, null, false))).setValue(value);
+        customStringSets.function(vars -> vars.computeIfAbsent(name, customStringSets.creator)).setValue(value);
     }
 
     @CheckReturnValue

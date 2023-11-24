@@ -13,15 +13,21 @@ import java.util.function.Supplier;
 
 public class TestClient implements SyncCore {
     private final SyncClient syncNetCore;
+    private final String name;
 
     public TestClient(String name) throws InvalidKeySpecException {
+        this.name = name;
         File file = new File("test/" + name + "/private.key");
+        //noinspection ResultOfMethodCallIgnored
+        file.getParentFile().mkdirs();
         if (!file.exists()) {
             System.out.println("Key does not exist, regenerating...");
             File publicKeyFile = new File("test/clients/" + name + ".public.key");
             try {
                 boolean ignored = file.createNewFile();
                 if (!publicKeyFile.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    publicKeyFile.getParentFile().mkdirs();
                     boolean ignored2 = publicKeyFile.createNewFile();
                 }
                 EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
@@ -56,12 +62,12 @@ public class TestClient implements SyncCore {
 
     @Override
     public void warning(String msg) {
-        System.err.println(msg);
+        System.err.println("[Client " + name + "] " + msg);
     }
 
     @Override
     public void print(String msg) {
-        System.out.println(msg);
+        System.out.println("[Client " + name + "] " + msg);
     }
 
     @Override
@@ -71,12 +77,12 @@ public class TestClient implements SyncCore {
 
     @Override
     public void debug(String msg) {
-        System.out.println(msg);
+        print(msg);
     }
 
     @Override
     public void debug(Supplier<String> msgSupplier) {
-        System.out.println(msgSupplier.get());
+        print(msgSupplier.get());
     }
 
     @Override

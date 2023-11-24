@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net;
 
+import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.EncryptionAES;
 import dev.heliosares.sync.utils.EncryptionDH;
 import dev.heliosares.sync.utils.EncryptionRSA;
@@ -11,17 +13,21 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 public class ServerClientHandler extends SocketConnection implements Runnable {
-
+    public static final String PROTOCOL_VERSION = SyncAPI.PROTOCOL_VERSION;
+    private static final Map<String, Short> connectionIDs = new HashMap<>();
+    private static short lastConnectionID = 0;
     private final SyncCoreProxy plugin;
     private final SyncServer server;
-    private boolean writePermission;
 
-    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException, InvalidKeyException {
-        super(socket);
+    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException {
+        super(plugin, socket);
         this.plugin = plugin;
         this.server = server;
         setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
@@ -29,6 +35,8 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
     @Override
     public void run() {
+        short connectionID;
+        boolean writePermission;
         try {
             AlgorithmParameters params = EncryptionDH.generateParameters();
             KeyPair pair = EncryptionDH.generate(params);
@@ -47,7 +55,18 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 // Tests that the client has the decrypted AES key
                 throw new InvalidKeyException();
             }
+            byte[] myVersion = PROTOCOL_VERSION.getBytes();
+            byte[] otherVersion = read();
+            send(myVersion);
+            if (!Arrays.equals(otherVersion, myVersion)) {
+                plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", client is on " + new String(otherVersion) + ", dropping");
+                close();
+                server.remove(this);
+                return;
+            }
             send(clientRSA.getUser().getBytes());
+            connectionID = connectionIDs.computeIfAbsent(clientRSA.getUser(), s -> ++lastConnectionID);
+            send(new byte[]{(byte) (connectionID >> 8), (byte) (connectionID)});
             setName(clientRSA.getUser());
             writePermission = server.hasWritePermission(getName());
             server.updateClientsWithServerList();
@@ -72,29 +91,29 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
         while (isConnected()) {
             try {
                 Packet packet = listen();
-                if (packet == null) {
-                    plugin.warning("Null packet received");
-                    continue;
-                }
-                if (!writePermission && packet.getPacketId() != Packets.KEEPALIVE.id && packet.getPacketId() != Packets.PLAYER_DATA.id) {
+                if (packet.getType() == PacketType.KEEP_ALIVE) continue;
+
+                packet.setOrigin(getName());
+                if (!writePermission && packet.getType() != PacketType.PLAYER_DATA) {
                     plugin.warning(getName() + " tried to send a packet but does not have write permission: " + packet);
                     continue;
                 }
-                packet.setOrigin(getName());
-                if (packet.getPacketId() != Packets.KEEPALIVE.id) {
-                    final String forward = packet.getForward();
-                    if (packet.getForward() != null) {
-                        packet.setForward(getName());
-                        Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
-                        if (forward.equalsIgnoreCase("all")) {
-                            server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
-                        } else {
-                            sendToServer.accept(forward);
-                        }
+                if (IDProvider.parse(packet.getResponseID()).connectionID() != connectionID) {
+                    plugin.warning(getName() + " tried to send a packet with the wrong connectionID: " + packet);
+                    continue;
+                }
+                final String forward = packet.getForward();
+                if (packet.getForward() != null) {
+                    packet.setForward(getName());
+                    Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
+                    if (forward.equalsIgnoreCase("all")) {
+                        server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
+                    } else {
+                        sendToServer.accept(forward);
                     }
-                    if (forward == null || forward.equalsIgnoreCase("all")) {
-                        server.getEventHandler().execute(getName(), packet);
-                    }
+                }
+                if (forward == null || forward.equalsIgnoreCase("all")) {
+                    server.getEventHandler().execute(getName(), packet);
                 }
             } catch (NullPointerException | SocketException | EOFException e1) {
                 if (plugin.debug()) {

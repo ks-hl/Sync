@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net;
 
+import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.EncryptionAES;
 import dev.heliosares.sync.utils.EncryptionDH;
 import dev.heliosares.sync.utils.EncryptionRSA;
@@ -15,12 +17,14 @@ import java.net.SocketException;
 import java.security.AlgorithmParameters;
 import java.security.KeyPair;
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class SyncClient implements SyncNetCore {
+    public static final String PROTOCOL_VERSION = SyncAPI.PROTOCOL_VERSION;
     private final SyncCore plugin;
     private final NetEventHandler eventHandler;
     private final UserManager usermanager;
@@ -30,13 +34,15 @@ public class SyncClient implements SyncNetCore {
     private int unableToConnectCount = 0;
     private Set<String> servers = new HashSet<>();
 
+    private IDProvider idProvider;
+
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
         this.eventHandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
         this.encryptionRSA = encryption;
-        eventHandler.registerListener(Packets.PLAYER_DATA.id, null, usermanager);
+        eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
     /**
@@ -54,7 +60,7 @@ public class SyncClient implements SyncNetCore {
                     plugin.print("Client connecting on " + host + ":" + port + "...");
                 }
                 try {
-                    connection = new SocketConnection(new Socket(host, port));
+                    connection = new SocketConnection(plugin, new Socket(host, port));
 
                     AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
                     PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
@@ -64,25 +70,32 @@ public class SyncClient implements SyncNetCore {
                     connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
                     connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
                     connection.send("ACK".getBytes());
+                    byte[] myVersion = PROTOCOL_VERSION.getBytes();
+                    connection.send(myVersion);
+                    byte[] otherVersion = connection.read();
+                    if (!Arrays.equals(otherVersion, myVersion)) {
+                        plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
+                        close();
+                        return;
+                    }
                     connection.setName(new String(connection.read()));
+                    byte[] connectionIDBytes = connection.read();
+                    idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
 
-                    plugin.print("Authenticated as " + connection.getName());
+                    plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
                     unableToConnectCount = 0;
 
                     usermanager.request();
 
+                    plugin.scheduleAsync(this::keepAlive, 100, 1000);
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
-                        if (packet == null) {
-                            plugin.warning("Null packet received");
-                            continue;
-                        }
                         if (packet.getForward() != null) {
                             packet.setOrigin(packet.getForward());
                         } else {
                             packet.setOrigin("proxy");
                         }
-                        if (packet.getPacketId() == Packets.SERVER_LIST.id) {
+                        if (packet.getType() == PacketType.SERVER_LIST) {
                             servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
                         }
 
@@ -117,7 +130,6 @@ public class SyncClient implements SyncNetCore {
                 }
             }
         });
-        plugin.scheduleAsync(this::keepAlive, 1000, 1000);
     }
 
     /**
@@ -130,7 +142,7 @@ public class SyncClient implements SyncNetCore {
             if (!isConnected() || closed || connection == null || !connection.isConnected()) {
                 return;
             }
-            connection.sendKeepalive();
+            connection.sendKeepAlive();
             if (System.currentTimeMillis() - connection.getTimeOfLastPacketReceived() > 10000) {
                 closeTemporary();
                 plugin.warning("timed out from proxy");
@@ -169,8 +181,7 @@ public class SyncClient implements SyncNetCore {
      * @return true if sent
      */
     public boolean send(Packet packet) throws IOException {
-        checkAsync();
-        connection.send(packet);
+        send(null, packet, null);
         return true;
     }
 
@@ -187,10 +198,17 @@ public class SyncClient implements SyncNetCore {
     }
 
     @Override
+    @Deprecated
     public boolean sendConsumer(@Nullable String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
+        return send(server, packet, responseConsumer);
+    }
+
+    @Override
+    public boolean send(@Nullable String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
         checkAsync();
         if (server != null) packet.setForward(server);
-        connection.sendConsumer(packet, responseConsumer);
+        packet.assignResponseID(idProvider);
+        connection.send(packet, responseConsumer);
         return true;
     }
 
@@ -218,7 +236,7 @@ public class SyncClient implements SyncNetCore {
         if (connection == null) {
             return false;
         }
-        return connection.isConnected();
+        return connection.isConnected() && connection.getEncryption() != null;
     }
 
     public Set<String> getServers() {
@@ -232,5 +250,13 @@ public class SyncClient implements SyncNetCore {
 
     public UserManager getUserManager() {
         return usermanager;
+    }
+
+    public long getTimeOfLastPacketReceived() {
+        return connection.getTimeOfLastPacketReceived();
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 }

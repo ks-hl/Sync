@@ -3,9 +3,11 @@ package dev.heliosares.sync.spigot;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
-import dev.heliosares.sync.net.Packets;
+import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
+import dev.heliosares.sync.net.packet.PlaySoundPacket;
+import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import dev.heliosares.sync.utils.EncryptionRSA;
@@ -42,8 +44,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     public static boolean isVanished(Player player) {
         for (MetadataValue meta : player.getMetadata("vanished")) {
-            if (meta.asBoolean())
-                return true;
+            if (meta.asBoolean()) return true;
         }
         return false;
     }
@@ -93,7 +94,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         }
         sync.start(getConfig().getString("host", null), getConfig().getInt("port", 8001));
 
-        sync.getEventHandler().registerListener(Packets.COMMAND.id, null, (server, packet) -> {
+        sync.getEventHandler().registerListener(PacketType.COMMAND, null, (server, packet) -> {
             try {
                 if (packet.isResponse()) return;
 
@@ -135,41 +136,35 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             }
         });
 
-        sync.getEventHandler().registerListener(Packets.TITLE.id, null, (server, packet) -> {
-            String title = packet.getPayload().has("title") ? packet.getPayload().getString("title") : "";
-            String subtitle = packet.getPayload().has("subtitle") ? packet.getPayload().getString("subtitle") : "";
-            int fadein = packet.getPayload().has("fadein") ? packet.getPayload().getInt("fadein") : 0;
-            int duration = packet.getPayload().has("duration") ? packet.getPayload().getInt("duration") : 60;
-            int fadeout = packet.getPayload().has("fadeout") ? packet.getPayload().getInt("fadeout") : 0;
-            Consumer<Player> showTitle = player -> player.sendTitle(title, subtitle, fadein, duration, fadeout);
-            if (packet.getPayload().has("to")) {
-                Player to = getPlayer(packet.getPayload().getString("to"));
-                if (to == null) return;
-                showTitle.accept(to);
+        sync.getEventHandler().registerListener(PacketType.SHOW_TITLE, null, (server, packet) -> {
+            if (!(packet instanceof ShowTitlePacket titlePacket)) return;
+            Consumer<Player> showTitle = player -> player.sendTitle(titlePacket.title().get(), titlePacket.subtitle().get(), titlePacket.fadeIn().get(0), titlePacket.duration().get(60), titlePacket.fadeOut().get(0));
+            String to = titlePacket.to().get();
+            if (to != null) {
+                Player toPlayer = getPlayer(to);
+                if (toPlayer == null) return;
+                showTitle.accept(toPlayer);
             } else {
                 getServer().getOnlinePlayers().forEach(showTitle);
             }
         });
-        sync.getEventHandler().registerListener(Packets.PLAY_SOUND.id, null, (server, packet) -> {
+        sync.getEventHandler().registerListener(PacketType.PLAY_SOUND, null, (server, packet) -> {
+            if (!(packet instanceof PlaySoundPacket soundPacket)) return;
             Sound sound;
-            float pitch = 1f;
-            float volume = 1f;
-            if (packet.getPayload().has("pitch")) pitch = packet.getPayload().getFloat("pitch");
-            if (packet.getPayload().has("volume")) volume = packet.getPayload().getFloat("volume");
             try {
-                sound = Sound.valueOf(packet.getPayload().getString("sound"));
-            } catch (IllegalArgumentException ignored) {
-                getLogger().warning("Unknown sound: " + packet.getPayload().getString("sound"));
+                sound = Sound.valueOf(soundPacket.sound().get("").toUpperCase());
+            } catch (IllegalArgumentException e) {
+                warning("Invalid sound '" + soundPacket.sound().get() + "' from " + server);
                 return;
             }
-            if (packet.getPayload().has("to")) {
-                Player to = getPlayer(packet.getPayload().getString("to"));
-                if (to == null) return;
-                to.playSound(to.getEyeLocation(), sound, pitch, volume);
+            Consumer<Player> playSound = player -> player.playSound(player.getEyeLocation(), sound, soundPacket.pitch().get(1d).floatValue(), soundPacket.volume().get(1d).floatValue());
+            String to = soundPacket.to().get();
+            if (to != null) {
+                Player toPlayer = getPlayer(to);
+                if (toPlayer == null) return;
+                playSound.accept(toPlayer);
             } else {
-                for (Player player : getServer().getOnlinePlayers()) {
-                    player.playSound(player.getEyeLocation(), sound, pitch, volume);
-                }
+                getServer().getOnlinePlayers().forEach(playSound);
             }
         });
     }

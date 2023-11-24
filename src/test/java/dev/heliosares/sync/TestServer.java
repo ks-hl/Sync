@@ -2,12 +2,40 @@ package dev.heliosares.sync;
 
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
+import dev.heliosares.sync.utils.EncryptionRSA;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class TestServer implements SyncCoreProxy {
     SyncServer syncNetCore = new SyncServer(this);
+
+    public void reloadKeys(boolean print) {
+        Set<EncryptionRSA> clientEncryptionRSA = new HashSet<>();
+        File clientsDir = new File("test", "clients");
+        if (clientsDir.exists()) {
+            File[] files = clientsDir.listFiles();
+            if (files != null) for (File listFile : files) {
+                if (listFile.isFile() && listFile.getName().toLowerCase().endsWith(".public.key")) {
+                    try {
+                        EncryptionRSA rsa = EncryptionRSA.load(listFile);
+                        clientEncryptionRSA.add(rsa);
+                        if (print) print("Loaded key for " + rsa.getUser());
+                    } catch (FileNotFoundException | InvalidKeySpecException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        } else {
+            boolean ignored = clientsDir.mkdir();
+        }
+        getSync().setClientEncryptionRSA(clientEncryptionRSA);
+    }
 
     @Override
     public void newThread(Runnable run) {
@@ -24,14 +52,15 @@ public class TestServer implements SyncCoreProxy {
         TestMain.getScheduler().scheduleAtFixedRate(run, delay, period, TimeUnit.MILLISECONDS);
     }
 
+
     @Override
     public void warning(String msg) {
-        System.err.println(msg);
+        System.err.println("[Server] " + msg);
     }
 
     @Override
     public void print(String msg) {
-        System.out.println(msg);
+        System.out.println("[Server] " + msg);
     }
 
     @Override
@@ -41,12 +70,12 @@ public class TestServer implements SyncCoreProxy {
 
     @Override
     public void debug(String msg) {
-        System.out.println(msg);
+        print(msg);
     }
 
     @Override
     public void debug(Supplier<String> msgSupplier) {
-        System.out.println(msgSupplier.get());
+        print(msgSupplier.get());
     }
 
     @Override

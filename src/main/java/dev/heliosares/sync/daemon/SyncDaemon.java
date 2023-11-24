@@ -3,6 +3,7 @@ package dev.heliosares.sync.daemon;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.*;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.EncryptionRSA;
 import org.json.JSONObject;
@@ -63,7 +64,7 @@ public class SyncDaemon implements SyncCore {
                 //noinspection BusyWait
                 Thread.sleep(10);
             }
-            sync.send(new Packet(null, Packets.COMMAND.id, new JSONObject().put("command", command)));
+            sync.send(new Packet(null, PacketType.COMMAND, new JSONObject().put("command", command)));
             Thread.sleep(1000);
             sync.close();
         } catch (Exception e1) {

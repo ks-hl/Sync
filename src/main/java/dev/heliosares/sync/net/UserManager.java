@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,7 +33,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 if (hash == lastHash) return;
 
                 try {
-                    sync.send(new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("hash", hash)));
+                    sync.send(new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("hash", hash)));
                     lastHash = hash;
                 } catch (Exception e) {
                     plugin.print(e);
@@ -59,7 +60,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 plugin.warning(packet.getForward() + " tried to update " + data.getName() + "'s data on server " + data.getServer());
                 return;
             }
-            data.handleUpdate(field, packet.getPayload().get(field));
+            data.handleUpdate(field, packet.getPayload());
         } else if (packet.getPayload().has("request") && plugin.getSync() instanceof SyncServer) {
             try {
                 sendPlayers(packet.getForward(), packet);
@@ -93,7 +94,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     protected void sendUpdatePacket(JSONObject o) throws IOException {
-        sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, o));
+        sync.send("all", new Packet(null, PacketType.PLAYER_DATA, o));
     }
 
     public void sendPlayers(@Nullable String server, @Nullable Packet requester) throws IOException {
@@ -103,7 +104,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         JSONObject payload = new JSONObject().put("set", new JSONArray(players.stream().map(PlayerData::toJSON).collect(Collectors.toList())));
         Packet packet;
         if (requester == null) {
-            packet = new Packet(null, Packets.PLAYER_DATA.id, payload);
+            packet = new Packet(null, PacketType.PLAYER_DATA, payload);
         } else {
             packet = requester.createResponse(payload);
         }
@@ -170,7 +171,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         plugin.debug("Sending join for " + data.getName());
         plugin.runAsync(() -> {
             try {
-                sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("join", new JSONArray().put(data.toJSON()))));
+                sync.send("all", new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("join", new JSONArray().put(data.toJSON()))));
             } catch (JSONException | IOException e) {
                 plugin.print(e);
             }
@@ -183,7 +184,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         plugin.debug("Sending quit for " + uuid.toString());
         plugin.runAsync(() -> {
             try {
-                sync.send("all", new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("quit", new JSONArray().put(uuid.toString()))));
+                sync.send("all", new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("quit", new JSONArray().put(uuid.toString()))));
             } catch (JSONException | IOException e) {
                 plugin.print(e);
             }
@@ -192,7 +193,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     protected void request() {
         try {
-            sync.send(null, new Packet(null, Packets.PLAYER_DATA.id, new JSONObject().put("request", 1)).setForward(sync.getName()));
+            sync.send(null, new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("request", 1)).setForward(sync.getName()));
         } catch (JSONException | IOException e) {
             plugin.print(e);
         }
