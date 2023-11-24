@@ -13,25 +13,6 @@ public class Packet {
     private String origin;
     private String forward;
 
-    @Deprecated
-    public Packet(String channel, int packetID, JSONObject payload) {
-        this(channel, PacketType.getByID(packetID), payload, null, false);
-    }
-
-    @Deprecated
-    public Packet(String channel, int packetID, JSONObject payload, Long responseID) {
-        this(channel, PacketType.getByID(packetID), payload, responseID, true);
-    }
-
-    /**
-     * @deprecated Use {@link #Packet(String, int, JSONObject)} instead
-     */
-    @Deprecated
-    public Packet(String channel, int packetID, JSONObject payload, byte[] blob) {
-        this(channel, packetID, payload);
-        throw new UnsupportedOperationException();
-    }
-
     public Packet(String channel, PacketType type, JSONObject payload) {
         this(channel, type, payload, null, false);
     }

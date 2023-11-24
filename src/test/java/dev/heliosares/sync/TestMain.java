@@ -26,11 +26,12 @@ public class TestMain {
         final TestServer server = new TestServer();
 
         server.getSync().start("localhost", 8001);
+        server.reloadKeys(true);
+
         client1.getSync().start("localhost", 8001);
         client2.getSync().start("localhost", 8001);
 
-        SyncAPI.setInstance(server);
-        server.reloadKeys(true);
+        Thread.sleep(10);
 
         {
             CompletableFuture<Boolean> received = new CompletableFuture<>();

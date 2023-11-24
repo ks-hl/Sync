@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.net.packet.*;
+import dev.heliosares.sync.net.packet.Packet;
 import org.json.JSONObject;
 
 import java.util.Arrays;

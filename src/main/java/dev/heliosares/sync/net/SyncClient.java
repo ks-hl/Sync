@@ -207,6 +207,7 @@ public class SyncClient implements SyncNetCore {
     public boolean send(@Nullable String server, Packet packet, Consumer<Packet> responseConsumer) throws IOException {
         checkAsync();
         if (server != null) packet.setForward(server);
+        if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
         packet.assignResponseID(idProvider);
         connection.send(packet, responseConsumer);
         return true;
