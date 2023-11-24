@@ -98,7 +98,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     plugin.warning(getName() + " tried to send a packet but does not have write permission: " + packet);
                     continue;
                 }
-                if (IDProvider.parse(packet.getResponseID()).connectionID() != connectionID) {
+                if (!packet.isResponse() && IDProvider.parse(packet.getResponseID()).connectionID() != connectionID) {
                     plugin.warning(getName() + " tried to send a packet with the wrong connectionID: " + packet);
                     continue;
                 }

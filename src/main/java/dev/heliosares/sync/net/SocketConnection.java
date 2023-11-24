@@ -18,6 +18,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+/**
+ * Manages a Socket's connection. Agnostic to client/server.
+ */
 public class SocketConnection {
     private EncryptionAES encryption;
     private final SyncCore plugin;
@@ -143,10 +146,13 @@ public class SocketConnection {
     private void cleanup() {
         if (System.currentTimeMillis() - lastCleanup < 60000) return;
         lastCleanup = System.currentTimeMillis();
-        responses.entrySet().removeIf(a -> System.currentTimeMillis() - a.getValue().created > 60000L);
+        responses.values().removeIf(ResponseAction::shouldRemove);
     }
 
     private record ResponseAction(long created, @Nonnull Consumer<Packet> action) {
+        boolean shouldRemove() {
+            return System.currentTimeMillis() - created > 300000L;
+        }
     }
 
     public long getAge() {

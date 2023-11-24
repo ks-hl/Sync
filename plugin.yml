@@ -1,6 +1,6 @@
 name: Sync
 version: '${project.version}'
-main: main.sync.spigot.SyncSpigot
+main: dev.heliosares.sync.spigot.SyncSpigot
 description: Sync
 api-version: 1.13
 author: Heliosares

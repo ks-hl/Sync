@@ -54,7 +54,7 @@ public final class NetEventHandler {
          * @param server The sender of the packet being received
          * @param packet The packet itself {@link Packet#getPayload()}
          */
-        void execute(String server, Packet packet);
+        void execute(String server, Packet packet) throws Exception;
     }
 
     record EventHandler(PacketType type, String channel, PacketConsumer d) {
