@@ -16,3 +16,4 @@ buildNumber.properties
 deploy.cmd
 .*
 Sync.iml
+test
