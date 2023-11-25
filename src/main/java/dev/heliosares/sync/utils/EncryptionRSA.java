@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
@@ -20,15 +21,29 @@ import java.util.Scanner;
 import java.util.UUID;
 
 public class EncryptionRSA {
+    private Cipher createCipher(int mode) {
+        try {
+            Cipher cipher = Cipher.getInstance("RSA");
+            cipher.init(mode, key); // not strictly necessary, but pre-validates the key
+            return cipher;
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
+            throw new RuntimeException("Cipher initialization failed", e);
+        }
+    }
 
     private final UUID uuid;
     private final Key key;
     private final String user;
+    private final Cipher encryptCipher;
+    private final Cipher decryptCipher;
 
     private EncryptionRSA(UUID uuid, Key key, String user) {
         this.uuid = uuid;
         this.key = key;
         this.user = user;
+
+        encryptCipher = createCipher(Cipher.ENCRYPT_MODE);
+        decryptCipher = createCipher(Cipher.DECRYPT_MODE);
     }
 
     public static EncryptionRSA load(File file) throws FileNotFoundException, InvalidKeySpecException {
@@ -43,7 +58,7 @@ public class EncryptionRSA {
             String keyString = scanner.nextLine();
             return load(uuid, Base64.getDecoder().decode(keyString), isPrivate, file.getName().substring(0, file.getName().indexOf('.')));
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("RSA algorithm not implemented");
+            throw new RuntimeException(e);
         }
     }
 
@@ -60,7 +75,7 @@ public class EncryptionRSA {
     }
 
     public void write(File file) throws IOException {
-        try (FileWriter writer = new FileWriter(file, false)) {
+        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8, false)) {
             writer.write((key instanceof PrivateKey ? "private" : "public") + "\n");
             writer.write(uuid.toString() + "\n");
             writer.write(Base64.getEncoder().encodeToString(key.getEncoded()));
@@ -79,11 +94,11 @@ public class EncryptionRSA {
     }
 
     public static RSAPair generate() {
-        KeyPairGenerator kpg = null;
+        KeyPairGenerator kpg;
         try {
             kpg = KeyPairGenerator.getInstance("RSA");
         } catch (NoSuchAlgorithmException e) {
-            assert false : "RSA algorithm not implemented";
+            throw new RuntimeException(e);
         }
         kpg.initialize(2048);
         java.security.KeyPair pair = kpg.generateKeyPair();
@@ -91,27 +106,15 @@ public class EncryptionRSA {
         return new RSAPair(new EncryptionRSA(uuid, pair.getPublic(), null), new EncryptionRSA(uuid, pair.getPrivate(), null));
     }
 
-    public byte[] encrypt(byte[] bytes) throws InvalidKeyException {
-        try {
-            Cipher cipher = Cipher.getInstance("RSA");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            return cipher.doFinal(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("RSA algorithm not implemented");
-        } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new InvalidKeyException(e);
+    public byte[] encrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        synchronized (encryptCipher) {
+            return encryptCipher.doFinal(bytes);
         }
     }
 
-    public byte[] decrypt(byte[] bytes) throws InvalidKeyException {
-        try {
-            Cipher cipher = Cipher.getInstance("RSA");
-            cipher.init(Cipher.DECRYPT_MODE, key);
-            return cipher.doFinal(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("RSA algorithm not implemented");
-        } catch (NoSuchPaddingException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new InvalidKeyException(e);
+    public byte[] decrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        synchronized (decryptCipher) {
+            return decryptCipher.doFinal(bytes);
         }
     }
 }

@@ -10,18 +10,18 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 
 public class EncryptionAES {
-
+    private static final SecureRandom secureRandom = new SecureRandom();
+    private static final int IV_BITS = 128;
+    private static final int IV_BYTES = IV_BITS / 8;
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private final SecretKey key;
-    private final GCMParameterSpec iv;
-
     private final Cipher cipherEncrypt;
     private final Cipher cipherDecrypt;
 
     private Cipher createCipher(int mode) {
         try {
             Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(mode, key, iv);
+            cipher.init(mode, key, decodeIV(generateIV())); // not strictly necessary, but pre-validates the key
             return cipher;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
                  InvalidAlgorithmParameterException e) {
@@ -29,28 +29,21 @@ public class EncryptionAES {
         }
     }
 
-    public EncryptionAES(SecretKey key, GCMParameterSpec iv) {
+    public EncryptionAES(SecretKey key) {
         this.key = key;
-        this.iv = iv;
         this.cipherEncrypt = createCipher(Cipher.ENCRYPT_MODE);
         this.cipherDecrypt = createCipher(Cipher.DECRYPT_MODE);
     }
 
-    public EncryptionAES(byte[] encodedKey) {
-        this(new SecretKeySpec(Arrays.copyOfRange(encodedKey, 0, encodedKey.length - 16), "AES"), new GCMParameterSpec(128, Arrays.copyOfRange(encodedKey, encodedKey.length - 16, encodedKey.length)));
+    public EncryptionAES(byte[] key) {
+        this(new SecretKeySpec(key, "AES"));
     }
 
     public byte[] encodeKey() {
-        byte[] key = this.key.getEncoded();
-        byte[] iv = this.iv.getIV();
-        byte[] out = new byte[key.length + iv.length];
-
-        System.arraycopy(key, 0, out, 0, key.length);
-        System.arraycopy(iv, 0, out, key.length, iv.length);
-        return out;
+        return key.getEncoded();
     }
 
-    public static SecretKey generateKey() {
+    public static SecretKey generateRandomKey() {
         KeyGenerator keyGenerator;
         try {
             keyGenerator = KeyGenerator.getInstance("AES");
@@ -61,31 +54,42 @@ public class EncryptionAES {
         return keyGenerator.generateKey();
     }
 
-    public static GCMParameterSpec generateIv() {
-        byte[] iv = new byte[16];
-        new SecureRandom().nextBytes(iv);
-        return new GCMParameterSpec(128, iv);
+    private static byte[] generateIV() {
+        byte[] iv = new byte[IV_BYTES];
+        secureRandom.nextBytes(iv);
+        return iv;
+    }
+
+    private static GCMParameterSpec decodeIV(byte[] bytes) {
+        return new GCMParameterSpec(IV_BITS, bytes);
     }
 
     public byte[] encrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        byte[] ivBytes = generateIV();
+        byte[] cipherText;
         synchronized (cipherEncrypt) {
-            System.out.println("encrypt");
             try {
-                return cipherEncrypt.doFinal(bytes);
-            } finally {
-                System.out.println("Done encrypt");
+                cipherEncrypt.init(Cipher.ENCRYPT_MODE, key, decodeIV(ivBytes));
+            } catch (InvalidKeyException | InvalidAlgorithmParameterException e) {
+                assert false;
             }
+            cipherText = cipherEncrypt.doFinal(bytes);
         }
+        byte[] out = new byte[IV_BYTES + cipherText.length];
+        System.arraycopy(ivBytes, 0, out, 0, IV_BYTES);
+        System.arraycopy(cipherText, 0, out, IV_BYTES, cipherText.length);
+        return out;
     }
 
     public byte[] decrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        GCMParameterSpec iv = decodeIV(Arrays.copyOfRange(bytes, 0, IV_BYTES));
         synchronized (cipherDecrypt) {
-            System.out.println("decrypt");
             try {
-                return cipherDecrypt.doFinal(bytes);
-            } finally {
-                System.out.println("Done decrypt");
+                cipherDecrypt.init(Cipher.DECRYPT_MODE, key, iv);
+            } catch (InvalidKeyException | InvalidAlgorithmParameterException e) {
+                assert false;
             }
+            return cipherDecrypt.doFinal(bytes, IV_BYTES, bytes.length - IV_BYTES);
         }
     }
 }

@@ -30,7 +30,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
         super(plugin, socket);
         this.plugin = plugin;
         this.server = server;
-        setEncryption(new EncryptionAES(EncryptionAES.generateKey(), EncryptionAES.generateIv()));
+        setEncryption(new EncryptionAES(EncryptionAES.generateRandomKey()));
     }
 
     @Override
