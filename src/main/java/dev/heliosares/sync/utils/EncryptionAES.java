@@ -13,11 +13,27 @@ public class EncryptionAES {
     private final SecretKey key;
     private final GCMParameterSpec iv;
 
+    private final Cipher cipherEncrypt;
+    private final Cipher cipherDecrypt;
+
+    private Cipher createCipher(int mode) {
+        try {
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            cipher.init(mode, key, iv);
+            return cipher;
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
+                 InvalidAlgorithmParameterException e) {
+            throw new RuntimeException("Cipher initialization failed", e);
+        }
+    }
+
     private static final String ALGORITHM = "AES/GCM/NoPadding";
 
     public EncryptionAES(SecretKey key, GCMParameterSpec iv) {
         this.key = key;
         this.iv = iv;
+        this.cipherEncrypt = createCipher(Cipher.ENCRYPT_MODE);
+        this.cipherDecrypt = createCipher(Cipher.DECRYPT_MODE);
     }
 
     public EncryptionAES(byte[] encodedKey) {
@@ -51,29 +67,11 @@ public class EncryptionAES {
         return new GCMParameterSpec(128, iv);
     }
 
-    public byte[] encrypt(byte[] bytes) throws InvalidKeyException {
-        try {
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-            return cipher.doFinal(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(ALGORITHM + " not implemented");
-        } catch (NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException |
-                 BadPaddingException e) {
-            throw new InvalidKeyException(e);
-        }
+    public byte[] encrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        return cipherEncrypt.doFinal(bytes);
     }
 
-    public byte[] decrypt(byte[] bytes) throws InvalidKeyException {
-        try {
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, key, iv);
-            return cipher.doFinal(bytes);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(ALGORITHM + " not implemented");
-        } catch (NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException |
-                 BadPaddingException e) {
-            throw new InvalidKeyException(e);
-        }
+    public byte[] decrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
+        return cipherDecrypt.doFinal(bytes);
     }
 }
