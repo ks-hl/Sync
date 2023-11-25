@@ -83,7 +83,7 @@ public class PlayerData {
             return value;
         }
 
-        protected final void putJSON(JSONObject o) {
+        protected void putJSON(JSONObject o) {
             o.put(nameOnly, value);
         }
 
@@ -121,6 +121,22 @@ public class PlayerData {
             if (o instanceof String string) {
                 setValueWithoutUpdate(string);
             } else throwInvalidVariableType();
+        }
+    }
+
+    public final class VariableBlob extends Variable<byte[]> {
+        public VariableBlob(String name, byte[] def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected void processVariable(Object o) {
+            setValueWithoutUpdate(Base64.getDecoder().decode(o.toString()));
+        }
+
+        @Override
+        public void putJSON(JSONObject o) {
+            o.put(nameOnly, Base64.getEncoder().encodeToString(getValue()));
         }
     }
 
@@ -232,7 +248,7 @@ public class PlayerData {
 
         public JSONObject toJSON() {
             JSONObject out = new JSONObject();
-            forEach((k, v) -> out.put(k, v.getValue()));
+            forEach((k, v) -> v.putJSON(out));
             if (out.isEmpty()) return null;
             return out;
         }
@@ -263,6 +279,7 @@ public class PlayerData {
     private final MapOfVariables<VariableString> customStrings;
     private final MapOfVariables<VariableSetString> customStringSets;
     private final MapOfVariables<VariableBoolean> customBooleans;
+    private final MapOfVariables<VariableBlob> customBlobs;
     private final ConcurrentMap<HashMap<String, MapOfVariables<?>>, String, MapOfVariables<?>> customMaps = new ConcurrentMap<>(new HashMap<>());
 
     PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
@@ -277,6 +294,7 @@ public class PlayerData {
         this.customStrings = new MapOfVariables<>("s", varName -> new VariableString("custom.s." + varName, null, false));
         this.customStringSets = new MapOfVariables<>("ss", varName -> new VariableSetString("custom.ss." + varName, null, false));
         this.customBooleans = new MapOfVariables<>("b", varName -> new VariableBoolean("custom.b." + varName, null, false));
+        this.customBlobs = new MapOfVariables<>("bl", varName -> new VariableBlob("custom.bl." + varName, null, false));
     }
 
     PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
@@ -491,6 +509,20 @@ public class PlayerData {
     @SuppressWarnings("unused")
     public Set<String> getCustomStringSet(String name) {
         VariableSetString variable = customStringSets.get(name);
+        if (variable == null) return null;
+        return variable.getValue();
+    }
+
+    @SuppressWarnings("unused")
+    public void setCustom(String name, byte[] value) {
+        customBlobs.function(vars -> vars.computeIfAbsent(name, customBlobs.creator)).setValue(value);
+    }
+
+    @CheckReturnValue
+    @Nullable
+    @SuppressWarnings("unused")
+    public byte[] getCustomBlob(String name) {
+        VariableBlob variable = customBlobs.get(name);
         if (variable == null) return null;
         return variable.getValue();
     }

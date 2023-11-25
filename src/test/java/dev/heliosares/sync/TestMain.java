@@ -1,5 +1,6 @@
 package dev.heliosares.sync;
 
+import dev.heliosares.sync.daemon.SyncDaemon;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.packet.BlobPacket;
@@ -11,6 +12,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.security.GeneralSecurityException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -30,7 +32,7 @@ public class TestMain {
             long start = System.currentTimeMillis();
             client1 = new TestClient("client1");
             client2 = new TestClient("client2");
-            server = new TestServer();
+            server = new TestServer("server");
 
             System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
             start = System.currentTimeMillis();
@@ -62,16 +64,25 @@ public class TestMain {
         completableException.getAndThrow();
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testCommandSend() throws Exception {
         long start = System.currentTimeMillis();
-        CompletableFuture<Boolean> received = new CompletableFuture<>();
-        server.getSync().getEventHandler().registerListener(PacketType.COMMAND, null, (serverSender, packet) -> received.complete(true));
+        CompletableFuture<Boolean> receivedClient1 = new CompletableFuture<>();
+        CompletableFuture<Boolean> receivedDaemon = new CompletableFuture<>();
+        server.getSync().getEventHandler().registerListener(PacketType.COMMAND, null, (serverSender, packet) -> {
+            if (serverSender.equals("client1")) receivedClient1.complete(true);
+            if (serverSender.equals("daemon1")) receivedDaemon.complete(true);
+        });
 
         client1.getSync().send(new CommandPacket("test"));
+        TestDaemon testDaemon = new TestDaemon("daemon1");
+        server.reloadKeys(false);
+        SyncDaemon.run(testDaemon, "hello");
 
-        assert received.get();
+        assert receivedClient1.get();
+        assert receivedDaemon.get();
         System.out.println(System.currentTimeMillis() - start + "ms");
+
     }
 
     @Test(timeout = 1000)
@@ -148,6 +159,7 @@ public class TestMain {
             playerData.setCustom("key1", "value1");
             playerData.setCustom("key2", true);
             playerData.setCustom("key3", Set.of("value3"));
+            playerData.setCustom("key4", "value4".getBytes());
             playerData.setServer("server1");
             playerData.setVanished(true);
         }
@@ -162,10 +174,11 @@ public class TestMain {
             assertEquals(playerData.getCustomBoolean("key2"), true);
             assertEquals(playerData.getCustomStringSet("key3"), Set.of("value3"));
             assertEquals(playerData.getServer(), "server1");
+            assertEquals(new String(Objects.requireNonNull(playerData.getCustomBlob("key4"))), "value4");
         }
 
         testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
-        Thread.sleep(20);
+        Thread.sleep(10);
         {
             PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;

@@ -318,4 +318,5 @@ public class SyncClient implements SyncNetCore {
     public CompletableException<Exception> getConnectedCompletable() {
         return connectedCompletable;
     }
+
 }

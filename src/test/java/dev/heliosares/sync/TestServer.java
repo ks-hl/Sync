@@ -12,6 +12,10 @@ import java.util.Set;
 public class TestServer extends TestPlatform implements SyncCoreProxy {
     SyncServer syncNetCore = new SyncServer(this);
 
+    public TestServer(String name) {
+        super(name);
+    }
+
     public void reloadKeys(boolean print) {
         Set<EncryptionRSA> clientEncryptionRSA = new HashSet<>();
         File clientsDir = new File("test", "clients");
@@ -32,16 +36,6 @@ public class TestServer extends TestPlatform implements SyncCoreProxy {
             boolean ignored = clientsDir.mkdir();
         }
         getSync().setClientEncryptionRSA(clientEncryptionRSA);
-    }
-
-    @Override
-    public void warning(String msg) {
-        System.err.println("[Server] " + msg);
-    }
-
-    @Override
-    public void print(String msg) {
-        System.out.println("[Server] " + msg);
     }
 
     @Override
