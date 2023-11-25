@@ -66,11 +66,8 @@ public class SyncDaemon implements SyncCore {
         }
 
         try {
-            sync.start(null, port);
-            while (!sync.isConnected() || sync.getName() == null) {
-                //noinspection BusyWait
-                Thread.sleep(10);
-            }
+            Exception error = sync.start(null, port).get(3, TimeUnit.SECONDS);
+            if (error != null) throw error;
             sync.send(new Packet(null, PacketType.COMMAND, new JSONObject().put("command", command)));
             Thread.sleep(1000);
             sync.close();

@@ -15,6 +15,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.security.InvalidKeyException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.function.Consumer;
 
@@ -64,17 +65,18 @@ public class SocketConnection {
         try {
             synchronized (in) {
                 Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(read())));
-                if (packet.getType() != PacketType.KEEP_ALIVE) plugin.debug(() -> {
-                    String action = "RECV";
-                    if (this instanceof ServerClientHandler sch) {
-                        if (packet.getForward() != null) action = "FWD";
-                        action += " (" + sch.getName();
-                        if (packet.getForward() != null) action += " -> " + packet.getForward();
-                        action += ")";
-                    }
-                    return action + ": " + packet.toJSON().toString(2);
-                });
                 if (packet instanceof BlobPacket blobPacket) blobPacket.setBlob(read());
+                if (packet.getType() != PacketType.KEEP_ALIVE) plugin.debug(() -> {
+                    String line = "RECV";
+                    if (this instanceof ServerClientHandler sch) {
+                        if (packet.getForward() != null) line = "FWD";
+                        line += " (" + sch.getName();
+                        if (packet.getForward() != null) line += " -> " + packet.getForward();
+                        line += ")";
+                    }
+                    line += ": " + packet;
+                    return line;
+                });
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
                     try {
@@ -115,7 +117,14 @@ public class SocketConnection {
             }
             String plain = packet.toString();
             if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) // Don't debug for forwarding packets, that was already accomplished on receipt
-                plugin.debug(() -> "SEND" + ((this instanceof ServerClientHandler sch) ? (" (" + sch.getName() + ")") : "") + ": " + packet.toJSON().toString(2));
+                plugin.debug(() -> {
+                    String line = "SEND";
+                    if (this instanceof ServerClientHandler sch) {
+                        line += " (" + sch.getName() + ")";
+                    }
+                    line += ": " + packet;
+                    return line;
+                });
             send(plain.getBytes());
             if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
             out.flush();
@@ -145,7 +154,7 @@ public class SocketConnection {
         return encryption.decrypt(readRaw());
     }
 
-    protected byte[] readRaw() throws IOException {
+    public byte[] readRaw() throws IOException {
         synchronized (in) {
             int size = in.readInt();
             if (size == 0) return new byte[0];

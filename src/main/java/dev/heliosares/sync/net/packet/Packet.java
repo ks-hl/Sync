@@ -63,7 +63,7 @@ public class Packet {
      */
     public Packet createResponse(JSONObject payload) {
         if (isResponse()) throw new IllegalArgumentException("Cannot reply to a response!");
-        return new Packet(channel, type, payload, responseID, true).setForward(origin);
+        return type.mapper.apply(new Packet(channel, type, payload, responseID, true).toJSON()).setForward(origin);
     }
 
     public void assignResponseID(IDProvider provider) {

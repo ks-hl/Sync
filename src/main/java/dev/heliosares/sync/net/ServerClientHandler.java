@@ -55,6 +55,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 // Tests that the client has the decrypted AES key
                 throw new InvalidKeyException("Invalid key");
             }
+            send("ACK".getBytes());
             byte[] myVersion = PROTOCOL_VERSION.getBytes();
             byte[] otherVersion = read();
             send(myVersion);

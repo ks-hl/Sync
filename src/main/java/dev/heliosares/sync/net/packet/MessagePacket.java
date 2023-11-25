@@ -47,4 +47,12 @@ public class MessagePacket extends Packet {
     public Param.BooleanParam otherServersOnly() {
         return new Param.BooleanParam(getPayload(), "others_only");
     }
+
+    /**
+     * @see Packet#createResponse(JSONObject)
+     */
+    @Override
+    public MessagePacket createResponse(JSONObject payload) {
+        return (MessagePacket) super.createResponse(payload);
+    }
 }

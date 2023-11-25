@@ -120,7 +120,7 @@ public class SyncServer implements SyncNetCore {
 
                         plugin.debug("Connection accepted on port " + socket.getPort());
 
-                        clients.consume(clients -> clients.add(ch));
+                        clients.add(ch);
                         plugin.newThread(ch);
                     }
                 } catch (SocketException e1) {

@@ -2,17 +2,21 @@ package dev.heliosares.sync;
 
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.utils.CompletableException;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import java.io.File;
+import java.security.GeneralSecurityException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 
 public class TestMain {
     private static final TestClient client1;
@@ -20,59 +24,54 @@ public class TestMain {
     private static final TestServer server;
 
     static {
-        //boolean ignored = new File("test").delete();
+        boolean ignored = new File("test").delete();
         try {
+            long start = System.currentTimeMillis();
             client1 = new TestClient("client1");
             client2 = new TestClient("client2");
             server = new TestServer();
 
+            System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
+            start = System.currentTimeMillis();
+
             server.getSync().start("localhost", 8001);
             server.reloadKeys(true);
 
-            client1.getSync().start("localhost", 8001);
-            client2.getSync().start("localhost", 8001);
+            System.out.println("serverStart: " + (System.currentTimeMillis() - start) + "ms");
+            start = System.currentTimeMillis();
 
-            Thread.sleep(10);
-            long start = System.currentTimeMillis();
-            while (!client1.getSync().isConnected()) {
-                assert !client1.getSync().isClosed() : "Client1 shutdown";
-                assert System.currentTimeMillis() - start < 3000 : "Client1 timed out";
-                //noinspection BusyWait
-                Thread.sleep(10);
-            }
-            while (!client2.getSync().isConnected()) {
-                assert !client2.getSync().isClosed() : "Client2 shutdown";
-                assert System.currentTimeMillis() - start < 3000 : "Client2 timed out";
-                //noinspection BusyWait
-                Thread.sleep(10);
-            }
+            CompletableException<Exception> client1Completable = client1.getSync().start("localhost", 8001);
+            CompletableException<Exception> client2Completable = client2.getSync().start("localhost", 8001);
+
+            System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
+            start = System.currentTimeMillis();
+
+            client1Completable.getAndThrow();
+            client2Completable.getAndThrow();
+
+            System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    @Test
+    @Test(expected = GeneralSecurityException.class)
     public void testMissingKey() throws Exception {
         TestClient client3 = new TestClient("client3", false, null);
-        client3.getSync().start("localhost", 8001);
-        Thread.sleep(500);
-        assert !client3.getSync().isHandShookComplete();
-    }
-
-    @Test
-    public void testNoHandshake() throws Exception {
-        TestClient clientNoHandshake = new TestClient("clientNoHandshake", false, (PenSyncClient::new));
-        assertThrows(IllegalStateException.class, () -> clientNoHandshake.getSync().start("localhost", 8001));
+        CompletableException<Exception> completableException = client3.getSync().start("localhost", 8001);
+        completableException.getAndThrow();
     }
 
     @Test(timeout = 1000)
     public void testCommandSend() throws Exception {
+        long start = System.currentTimeMillis();
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         server.getSync().getEventHandler().registerListener(PacketType.COMMAND, null, (serverSender, packet) -> received.complete(true));
 
         client1.getSync().send(new CommandPacket("test"));
 
         assert received.get();
+        System.out.println(System.currentTimeMillis() - start + "ms");
     }
 
     @Test(timeout = 1000)
@@ -93,12 +92,53 @@ public class TestMain {
         assert received.get();
     }
 
+    @Test(timeout = 1000)
+    public void testBlobResponse() throws Throwable {
+        CompletableFuture<Boolean> received = new CompletableFuture<>();
+        AtomicReference<Throwable> error = new AtomicReference<>();
+
+        final String msg1 = "Hello!";
+        final String msg2 = "Hello back!";
+        server.getSync().getEventHandler().registerListener(PacketType.API_WITH_BLOB, "test:blob", (server1, packet) -> {
+            if (!(packet instanceof BlobPacket blobPacket1)) {
+                error.set(new IllegalArgumentException("Invalid packet class: " + packet.getClass().getName()));
+                received.complete(false);
+                return;
+            }
+            String blob = new String(blobPacket1.getBlob());
+            if (!msg1.equals(blob)) {
+                error.set(new AssertionError("Invalid response blob: " + blob));
+                received.complete(false);
+                return;
+            }
+            server.getSync().send(server1, blobPacket1.createResponse(new JSONObject()).setBlob(msg2.getBytes()));
+        });
+        client1.getSync().send(null, new BlobPacket("test:blob", new JSONObject()).setBlob(msg1.getBytes()), response -> {
+            if (!(response instanceof BlobPacket blobPacket)) {
+                error.set(new IllegalArgumentException("Invalid packet class: " + response.getClass().getName()));
+                received.complete(false);
+                return;
+            }
+            String blob = new String(blobPacket.getBlob());
+            if (msg2.equals(blob)) {
+                received.complete(true);
+                return;
+            }
+            error.set(new AssertionError("Invalid response blob: " + blob));
+            received.complete(false);
+        });
+
+        if (received.get()) return;
+        if (error.get() != null) throw error.get();
+        assert false;
+    }
+
     @Test
     public void testPlayerDataCustom() throws Exception {
         UUID uuid = UUID.randomUUID();
         {
             server.getSync().getUserManager().addPlayer("test-player", uuid, "proxy", true);
-            Thread.sleep(50);
+            Thread.sleep(10);
             PlayerData playerData = server.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
             playerData.setCustom("key1", "value1");
@@ -106,7 +146,7 @@ public class TestMain {
             playerData.setCustom("key3", Set.of("value3"));
         }
 
-        Thread.sleep(50);
+        Thread.sleep(10);
 
         {
             PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
@@ -136,7 +176,7 @@ public class TestMain {
     public void testTimeout() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         client1.getSync().send(null, new Packet("test:void", PacketType.API, new JSONObject()), response -> {
-        }, 100, () -> {
+        }, 30, () -> {
             System.out.println("Timeout received (expected)");
             received.complete(true);
         });

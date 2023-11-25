@@ -4,7 +4,6 @@ import dev.heliosares.sync.net.PacketType;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
-import java.util.Objects;
 import java.util.UUID;
 
 public class ShowTitlePacket extends Packet {
@@ -46,5 +45,13 @@ public class ShowTitlePacket extends Packet {
 
     public Param.IntParam fadeOut() {
         return new Param.IntParam(getPayload(), "fadeout");
+    }
+
+    /**
+     * @see Packet#createResponse(JSONObject)
+     */
+    @Override
+    public ShowTitlePacket createResponse(JSONObject payload) {
+        return (ShowTitlePacket) super.createResponse(payload);
     }
 }

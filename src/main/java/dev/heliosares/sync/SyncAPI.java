@@ -68,6 +68,8 @@ public class SyncAPI {
 
     @Deprecated
     public static void register(int packetID, String channel, NetEventHandler.PacketConsumer consumer) {
+        SyncAPI.getInstance().print("Deprecated API usage");
+        Thread.dumpStack();
         getInstance().getSync().getEventHandler().registerListener(packetID, channel, consumer);
     }
 
@@ -125,6 +127,8 @@ public class SyncAPI {
 
     @Deprecated
     private static void broadcastMessage(JSONObject payload, @Nullable String to, @Nullable String node) throws Exception {
+        SyncAPI.getInstance().print("Deprecated API usage");
+        Thread.dumpStack();
         if (getInstance().getSync() instanceof SyncServer)
             throw new UnsupportedOperationException("Messages can only be sent from clients");
         if (node != null) payload.put("node", node);
@@ -139,6 +143,8 @@ public class SyncAPI {
      */
     @Deprecated
     public static void sendTitle(@Nullable UUID to, @Nullable String title, @Nullable String subtitle, int fadein, int duration, int fadeout) throws Exception {
+        SyncAPI.getInstance().print("Deprecated API usage");
+        Thread.dumpStack();
         String server = "all";
         if (to != null) server = getPlayer(to).getServer();
         send(server, new ShowTitlePacket(title, subtitle, fadein, duration, fadeout, to, null));

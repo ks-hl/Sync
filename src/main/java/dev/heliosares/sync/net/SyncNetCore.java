@@ -30,6 +30,4 @@ public interface SyncNetCore {
     String getName();
 
     UserManager getUserManager();
-
-    void start(String host, int port);
 }

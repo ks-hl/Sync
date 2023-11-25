@@ -3,9 +3,11 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.utils.CompletableException;
 import dev.heliosares.sync.utils.EncryptionAES;
 import dev.heliosares.sync.utils.EncryptionDH;
 import dev.heliosares.sync.utils.EncryptionRSA;
+import org.bukkit.entity.Panda;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
@@ -14,12 +16,11 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.AlgorithmParameters;
-import java.security.KeyPair;
-import java.security.PublicKey;
+import java.security.*;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -35,7 +36,7 @@ public class SyncClient implements SyncNetCore {
     private Set<String> servers = new HashSet<>();
 
     private IDProvider idProvider;
-    private boolean handShookComplete;
+    private boolean handshakeComplete;
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
@@ -45,15 +46,23 @@ public class SyncClient implements SyncNetCore {
         eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
-    protected void handshake(SocketConnection connection) throws Exception {
+    protected void handshake(SocketConnection connection) throws IOException, GeneralSecurityException {
         AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
         PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
         KeyPair keyPair = EncryptionDH.generate(params);
         SecretKey keyDB = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
         connection.sendRaw(keyPair.getPublic().getEncoded());
         connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
-        connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
-        connection.send("ACK".getBytes());
+        try {
+            connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
+            connection.send("ACK".getBytes());
+            if (!new String(connection.read()).equals("ACK")) {
+                // Tests that the client has the decrypted AES key
+                throw new InvalidKeyException("Invalid key");
+            }
+        } catch (EOFException e) {
+            throw new InvalidKeyException("Server ended connection during authentication");
+        }
         byte[] myVersion = PROTOCOL_VERSION.getBytes();
         connection.send(myVersion);
         byte[] otherVersion = connection.read();
@@ -69,37 +78,72 @@ public class SyncClient implements SyncNetCore {
         plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
     }
 
-    protected void connect() {
-        if (connection != null) {
-            throw new IllegalStateException("Client already started");
+    protected void connect(String host, int port) throws GeneralSecurityException, IOException {
+        if (connection != null) throw new IllegalStateException("Client already started");
+
+        if (unableToConnectCount < 3 || plugin.debug()) {
+            plugin.print("Client connecting to " + host + ":" + port + "...");
         }
 
+        connection = new SocketConnection(plugin, new Socket(host, port));
+
+        handshake(connection);
+
+        handshakeComplete = true;
+        unableToConnectCount = 0;
+
+        usermanager.request();
     }
 
     /**
      * Initiates the client. This should only be called once, onEnable
      *
      * @param port Port of the proxy server
+     * @return A CompletableException which will be done once the client successfully, or unsuccessfully, connects to the server. If successful, it will be completed with null, otherwise it will be completed with the error which prevented connection.
      */
-    public void start(String host, int port) {
+    public CompletableException<Exception> start(String host, int port) throws GeneralSecurityException, IOException {
+        CompletableException<Exception> connected = new CompletableException<>();
+        if (connection != null) throw new IllegalStateException("Client already started");
         plugin.scheduleAsync(this::keepAlive, 250, 500);
-        connect();
+
+        handshakeComplete = false;
+
         plugin.newThread(() -> {
             while (!closed) {
-                handShookComplete = false;
-                if (unableToConnectCount < 3 || plugin.debug()) {
-                    plugin.print("Client connecting on " + host + ":" + port + "...");
-                }
                 try {
-                    connection = new SocketConnection(plugin, new Socket(host, port));
+                    handshakeComplete = false;
+                    connect(host, port);
+                    if (!connected.isDone()) connected.complete(null);
+                } catch (ConnectException e) {
+                    if (!connected.isDone()) {
+                        connected.complete(e);
+                        return;
+                    }
+                    if (!plugin.debug() && ++unableToConnectCount == 3) {
+                        plugin.print("Server not available. Continuing to attempt silently...");
+                    } else if (plugin.debug() || unableToConnectCount < 3) {
+                        plugin.print("Server not available. Retrying...");
+                    }
+                } catch (GeneralSecurityException e) {
+                    if (!connected.isDone()) {
+                        connected.complete(e);
+                        return;
+                    }
+                    if (unableToConnectCount < 3 || plugin.debug()) {
+                        plugin.print("Failed to authenticate: " + e.getMessage());
+                    }
+                } catch (IOException e) {
+                    if (unableToConnectCount < 3 || plugin.debug()) {
+                        if (!connected.isDone()) {
+                            connected.complete(e);
+                            return;
+                        }
+                        plugin.warning("Error during reconnection: ");
+                        plugin.print(e);
+                    }
+                }
 
-                    handshake(connection);
-
-                    handShookComplete = true;
-                    unableToConnectCount = 0;
-
-                    usermanager.request();
-
+                try {
                     while (!closed) { // Listen for packets
                         Packet packet = connection.listen();
                         if (packet.getForward() != null) {
@@ -113,20 +157,12 @@ public class SyncClient implements SyncNetCore {
 
                         eventHandler.execute("proxy", packet);
                     }
-                } catch (ConnectException e) {
-                    if (!plugin.debug() && ++unableToConnectCount == 3) {
-                        plugin.print("Server not available. Continuing to attempt silently...");
-                    } else if (plugin.debug() || unableToConnectCount < 3) {
-                        plugin.print("Server not available. Retrying...");
-                    }
                 } catch (NullPointerException | SocketException | EOFException e) {
                     plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
                     if (plugin.debug() && !(e instanceof EOFException)) {
                         plugin.print(e);
                     }
-                    if (closed) {
-                        return;
-                    }
+                    if (closed) return;
                 } catch (Exception e) {
                     plugin.warning("Client crashed. Restarting...");
                     plugin.print(e);
@@ -142,6 +178,7 @@ public class SyncClient implements SyncNetCore {
                 }
             }
         });
+        return connected;
     }
 
     /**
@@ -184,7 +221,7 @@ public class SyncClient implements SyncNetCore {
         if (connection == null) {
             return;
         }
-        handShookComplete = false;
+        handshakeComplete = false;
         connection.close();
     }
 
@@ -194,20 +231,11 @@ public class SyncClient implements SyncNetCore {
      * @return true if sent
      */
     public boolean send(Packet packet) throws IOException {
-        send(null, packet, null);
-        return true;
+        return send(null, packet);
     }
 
     public boolean send(@Nullable String server, Packet packet) throws IOException {
-        checkAsync();
-        if (server != null && !server.equals("all")) {
-            if (servers == null || !servers.contains(server)) {
-                return false;
-            }
-        }
-        packet.setForward(server);
-        send(packet);
-        return true;
+        return send(server, packet, null);
     }
 
     @Override
@@ -224,6 +252,11 @@ public class SyncClient implements SyncNetCore {
     @Override
     public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) throws IOException {
         checkAsync();
+        if (server != null && !server.equals("all")) {
+            if (servers == null || !servers.contains(server)) {
+                return false;
+            }
+        }
         if (server != null) packet.setForward(server);
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
         packet.assignResponseID(idProvider);
@@ -258,8 +291,8 @@ public class SyncClient implements SyncNetCore {
         return connection.isConnected() && connection.getEncryption() != null;
     }
 
-    public boolean isHandShookComplete() {
-        return handShookComplete;
+    public boolean isHandshakeComplete() {
+        return handshakeComplete;
     }
 
     public Set<String> getServers() {

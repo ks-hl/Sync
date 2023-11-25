@@ -26,6 +26,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Objects;
 import java.util.UUID;
@@ -92,7 +93,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             setEnabled(false);
             return;
         }
-        sync.start(getConfig().getString("host", null), getConfig().getInt("port", 8001));
+        try {
+            sync.start(getConfig().getString("host", null), getConfig().getInt("port", 8001));
+        } catch (GeneralSecurityException | IOException ignored) {
+        }
 
         sync.getEventHandler().registerListener(PacketType.COMMAND, null, (server, packet) -> {
             try {

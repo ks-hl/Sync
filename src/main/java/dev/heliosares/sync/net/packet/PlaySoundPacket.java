@@ -39,4 +39,12 @@ public class PlaySoundPacket extends Packet {
     public Param.DoubleParam volume() {
         return new Param.DoubleParam(getPayload(), "volume");
     }
+
+    /**
+     * @see Packet#createResponse(JSONObject)
+     */
+    @Override
+    public PlaySoundPacket createResponse(JSONObject payload) {
+        return (PlaySoundPacket) super.createResponse(payload);
+    }
 }

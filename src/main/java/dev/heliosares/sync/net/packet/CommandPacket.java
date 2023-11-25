@@ -21,4 +21,12 @@ public class CommandPacket extends Packet {
     public Param.StringParam command() {
         return new Param.StringParam(getPayload(), "command");
     }
+
+    /**
+     * @see Packet#createResponse(JSONObject)
+     */
+    @Override
+    public CommandPacket createResponse(JSONObject payload) {
+        return (CommandPacket) super.createResponse(payload);
+    }
 }
