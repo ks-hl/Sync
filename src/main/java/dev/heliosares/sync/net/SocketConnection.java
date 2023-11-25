@@ -9,6 +9,8 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -135,7 +137,7 @@ public class SocketConnection {
     protected void send(byte[] b) throws IOException {
         try {
             b = encryption.encrypt(b);
-        } catch (InvalidKeyException e) {
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new IOException("Invalid session key. This is unexpected..");
         }
         sendRaw(b);
@@ -150,7 +152,7 @@ public class SocketConnection {
         }
     }
 
-    protected byte[] read() throws IOException, InvalidKeyException {
+    protected byte[] read() throws IOException, IllegalBlockSizeException, BadPaddingException {
         return encryption.decrypt(readRaw());
     }
 

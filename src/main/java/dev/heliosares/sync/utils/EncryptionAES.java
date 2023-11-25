@@ -10,6 +10,8 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 
 public class EncryptionAES {
+
+    private static final String ALGORITHM = "AES/GCM/NoPadding";
     private final SecretKey key;
     private final GCMParameterSpec iv;
 
@@ -26,8 +28,6 @@ public class EncryptionAES {
             throw new RuntimeException("Cipher initialization failed", e);
         }
     }
-
-    private static final String ALGORITHM = "AES/GCM/NoPadding";
 
     public EncryptionAES(SecretKey key, GCMParameterSpec iv) {
         this.key = key;
@@ -68,10 +68,24 @@ public class EncryptionAES {
     }
 
     public byte[] encrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
-        return cipherEncrypt.doFinal(bytes);
+        synchronized (cipherEncrypt) {
+            System.out.println("encrypt");
+            try {
+                return cipherEncrypt.doFinal(bytes);
+            } finally {
+                System.out.println("Done encrypt");
+            }
+        }
     }
 
     public byte[] decrypt(byte[] bytes) throws IllegalBlockSizeException, BadPaddingException {
-        return cipherDecrypt.doFinal(bytes);
+        synchronized (cipherDecrypt) {
+            System.out.println("decrypt");
+            try {
+                return cipherDecrypt.doFinal(bytes);
+            } finally {
+                System.out.println("Done decrypt");
+            }
+        }
     }
 }
