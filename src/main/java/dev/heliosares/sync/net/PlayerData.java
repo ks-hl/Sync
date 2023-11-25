@@ -13,7 +13,14 @@ import org.json.JSONObject;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.*;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -510,13 +517,17 @@ public class PlayerData {
         customStringSets.function(vars -> vars.computeIfAbsent(name, customStringSets.creator)).setValue(value);
     }
 
+    /**
+     * @param name The name of the variable to retrieve
+     * @return An unmodifiable {@link Set<String>}
+     */
     @CheckReturnValue
     @Nullable
     @SuppressWarnings("unused")
     public Set<String> getCustomStringSet(String name) {
         VariableSetString variable = customStringSets.get(name);
         if (variable == null) return null;
-        return variable.getValue();
+        return Collections.unmodifiableSet(variable.getValue());
     }
 
     @SuppressWarnings("unused")
@@ -524,6 +535,11 @@ public class PlayerData {
         customBlobs.function(vars -> vars.computeIfAbsent(name, customBlobs.creator)).setValue(value);
     }
 
+    /**
+     * If you modify this array, you must then call {@link PlayerData#setCustom(String, byte[])} to update.
+     *
+     * @param name The name of the variable to retrieve
+     */
     @CheckReturnValue
     @Nullable
     @SuppressWarnings("unused")
