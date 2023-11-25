@@ -21,8 +21,7 @@ public class EncryptionAES {
     }
 
     public EncryptionAES(byte[] encodedKey) {
-        this(new SecretKeySpec(Arrays.copyOfRange(encodedKey, 0, encodedKey.length - 16), "AES"),
-                new GCMParameterSpec(128, Arrays.copyOfRange(encodedKey, encodedKey.length - 16, encodedKey.length)));
+        this(new SecretKeySpec(Arrays.copyOfRange(encodedKey, 0, encodedKey.length - 16), "AES"), new GCMParameterSpec(128, Arrays.copyOfRange(encodedKey, encodedKey.length - 16, encodedKey.length)));
     }
 
     public byte[] encodeKey() {
@@ -59,9 +58,7 @@ public class EncryptionAES {
             return cipher.doFinal(bytes);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(ALGORITHM + " not implemented");
-        } catch (NoSuchPaddingException |
-                 InvalidAlgorithmParameterException |
-                 IllegalBlockSizeException |
+        } catch (NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException |
                  BadPaddingException e) {
             throw new InvalidKeyException(e);
         }
@@ -74,9 +71,7 @@ public class EncryptionAES {
             return cipher.doFinal(bytes);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(ALGORITHM + " not implemented");
-        } catch (NoSuchPaddingException |
-                 InvalidAlgorithmParameterException |
-                 IllegalBlockSizeException |
+        } catch (NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException |
                  BadPaddingException e) {
             throw new InvalidKeyException(e);
         }
