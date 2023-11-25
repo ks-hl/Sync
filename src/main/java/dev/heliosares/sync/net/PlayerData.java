@@ -42,7 +42,7 @@ public class PlayerData {
          */
         @SuppressWarnings("UnusedReturnValue")
         public final CompletableFuture<Boolean> setValue(T value) {
-            if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer)) {
+            if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer) && !this.name.startsWith("custom.")) {
                 throw new IllegalArgumentException("Cannot update the value of " + name + " from spigot servers.");
             }
             if (isFinal) {

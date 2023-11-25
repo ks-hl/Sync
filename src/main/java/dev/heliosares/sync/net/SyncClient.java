@@ -35,6 +35,7 @@ public class SyncClient implements SyncNetCore {
 
     private IDProvider idProvider;
     private boolean handshakeComplete;
+    private final CompletableException<Exception> connectedCompletable = new CompletableException<>();
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
         this.plugin = plugin;
@@ -99,8 +100,7 @@ public class SyncClient implements SyncNetCore {
      * @param port Port of the proxy server
      * @return A CompletableException which will be done once the client successfully, or unsuccessfully, connects to the server. If successful, it will be completed with null, otherwise it will be completed with the error which prevented connection.
      */
-    public CompletableException<Exception> start(String host, int port) throws GeneralSecurityException, IOException {
-        CompletableException<Exception> connected = new CompletableException<>();
+    public CompletableException<Exception> start(String host, int port) {
         if (connection != null) throw new IllegalStateException("Client already started");
         plugin.scheduleAsync(this::keepAlive, 250, 500);
 
@@ -111,10 +111,10 @@ public class SyncClient implements SyncNetCore {
                 try {
                     handshakeComplete = false;
                     connect(host, port);
-                    if (!connected.isDone()) connected.complete(null);
+                    if (!connectedCompletable.isDone()) connectedCompletable.complete(null);
                 } catch (ConnectException e) {
-                    if (!connected.isDone()) {
-                        connected.complete(e);
+                    if (!connectedCompletable.isDone()) {
+                        connectedCompletable.complete(e);
                         return;
                     }
                     if (!plugin.debug() && ++unableToConnectCount == 3) {
@@ -123,8 +123,8 @@ public class SyncClient implements SyncNetCore {
                         plugin.print("Server not available. Retrying...");
                     }
                 } catch (GeneralSecurityException e) {
-                    if (!connected.isDone()) {
-                        connected.complete(e);
+                    if (!connectedCompletable.isDone()) {
+                        connectedCompletable.complete(e);
                         return;
                     }
                     if (unableToConnectCount < 3 || plugin.debug()) {
@@ -132,8 +132,8 @@ public class SyncClient implements SyncNetCore {
                     }
                 } catch (IOException e) {
                     if (unableToConnectCount < 3 || plugin.debug()) {
-                        if (!connected.isDone()) {
-                            connected.complete(e);
+                        if (!connectedCompletable.isDone()) {
+                            connectedCompletable.complete(e);
                             return;
                         }
                         plugin.warning("Error during reconnection: ");
@@ -176,7 +176,7 @@ public class SyncClient implements SyncNetCore {
                 }
             }
         });
-        return connected;
+        return connectedCompletable;
     }
 
     /**
@@ -313,5 +313,9 @@ public class SyncClient implements SyncNetCore {
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isClosed() {
         return closed;
+    }
+
+    public CompletableException<Exception> getConnectedCompletable() {
+        return connectedCompletable;
     }
 }

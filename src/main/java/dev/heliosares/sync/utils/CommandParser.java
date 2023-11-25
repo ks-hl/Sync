@@ -25,9 +25,7 @@ public class CommandParser {
     public static String concat(int start, String... args) {
         StringBuilder out = new StringBuilder();
         for (int i = start; i < args.length; i++) {
-            if (out.length() > 0) {
-                out.append(" ");
-            }
+            if (!out.isEmpty()) out.append(" ");
             out.append(args[i]);
         }
         return out.toString();

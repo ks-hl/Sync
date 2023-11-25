@@ -5,6 +5,8 @@ import de.myzelyam.api.vanish.PlayerShowEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
+import java.util.Objects;
+
 public class VanishListener implements Listener {
 
     private final SyncSpigot plugin;
@@ -15,11 +17,11 @@ public class VanishListener implements Listener {
 
     @EventHandler
     public void onPlayerVanish(PlayerHideEvent e) {
-        plugin.getSync().getUserManager().getPlayer(e.getPlayer().getUniqueId()).setVanished(true);
+        Objects.requireNonNull(plugin.getSync().getUserManager().getPlayer(e.getPlayer().getUniqueId())).setVanished(true);
     }
 
     @EventHandler
     public void onPlayerShow(PlayerShowEvent e) {
-        plugin.getSync().getUserManager().getPlayer(e.getPlayer().getUniqueId()).setVanished(false);
+        Objects.requireNonNull(plugin.getSync().getUserManager().getPlayer(e.getPlayer().getUniqueId())).setVanished(false);
     }
 }

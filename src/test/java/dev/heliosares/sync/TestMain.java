@@ -14,6 +14,7 @@ import java.security.GeneralSecurityException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -41,13 +42,12 @@ public class TestMain {
             start = System.currentTimeMillis();
 
             CompletableException<Exception> client1Completable = client1.getSync().start("localhost", 8001);
-            CompletableException<Exception> client2Completable = client2.getSync().start("localhost", 8001);
+            client2.getSync().start("localhost", 8001);
 
             System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
             start = System.currentTimeMillis();
 
-            client1Completable.getAndThrow();
-            client2Completable.getAndThrow();
+            client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
 
             System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
         } catch (Exception e) {
@@ -135,15 +135,21 @@ public class TestMain {
 
     @Test
     public void testPlayerDataCustom() throws Exception {
+        TestClient testClient4 = new TestClient("client4");
+        server.reloadKeys(false);
+        server.runAsync(() -> testClient4.getSync().start("localhost", 8001));
+        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
         UUID uuid = UUID.randomUUID();
         {
-            server.getSync().getUserManager().addPlayer("test-player", uuid, "proxy", true);
+            server.getSync().getUserManager().addPlayer("testPlayer", uuid, "proxy", true);
             Thread.sleep(10);
             PlayerData playerData = server.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
             playerData.setCustom("key1", "value1");
             playerData.setCustom("key2", true);
             playerData.setCustom("key3", Set.of("value3"));
+            playerData.setServer("server1");
+            playerData.setVanished(true);
         }
 
         Thread.sleep(10);
@@ -155,11 +161,36 @@ public class TestMain {
             assertEquals(playerData.getCustomString("key1"), "value1");
             assertEquals(playerData.getCustomBoolean("key2"), true);
             assertEquals(playerData.getCustomStringSet("key3"), Set.of("value3"));
+            assertEquals(playerData.getServer(), "server1");
+        }
+
+        testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
+        Thread.sleep(20);
+        {
+            PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
+            assert playerData != null;
+
+            assertEquals(playerData.getCustomString("key1"), "value1");
+            assertEquals(playerData.getCustomBoolean("key2"), true);
+            assertEquals(playerData.getCustomStringSet("key3"), Set.of("value3"));
+
+            playerData.setCustom("key1", "value2");
+            assert playerData.isVanished();
+        }
+
+        Thread.sleep(10);
+
+        {
+            PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
+            assert playerData != null;
+            assertEquals(playerData.getCustomString("key1"), "value2");
         }
     }
 
     @Test(timeout = 1000)
     public void testForwardedResponse() throws Exception {
+        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+
         CompletableFuture<Boolean> received1 = new CompletableFuture<>();
         client2.getSync().getEventHandler().registerListener(PacketType.API, "test:channel2", (server1, packet) -> client2.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
         client1.getSync().send("client2", new Packet("test:channel2", PacketType.API, new JSONObject().put("ping", "ping")), response -> received1.complete(true));

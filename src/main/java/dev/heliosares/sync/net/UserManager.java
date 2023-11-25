@@ -38,7 +38,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 } catch (Exception e) {
                     plugin.print(e);
                 }
-            }, 3000, 3000);
+            }, 1000, 2000);
         }
     }
 
