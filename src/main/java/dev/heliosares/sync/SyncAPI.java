@@ -1,7 +1,6 @@
 package dev.heliosares.sync;
 
 import dev.heliosares.sync.bungee.SyncBungee;
-import dev.heliosares.sync.daemon.SyncDaemon;
 import dev.heliosares.sync.net.NetEventHandler;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
@@ -34,10 +33,6 @@ public class SyncAPI {
         }
         try {
             if ((instance = SyncBungee.getInstance()) != null) return instance;
-        } catch (NoClassDefFoundError ignored) {
-        }
-        try {
-            if ((instance = SyncDaemon.getInstance()) != null) return instance;
         } catch (NoClassDefFoundError ignored) {
         }
         throw new IllegalStateException("No instance of Sync");

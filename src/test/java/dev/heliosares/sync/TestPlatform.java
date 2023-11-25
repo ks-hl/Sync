@@ -1,8 +1,8 @@
 package dev.heliosares.sync;
 
 import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.utils.CustomLogger;
 
-import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -14,18 +14,7 @@ public abstract class TestPlatform implements SyncCore {
     private final Logger logger;
 
     public TestPlatform(String name) {
-        this.logger = Logger.getLogger(name);
-        logger.setUseParentHandlers(false);
-        ConsoleHandler handler = new ConsoleHandler();
-        handler.setFormatter(new SimpleFormatter() {
-            private static final String format = "[%1$tF %1$tT] [%2$s] [%3$s] %4$s %n";
-
-            @Override
-            public synchronized String format(LogRecord lr) {
-                return String.format(format, new Date(lr.getMillis()), lr.getLevel().getLocalizedName(), lr.getLoggerName(), lr.getMessage());
-            }
-        });
-        logger.addHandler(handler);
+        this.logger = CustomLogger.getLogger(name);
     }
 
     @Override

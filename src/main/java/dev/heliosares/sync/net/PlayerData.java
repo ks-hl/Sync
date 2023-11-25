@@ -26,6 +26,7 @@ public class PlayerData {
         public final String nameOnly;
         private final boolean isFinal;
         private T value;
+        private long lastUpdated;
 
         protected Variable(String name, T def, boolean isFinal) {
             this.name = name;
@@ -77,10 +78,15 @@ public class PlayerData {
 
         void setValueWithoutUpdate(T value) {
             this.value = value;
+            this.lastUpdated = System.currentTimeMillis();
         }
 
         public final T getValue() {
             return value;
+        }
+
+        public long getLastUpdated() {
+            return lastUpdated;
         }
 
         protected void putJSON(JSONObject o) {

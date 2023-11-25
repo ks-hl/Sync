@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
+import dev.kshl.kshlib.misc.Timer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -13,7 +14,12 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
@@ -116,7 +122,9 @@ public class SyncServer implements SyncNetCore {
                     // This look waits for clients
                     while (!closed) {
                         Socket socket = serverSocket.accept();
+                        Timer timer = new Timer("new sch");
                         ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
+                        System.out.println(timer);
 
                         plugin.debug("Connection accepted on port " + socket.getPort());
 

@@ -80,7 +80,7 @@ public class SocketConnection {
                 if (packet.isResponse()) {
                     ResponseAction action = responses.get(packet.getResponseID());
                     try {
-                        if (action != null) action.action().accept(packet);
+                        if (action != null) action.accept(packet);
                     } catch (Throwable t) {
                         plugin.warning("Error while handling response packet " + packet);
                         plugin.print(t);
@@ -112,7 +112,10 @@ public class SocketConnection {
                 ResponseAction responseAction = new ResponseAction(packet.getResponseID(), System.currentTimeMillis(), responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
                 responses.put(packet.getResponseID(), responseAction);
                 if (timeoutAction != null) {
-                    plugin.scheduleAsync(() -> timeOut(responseAction), responseAction.timeoutMillis());
+                    plugin.scheduleAsync(() -> {
+                        ResponseAction action = responses.remove(responseAction.id());
+                        if (action != null) action.timeout();
+                    }, responseAction.timeoutMillis());
                 }
             }
             String plain = packet.toString();
@@ -171,18 +174,46 @@ public class SocketConnection {
         responses.consume(responses -> responses.values().removeIf(ResponseAction::removeIf));
     }
 
-    private void timeOut(ResponseAction action) {
-        action = responses.remove(action.id());
-        if (action == null) return;
-        if (action.timeoutAction() != null) action.timeoutAction().run();
-    }
+    private static final class ResponseAction {
+        private final long id;
+        private final long created;
+        @Nonnull
+        private final Consumer<Packet> action;
+        private final long timeoutMillis;
+        private final Runnable timeoutAction;
+        private boolean receivedAny;
 
-    private record ResponseAction(long id, long created, @Nonnull Consumer<Packet> action, long timeoutMillis,
-                                  Runnable timeoutAction) {
+        private ResponseAction(long id, long created, @Nonnull Consumer<Packet> action, long timeoutMillis, Runnable timeoutAction) {
+            this.id = id;
+            this.created = created;
+            this.action = action;
+            this.timeoutMillis = timeoutMillis;
+            this.timeoutAction = timeoutAction;
+        }
+
+        public void accept(Packet packet) {
+            receivedAny = true;
+            action.accept(packet);
+        }
+
+        public long timeoutMillis() {
+            return timeoutMillis;
+        }
+
         boolean removeIf() {
             if (System.currentTimeMillis() - created < timeoutMillis) return false;
             if (timeoutAction != null) timeoutAction.run();
             return true;
+        }
+
+        public long id() {
+            return id;
+        }
+
+        public void timeout() {
+            if (receivedAny) return;
+            if (timeoutAction == null) return;
+            timeoutAction.run();
         }
     }
 

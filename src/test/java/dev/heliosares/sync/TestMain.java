@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
@@ -98,9 +99,12 @@ public class TestMain {
     public void testAPIResponse() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         server.getSync().getEventHandler().registerListener(PacketType.API, "test:channel", (server1, packet) -> server.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
-        client1.getSync().send(null, new Packet("test:channel", PacketType.API, new JSONObject().put("ping", "ping")), response -> received.complete(true));
+        AtomicBoolean timeOut = new AtomicBoolean();
+        client1.getSync().send(null, new Packet("test:channel", PacketType.API, new JSONObject().put("ping", "ping")), response -> received.complete(true), 100, () -> timeOut.set(true));
 
         assert received.get();
+        Thread.sleep(150);
+        assert !timeOut.get();
     }
 
     @Test(timeout = 1000)

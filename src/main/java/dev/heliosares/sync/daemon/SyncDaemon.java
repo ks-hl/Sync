@@ -6,42 +6,29 @@ import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.utils.CommandParser;
+import dev.heliosares.sync.utils.CustomLogger;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SyncDaemon implements SyncCore {
 
     private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(10);
-    private static SyncDaemon instance;
     private final SyncClient syncClient;
     private final Logger logger;
 
     public SyncDaemon(String name) throws FileNotFoundException, InvalidKeySpecException {
-        instance = this;
-        this.logger = Logger.getLogger(name);
-        logger.setUseParentHandlers(false);
-        ConsoleHandler handler = new ConsoleHandler();
-        handler.setFormatter(new SimpleFormatter() {
-            private static final String format = "[%1$tF %1$tT] [%2$s] [%3$s] %4$s %n";
-
-            @Override
-            public synchronized String format(LogRecord lr) {
-                return String.format(format, new Date(lr.getMillis()), lr.getLevel().getLocalizedName(), lr.getLoggerName(), lr.getMessage());
-            }
-        });
-        logger.addHandler(handler);
-
-        syncClient = new SyncClient(this, EncryptionRSA.load(getPrivateKeyOrGen(name)));
+        this.logger = CustomLogger.getLogger(name);
+        this.syncClient = new SyncClient(this, EncryptionRSA.load(getPrivateKeyOrGen(name)));
     }
 
     protected File getPrivateKeyOrGen(String name) {
@@ -117,10 +104,6 @@ public class SyncDaemon implements SyncCore {
             throw new RuntimeException("Failed to send command.", e1);
         }
         plugin.getSync().close();
-    }
-
-    public static SyncCore getInstance() {
-        return instance;
     }
 
     @Override
