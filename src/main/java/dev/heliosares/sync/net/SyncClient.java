@@ -4,10 +4,9 @@ import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CompletableException;
-import dev.heliosares.sync.utils.EncryptionAES;
-import dev.heliosares.sync.utils.EncryptionDH;
-import dev.heliosares.sync.utils.EncryptionRSA;
-import org.bukkit.entity.Panda;
+import dev.kshl.kshlib.encryption.EncryptionAES;
+import dev.kshl.kshlib.encryption.EncryptionDH;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
@@ -20,7 +19,6 @@ import java.security.*;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 

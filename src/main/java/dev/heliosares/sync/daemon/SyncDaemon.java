@@ -8,7 +8,7 @@ import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.net.SyncNetCore;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CommandParser;
-import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.json.JSONObject;
 
 import java.io.File;

@@ -155,7 +155,7 @@
         <dependency>
             <groupId>com.github.ks-hl</groupId>
             <artifactId>KshLib</artifactId>
-            <version>b5b066525e</version>
+            <version>95f2b7044a</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

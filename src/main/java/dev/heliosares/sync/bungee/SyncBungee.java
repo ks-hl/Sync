@@ -10,7 +10,7 @@ import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
-import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.BaseComponent;

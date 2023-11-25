@@ -10,7 +10,7 @@ import dev.heliosares.sync.net.packet.PlaySoundPacket;
 import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
-import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;

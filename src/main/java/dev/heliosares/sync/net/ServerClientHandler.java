@@ -3,9 +3,7 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
-import dev.heliosares.sync.utils.EncryptionAES;
-import dev.heliosares.sync.utils.EncryptionDH;
-import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.encryption.*;
 
 import javax.crypto.SecretKey;
 import java.io.EOFException;

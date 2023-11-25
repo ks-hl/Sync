@@ -1,7 +1,7 @@
 package dev.heliosares.sync;
 
 import dev.heliosares.sync.net.SyncClient;
-import dev.heliosares.sync.utils.EncryptionRSA;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import java.io.File;
 import java.io.FileNotFoundException;

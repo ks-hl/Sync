@@ -2,8 +2,8 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
-import dev.heliosares.sync.utils.EncryptionRSA;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.json.JSONArray;
 import org.json.JSONObject;
 

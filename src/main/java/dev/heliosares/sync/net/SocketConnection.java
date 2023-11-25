@@ -3,8 +3,8 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
-import dev.heliosares.sync.utils.EncryptionAES;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
+import dev.kshl.kshlib.encryption.EncryptionAES;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -16,8 +16,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.InvalidKeyException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.function.Consumer;
 
