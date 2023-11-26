@@ -2,6 +2,7 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.CommandPacket;
+import dev.heliosares.sync.net.packet.MalformedPacketException;
 import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
@@ -49,6 +50,7 @@ public enum PacketType {
     }
 
     public static Packet getPacketFromJSON(JSONObject o) {
-        return getByID(o.getInt("typ")).mapper.apply(o);
+        if (!o.has("ty")) throw new MalformedPacketException("No type specified");
+        return getByID(o.getInt("ty")).mapper.apply(o);
     }
 }

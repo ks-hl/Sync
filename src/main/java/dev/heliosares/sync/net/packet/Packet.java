@@ -24,8 +24,8 @@ public class Packet {
      * @see #toJSON()
      */
     public Packet(JSONObject packet) throws MalformedPacketException {
-        if (!packet.has("typ")) throw new MalformedPacketException("No type specified");
-        type = PacketType.getByID(packet.getInt("typ"));
+        if (!packet.has("ty")) throw new MalformedPacketException("No type specified");
+        type = PacketType.getByID(packet.getInt("ty"));
         if (type == PacketType.KEEP_ALIVE) {
             responseID = null;
             isResponse = false;
@@ -42,7 +42,7 @@ public class Packet {
         else channel = null;
 
         if (packet.has("pl")) payload = packet.getJSONObject("pl");
-        else payload = null;
+        else payload = new JSONObject();
 
         if (packet.has("fw")) forward = packet.getString("fw");
     }
@@ -93,10 +93,10 @@ public class Packet {
         if (responseID == null && getType() != PacketType.KEEP_ALIVE)
             throw new IllegalStateException("Can not send packet before assigning response ID");
         JSONObject json = new JSONObject();
-        json.put("typ", type.id);
+        json.put("ty", type.id);
         if (responseID != null) json.put(isResponse ? "dir" : "rid", responseID);
         if (channel != null) json.put("ch", channel);
-        if (payload != null) json.put("pl", payload);
+        if (payload != null && !payload.isEmpty()) json.put("pl", payload);
         if (forward != null) json.put("fw", forward);
         return json;
     }

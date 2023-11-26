@@ -249,14 +249,14 @@ public class TestMain {
             receivedSet.add(received1);
             client1.getSync().send(null, new PingPacket(), response -> {
                 received1.complete(true);
-                client1.print("Ping: " + ((PingPacket) response).getRTT());
+                client1.print("Ping: " + ((PingPacket) response).getRTT() + "ms");
             });
 
             CompletableFuture<Boolean> received2 = new CompletableFuture<>();
             receivedSet.add(received2);
             server.getSync().send("client1", new PingPacket(), response -> {
                 received2.complete(true);
-                server.print("Ping: " + ((PingPacket) response).getRTT());
+                server.print("Ping: " + ((PingPacket) response).getRTT() + "ms");
             });
         }
 
