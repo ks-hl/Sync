@@ -1,22 +1,36 @@
 package dev.heliosares.sync.net;
 
-import dev.heliosares.sync.net.packet.*;
+import dev.heliosares.sync.net.packet.BlobPacket;
+import dev.heliosares.sync.net.packet.CommandPacket;
+import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.packet.PingPacket;
+import dev.heliosares.sync.net.packet.PlaySoundPacket;
+import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import org.json.JSONObject;
 
 import java.util.Arrays;
 import java.util.function.Function;
 
 public enum PacketType {
+
+    // INTERNAL
     KEEP_ALIVE(1), //
-    COMMAND(2, CommandPacket::new), //
-    API(3), //
-    API_WITH_BLOB(4, BlobPacket::new), //
-    SERVER_LIST(5), //
-    PLAYER_DATA(6),//
-    MESSAGE(7, MessagePacket::new),//
-    PLAY_SOUND(8, PlaySoundPacket::new),//
-    SHOW_TITLE(9, ShowTitlePacket::new);//
+    PING(2, PingPacket::new),//
+    SERVER_LIST(3),//
+    PLAYER_DATA(4),//
+
+
+    // API
+    API(5), //
+    API_WITH_BLOB(6, BlobPacket::new), //
+
+
+    // UTILITY
+    COMMAND(7, CommandPacket::new), //
+    MESSAGE(8, MessagePacket::new),//
+    PLAY_SOUND(9, PlaySoundPacket::new),//
+    SHOW_TITLE(10, ShowTitlePacket::new);//
 
     public final int id;
     public final Function<JSONObject, Packet> mapper;

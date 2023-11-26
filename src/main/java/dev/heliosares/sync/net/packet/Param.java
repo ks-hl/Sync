@@ -79,4 +79,15 @@ public abstract class Param<T> {
             return (Boolean) o;
         }
     }
+
+    public static class LongParam extends Param<Long> {
+        LongParam(JSONObject handle, String key) {
+            super(handle, key);
+        }
+
+        @Override
+        protected Long map(Object o) {
+            return (Long) o;
+        }
+    }
 }

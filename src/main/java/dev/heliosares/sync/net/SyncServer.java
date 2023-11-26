@@ -126,7 +126,7 @@ public class SyncServer implements SyncNetCore {
                         ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
                         System.out.println(timer);
 
-                        plugin.debug("Connection accepted on port " + socket.getPort());
+                        plugin.debug("Connection accepted from port " + socket.getPort());
 
                         clients.add(ch);
                         plugin.newThread(ch);

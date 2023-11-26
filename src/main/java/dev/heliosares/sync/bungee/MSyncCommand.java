@@ -1,9 +1,9 @@
 package dev.heliosares.sync.bungee;
 
-import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.ServerClientHandler;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import net.md_5.bungee.api.CommandSender;
@@ -15,7 +15,11 @@ import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import org.json.JSONObject;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 public class MSyncCommand extends Command implements TabExecutor {
     private final SyncBungee plugin;
@@ -95,9 +99,9 @@ public class MSyncCommand extends Command implements TabExecutor {
 
                 String value;
                 if (set) {
-                    data.setCustom(args[2], value = args[3]);
+                    data.getCustomString("Sync", args[2], true).set(value = args[3]);
                 } else {
-                    value = data.getCustomString(args[2]);
+                    value = data.getCustomString("Sync", args[2], true).get();
                 }
                 SyncBungee.tell(target, target.getName() + " - " + args[2] + "=" + value);
                 return;

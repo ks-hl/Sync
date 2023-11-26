@@ -1,9 +1,9 @@
 package dev.heliosares.sync.spigot;
 
 import dev.heliosares.sync.SyncAPI;
-import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.FormulaParser;
 import me.clip.placeholderapi.PlaceholderAPI;
@@ -75,9 +75,9 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
 
                 String value;
                 if (set) {
-                    data.setCustom(args[2], value = args[3]);
+                    data.getCustomString("Sync", args[2], true).set(value = args[3]);
                 } else {
-                    value = data.getCustomString(args[2]);
+                    value = data.getCustomString("Sync", args[2], true).get();
                 }
                 target.sendMessage(target.getName() + " - " + args[2] + "=" + value);
                 return true;

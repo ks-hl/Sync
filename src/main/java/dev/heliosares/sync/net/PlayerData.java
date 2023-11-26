@@ -24,11 +24,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 public class PlayerData {
 
 
-    private abstract class Variable<T> {
+    public abstract class Variable<T> {
         public final String name;
         public final String nameOnly;
         private final boolean isFinal;
@@ -49,7 +51,7 @@ public class PlayerData {
          * @return whether the update packet was sent successfully. If not, the set operation fails.
          */
         @SuppressWarnings("UnusedReturnValue")
-        public final CompletableFuture<Boolean> setValue(T value) {
+        public final CompletableFuture<Boolean> set(T value) {
             if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer) && !this.name.startsWith("custom.")) {
                 throw new IllegalArgumentException("Cannot update the value of " + name + " from spigot servers.");
             }
@@ -57,10 +59,10 @@ public class PlayerData {
                 throw new IllegalArgumentException(name + " is final.");
             }
             CompletableFuture<Boolean> result = new CompletableFuture<>();
-            if (Objects.equals(getValue(), value)) {
+            if (Objects.equals(get(), value)) {
                 result.complete(true);
             } else plugin.runAsync(() -> {
-                T originalValue = getValue();
+                T originalValue = get();
 
                 setValueWithoutUpdate(value);
 
@@ -77,7 +79,7 @@ public class PlayerData {
                     plugin.print(e);
                 }
 
-                setValue(originalValue);
+                set(originalValue);
                 result.complete(false);
             });
             return result;
@@ -88,8 +90,25 @@ public class PlayerData {
             this.lastUpdated = System.currentTimeMillis();
         }
 
-        public final T getValue() {
+        public T get() {
             return value;
+        }
+
+        public final T get(T def) {
+            T value = get();
+            if (value == null) return def;
+            return value;
+        }
+
+        public T computeIfNull(Supplier<T> supplier) {
+            T val = get();
+            if (val != null) return val;
+            set(val = supplier.get());
+            return val;
+        }
+
+        public void modify(UnaryOperator<T> operator) {
+            set(operator.apply(get()));
         }
 
         public long getLastUpdated() {
@@ -122,6 +141,11 @@ public class PlayerData {
             if (!(o instanceof Variable<?> variable)) return false;
             return variable.name.equals(name) && Objects.equals(variable.value, value);
         }
+
+        @Override
+        public String toString() {
+            return name + "=" + get();
+        }
     }
 
     public final class VariableString extends Variable<String> {
@@ -149,7 +173,7 @@ public class PlayerData {
 
         @Override
         public void putJSON(JSONObject o) {
-            o.put(nameOnly, Base64.getEncoder().encodeToString(getValue()));
+            o.put(nameOnly, Base64.getEncoder().encodeToString(get()));
         }
     }
 
@@ -192,6 +216,13 @@ public class PlayerData {
         protected UUID map(Object o) {
             return UUID.fromString(o.toString());
         }
+
+        @Override
+        public Set<UUID> get() {
+            Set<UUID> out = super.get();
+            if (out == null) return null;
+            return Collections.unmodifiableSet(out);
+        }
     }
 
     public final class VariableSetString extends VariableSet<String> {
@@ -202,6 +233,13 @@ public class PlayerData {
         @Override
         protected String map(Object o) {
             return o.toString();
+        }
+
+        @Override
+        public Set<String> get() {
+            Set<String> out = super.get();
+            if (out == null) return null;
+            return Collections.unmodifiableSet(out);
         }
     }
 
@@ -238,12 +276,12 @@ public class PlayerData {
 
         @Override
         public int hashCode() {
-            return getValue().stream().mapToInt(Object::hashCode).reduce(0, (a, b) -> a ^ b);
+            return get().stream().mapToInt(Object::hashCode).reduce(0, (a, b) -> a ^ b);
         }
 
         @Override
         public String toString() {
-            return "[" + alts.getValue().stream().map(Object::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
+            return "[" + alts.get().stream().map(Object::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
         }
     }
 
@@ -392,16 +430,16 @@ public class PlayerData {
         };
         StringBuilder out = new StringBuilder();
 
-        out.append(formatter.apply("name", name.getValue()));
-        out.append(formatter.apply("uuid", uuid.getValue()));
-        out.append(formatter.apply("server", server.getValue()));
-        out.append(formatter.apply("vanished", vanished.getValue()));
+        out.append(formatter.apply("name", name.get()));
+        out.append(formatter.apply("uuid", uuid.get()));
+        out.append(formatter.apply("server", server.get()));
+        out.append(formatter.apply("vanished", vanished.get()));
         out.append(formatter.apply("alts", alts));
         out.append(formatter.apply("ignoring", ignoring));
         out.append(formatter.apply("custom", ""));
         customMaps.forEach((key, map) -> {
             out.append(formatter.apply("  " + key, ""));
-            map.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.getValue())));
+            map.forEach((k, v) -> out.append("    ").append(formatter.apply(v.nameOnly, v.get())));
         });
 
         return out.substring(0, out.length() - 1);
@@ -415,53 +453,53 @@ public class PlayerData {
 
     @CheckReturnValue
     public String getServer() {
-        return server.getValue();
+        return server.get();
     }
 
     @CheckReturnValue
     public String getName() {
-        return name.getValue();
+        return name.get();
     }
 
     @CheckReturnValue
     public UUID getUUID() {
-        return uuid.getValue();
+        return uuid.get();
     }
 
     @CheckReturnValue
     @SuppressWarnings("unused")
     public boolean isVanished() {
-        return vanished.getValue();
+        return vanished.get();
     }
 
     public void setVanished(boolean vanished) {
-        this.vanished.setValue(vanished);
+        this.vanished.set(vanished);
     }
 
     @SuppressWarnings("unused")
     public void setAlts(Set<UUID> alts) {
-        this.alts.setValue(alts);
+        this.alts.set(alts);
     }
 
     @CheckReturnValue
     @SuppressWarnings("unused")
     public Set<UUID> getAlts() {
-        return alts.getValue();
+        return alts.get();
     }
 
     @SuppressWarnings("unused")
     public void setIgnoring(Set<UUID> ignoring) {
-        this.ignoring.setValue(ignoring);
+        this.ignoring.set(ignoring);
     }
 
     @CheckReturnValue
     @SuppressWarnings("unused")
     public Set<UUID> getIgnoring() {
-        return ignoring.getValue();
+        return ignoring.get();
     }
 
     public void setServer(String server) {
-        this.server.setValue(server);
+        this.server.set(server);
     }
 
     @SuppressWarnings("unused")
@@ -484,68 +522,70 @@ public class PlayerData {
         plugin.getSync().send(getServer(), new PlaySoundPacket(sound, pitch, volume, getUUID(), null));
     }
 
-    @SuppressWarnings("unused")
-    public void setCustom(String name, String value) {
-        customStrings.function(vars -> vars.computeIfAbsent(name, customStrings.creator)).setValue(value);
-    }
-
-    @CheckReturnValue
-    @Nullable
-    @SuppressWarnings("unused")
-    public String getCustomString(String name) {
-        VariableString variable = customStrings.get(name);
-        if (variable == null) return null;
-        return variable.getValue();
-    }
-
-    @SuppressWarnings("unused")
-    public void setCustom(String name, boolean value) {
-        customBooleans.function(vars -> vars.computeIfAbsent(name, customBooleans.creator)).setValue(value);
-    }
-
-    @CheckReturnValue
-    @Nullable
-    @SuppressWarnings("unused")
-    public Boolean getCustomBoolean(String name) {
-        VariableBoolean variable = customBooleans.get(name);
-        if (variable == null) return null;
-        return variable.getValue();
-    }
-
-    @SuppressWarnings("unused")
-    public void setCustom(String name, Set<String> value) {
-        customStringSets.function(vars -> vars.computeIfAbsent(name, customStringSets.creator)).setValue(value);
-    }
-
     /**
-     * @param name The name of the variable to retrieve
-     * @return An unmodifiable {@link Set<String>}
+     * @param plugin The name of the plugin owning the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param name   The name of the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param insert Whether to create this variable if it does not already exist
+     * @return The handler for the custom variable specified, or null if !insert and the variable does not exist
+     * @throws IllegalArgumentException If the name does not conform to the previously mentioned format
      */
     @CheckReturnValue
-    @Nullable
     @SuppressWarnings("unused")
-    public Set<String> getCustomStringSet(String name) {
-        VariableSetString variable = customStringSets.get(name);
-        if (variable == null) return null;
-        return Collections.unmodifiableSet(variable.getValue());
+    public VariableString getCustomString(String plugin, String name, boolean insert) {
+        String combined = checkName(plugin, name, insert);
+        return customStrings.function(vars -> insert ? vars.computeIfAbsent(combined, customStrings.creator) : vars.get(combined));
     }
 
-    @SuppressWarnings("unused")
-    public void setCustom(String name, byte[] value) {
-        customBlobs.function(vars -> vars.computeIfAbsent(name, customBlobs.creator)).setValue(value);
-    }
 
     /**
-     * If you modify this array, you must then call {@link PlayerData#setCustom(String, byte[])} to update.
-     *
-     * @param name The name of the variable to retrieve
+     * @param plugin The name of the plugin owning the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param name   The name of the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param insert Whether to create this variable if it does not already exist
+     * @return The handler for the custom variable specified, or null if !insert and the variable does not exist
+     * @throws IllegalArgumentException If the name does not conform to the previously mentioned format
      */
     @CheckReturnValue
-    @Nullable
     @SuppressWarnings("unused")
-    public byte[] getCustomBlob(String name) {
-        VariableBlob variable = customBlobs.get(name);
-        if (variable == null) return null;
-        return variable.getValue();
+    public VariableBoolean getCustomBoolean(String plugin, String name, boolean insert) {
+        String combined = checkName(plugin, name, insert);
+        return customBooleans.function(vars -> insert ? vars.computeIfAbsent(combined, customBooleans.creator) : vars.get(combined));
+    }
+
+
+    /**
+     * @param plugin The name of the plugin owning the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param name   The name of the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param insert Whether to create this variable if it does not already exist
+     * @return The handler for the custom variable specified, or null if !insert and the variable does not exist
+     * @throws IllegalArgumentException If the name does not conform to the previously mentioned format
+     */
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public VariableSetString getCustomStringSet(String plugin, String name, boolean insert) {
+        String combined = checkName(plugin, name, insert);
+        return customStringSets.function(vars -> insert ? vars.computeIfAbsent(combined, customStringSets.creator) : vars.get(combined));
+    }
+
+
+    /**
+     * @param plugin The name of the plugin owning the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param name   The name of the variable. Can not be null or empty. Must be alphanumeric, underscores, dashes, or periods.
+     * @param insert Whether to create this variable if it does not already exist
+     * @return The handler for the custom variable specified, or null if !insert and the variable does not exist
+     * @throws IllegalArgumentException If the name does not conform to the previously mentioned format
+     */
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public VariableBlob getCustomBlob(String plugin, String name, boolean insert) {
+        String combined = checkName(plugin, name, insert);
+        return customBlobs.function(vars -> insert ? vars.computeIfAbsent(combined, customBlobs.creator) : vars.get(combined));
+    }
+
+    private String checkName(String plugin, String name, boolean insert) {
+        String combined = plugin + ":" + name;
+        if (!insert) return combined;
+        if (plugin != null && plugin.matches("[\\w_\\-.]+") && name != null && name.matches("[\\w_\\-.]+"))
+            return combined;
+        throw new IllegalArgumentException("Custom variable name must conform to 'PluginName:VariableName'");
     }
 }

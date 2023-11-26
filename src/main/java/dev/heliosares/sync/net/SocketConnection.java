@@ -3,6 +3,7 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.packet.PingPacket;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import org.json.JSONObject;
@@ -107,9 +108,17 @@ public class SocketConnection {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
+        final long sendTime = System.currentTimeMillis();
         synchronized (out) {
+            if (packet instanceof PingPacket && !packet.isResponse() && (plugin instanceof SyncClient || packet.getForward() == null)) {
+                final Consumer<Packet> responseConsumer_ = responseConsumer;
+                responseConsumer = packet1 -> {
+                    if (packet1 instanceof PingPacket pingPacket) pingPacket.setOriginalPingTime(sendTime);
+                    if (responseConsumer_ != null) responseConsumer_.accept(packet1);
+                };
+            }
             if (responseConsumer != null) {
-                ResponseAction responseAction = new ResponseAction(packet.getResponseID(), System.currentTimeMillis(), responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
+                ResponseAction responseAction = new ResponseAction(packet.getResponseID(), sendTime, responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
                 responses.put(packet.getResponseID(), responseAction);
                 if (timeoutAction != null) {
                     plugin.scheduleAsync(() -> {
@@ -132,7 +141,7 @@ public class SocketConnection {
             if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
             out.flush();
         }
-        this.lastPacketSent = System.currentTimeMillis();
+        this.lastPacketSent = sendTime;
     }
 
     protected void send(byte[] b) throws IOException {

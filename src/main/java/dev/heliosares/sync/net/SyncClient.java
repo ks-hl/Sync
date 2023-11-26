@@ -3,6 +3,7 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.packet.PingPacket;
 import dev.heliosares.sync.utils.CompletableException;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.encryption.EncryptionDH;
@@ -15,7 +16,11 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.*;
+import java.security.AlgorithmParameters;
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -149,10 +154,12 @@ public class SyncClient implements SyncNetCore {
                         } else {
                             packet.setOrigin("proxy");
                         }
+                        if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
+                            send(pingPacket.createResponse());
+                        }
                         if (packet.getType() == PacketType.SERVER_LIST) {
                             servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
                         }
-
                         eventHandler.execute("proxy", packet);
                     }
                 } catch (NullPointerException | SocketException | EOFException e) {

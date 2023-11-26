@@ -3,14 +3,21 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
-import dev.kshl.kshlib.encryption.*;
+import dev.heliosares.sync.net.packet.PingPacket;
+import dev.kshl.kshlib.encryption.EncryptionAES;
+import dev.kshl.kshlib.encryption.EncryptionDH;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import javax.crypto.SecretKey;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.security.*;
+import java.security.AlgorithmParameters;
+import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,6 +117,9 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 }
                 if (forward == null || forward.equalsIgnoreCase("all")) {
                     server.getEventHandler().execute(getName(), packet);
+                    if (packet instanceof PingPacket pingPacket) {
+                        send(pingPacket.createResponse(), null, 0, null);
+                    }
                 }
             } catch (NullPointerException | SocketException | EOFException e1) {
                 if (plugin.debug()) {

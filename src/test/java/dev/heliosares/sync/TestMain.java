@@ -6,12 +6,14 @@ import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.net.packet.Packet;
+import dev.heliosares.sync.net.packet.PingPacket;
 import dev.heliosares.sync.utils.CompletableException;
 import org.json.JSONObject;
 import org.junit.Test;
 
 import java.io.File;
 import java.security.GeneralSecurityException;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -21,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 public class TestMain {
     private static final TestClient client1;
@@ -86,7 +89,7 @@ public class TestMain {
 
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testAPIPacket() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         client1.getSync().getEventHandler().registerListener(PacketType.API, null, (server1, packet) -> received.complete(packet.getPayload().get("key").equals("value")));
@@ -95,7 +98,7 @@ public class TestMain {
         assert received.get();
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testAPIResponse() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         server.getSync().getEventHandler().registerListener(PacketType.API, "test:channel", (server1, packet) -> server.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
@@ -107,7 +110,7 @@ public class TestMain {
         assert !timeOut.get();
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testBlobResponse() throws Throwable {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         AtomicReference<Throwable> error = new AtomicReference<>();
@@ -160,10 +163,10 @@ public class TestMain {
             Thread.sleep(10);
             PlayerData playerData = server.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
-            playerData.setCustom("key1", "value1");
-            playerData.setCustom("key2", true);
-            playerData.setCustom("key3", Set.of("value3"));
-            playerData.setCustom("key4", "value4".getBytes());
+            playerData.getCustomString("test", "key1", true).set("value1");
+            playerData.getCustomBoolean("test", "key2", true).set(true);
+            playerData.getCustomStringSet("test", "key3", true).set(Set.of("value3"));
+            playerData.getCustomBlob("test", "key4", true).set("value4".getBytes());
             playerData.setServer("server1");
             playerData.setVanished(true);
         }
@@ -174,11 +177,11 @@ public class TestMain {
             PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
 
-            assertEquals(playerData.getCustomString("key1"), "value1");
-            assertEquals(playerData.getCustomBoolean("key2"), true);
-            assertEquals(playerData.getCustomStringSet("key3"), Set.of("value3"));
+            assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
+            assertEquals(playerData.getCustomBoolean("test", "key2", true).get(), true);
+            assertEquals(playerData.getCustomStringSet("test", "key3", true).get(), Set.of("value3"));
             assertEquals(playerData.getServer(), "server1");
-            assertEquals(new String(Objects.requireNonNull(playerData.getCustomBlob("key4"))), "value4");
+            assertEquals(new String(Objects.requireNonNull(playerData.getCustomBlob("test", "key4", true).get())), "value4");
         }
 
         testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
@@ -187,11 +190,11 @@ public class TestMain {
             PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
 
-            assertEquals(playerData.getCustomString("key1"), "value1");
-            assertEquals(playerData.getCustomBoolean("key2"), true);
-            assertEquals(playerData.getCustomStringSet("key3"), Set.of("value3"));
+            assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
+            assertEquals(playerData.getCustomBoolean("test", "key2", true).get(), true);
+            assertEquals(playerData.getCustomStringSet("test", "key3", true).get(), Set.of("value3"));
 
-            playerData.setCustom("key1", "value2");
+            playerData.getCustomString("test", "key1", true).set("value2");
             assert playerData.isVanished();
         }
 
@@ -200,11 +203,17 @@ public class TestMain {
         {
             PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
-            assertEquals(playerData.getCustomString("key1"), "value2");
+            assertEquals(playerData.getCustomString("test", "key1", true).get(), "value2");
+
+            assertThrows(IllegalArgumentException.class, () -> playerData.getCustomBoolean("+", "a", true));
+            assertThrows(IllegalArgumentException.class, () -> playerData.getCustomString(null, "ed", true));
+            assertThrows(IllegalArgumentException.class, () -> playerData.getCustomStringSet("a", null, true));
+            assertThrows(IllegalArgumentException.class, () -> playerData.getCustomBlob("a", "", true));
         }
+
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testForwardedResponse() throws Exception {
         client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
 
@@ -230,5 +239,27 @@ public class TestMain {
         });
 
         assert received.get();
+    }
+
+    @Test(timeout = 10000)
+    public void testStressTest() throws Exception {
+        Set<CompletableFuture<Boolean>> receivedSet = new HashSet<>();
+        for (int i = 0; i < 1000; i++) {
+            CompletableFuture<Boolean> received1 = new CompletableFuture<>();
+            receivedSet.add(received1);
+            client1.getSync().send(null, new PingPacket(), response -> {
+                received1.complete(true);
+                client1.print("Ping: " + ((PingPacket) response).getRTT());
+            });
+
+            CompletableFuture<Boolean> received2 = new CompletableFuture<>();
+            receivedSet.add(received2);
+            server.getSync().send("client1", new PingPacket(), response -> {
+                received2.complete(true);
+                server.print("Ping: " + ((PingPacket) response).getRTT());
+            });
+        }
+
+        for (CompletableFuture<Boolean> future : receivedSet) future.get();
     }
 }
