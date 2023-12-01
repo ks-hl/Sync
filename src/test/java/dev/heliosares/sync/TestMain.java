@@ -30,6 +30,8 @@ public class TestMain {
     private static final TestClient client2;
     private static final TestServer server;
 
+    private static final int PORT = 8002;
+
     static {
         boolean ignored = new File("test").delete();
         try {
@@ -41,14 +43,14 @@ public class TestMain {
             System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
             start = System.currentTimeMillis();
 
-            server.getSync().start("localhost", 8001);
+            server.getSync().start("localhost", PORT);
             server.reloadKeys(true);
 
             System.out.println("serverStart: " + (System.currentTimeMillis() - start) + "ms");
             start = System.currentTimeMillis();
 
-            CompletableException<Exception> client1Completable = client1.getSync().start("localhost", 8001);
-            client2.getSync().start("localhost", 8001);
+            CompletableException<Exception> client1Completable = client1.getSync().start("localhost", PORT);
+            client2.getSync().start("localhost", PORT);
 
             System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
             start = System.currentTimeMillis();
@@ -64,7 +66,7 @@ public class TestMain {
     @Test(expected = GeneralSecurityException.class)
     public void testMissingKey() throws Exception {
         TestClient client3 = new TestClient("client3", false, null);
-        CompletableException<Exception> completableException = client3.getSync().start("localhost", 8001);
+        CompletableException<Exception> completableException = client3.getSync().start("localhost", PORT);
         completableException.getAndThrow();
     }
 
@@ -81,7 +83,7 @@ public class TestMain {
         client1.getSync().send(new CommandPacket("test"));
         TestDaemon testDaemon = new TestDaemon("daemon1");
         server.reloadKeys(false);
-        SyncDaemon.run(testDaemon, "hello");
+        SyncDaemon.run(testDaemon, "-port:" + PORT, "hello");
 
         assert receivedClient1.get();
         assert receivedDaemon.get();
@@ -155,7 +157,7 @@ public class TestMain {
     public void testPlayerDataCustom() throws Exception {
         TestClient testClient4 = new TestClient("client4");
         server.reloadKeys(false);
-        server.runAsync(() -> testClient4.getSync().start("localhost", 8001));
+        server.runAsync(() -> testClient4.getSync().start("localhost", PORT));
         client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
         UUID uuid = UUID.randomUUID();
         {

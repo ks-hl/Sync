@@ -2,6 +2,7 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.CommandPacket;
+import dev.heliosares.sync.net.packet.HasPermissionPacket;
 import dev.heliosares.sync.net.packet.MalformedPacketException;
 import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.net.packet.Packet;
@@ -31,7 +32,8 @@ public enum PacketType {
     COMMAND(7, CommandPacket::new), //
     MESSAGE(8, MessagePacket::new),//
     PLAY_SOUND(9, PlaySoundPacket::new),//
-    SHOW_TITLE(10, ShowTitlePacket::new);//
+    SHOW_TITLE(10, ShowTitlePacket::new),//
+    HAS_PERMISSION(11, HasPermissionPacket::new);//
 
     public final int id;
     public final Function<JSONObject, Packet> mapper;

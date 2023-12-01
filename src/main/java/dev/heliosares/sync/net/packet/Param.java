@@ -65,6 +65,7 @@ public abstract class Param<T> {
 
         @Override
         protected Double map(Object o) {
+            if (o instanceof Integer i) return (double) i;
             return (Double) o;
         }
     }

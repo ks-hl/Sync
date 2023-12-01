@@ -10,7 +10,7 @@ import java.util.UUID;
 public class PlaySoundPacket extends Packet {
 
     public PlaySoundPacket(String sound, float pitch, float volume, @Nullable UUID toUUID, @Nullable String toUsername) {
-        super(null, PacketType.COMMAND, new JSONObject());
+        super(null, PacketType.PLAY_SOUND, new JSONObject());
         sound().set(Objects.requireNonNull(sound));
 
         if (pitch > 1E-6) pitch().set((double) pitch);

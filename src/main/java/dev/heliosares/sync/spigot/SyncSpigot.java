@@ -6,6 +6,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
+import dev.heliosares.sync.net.packet.HasPermissionPacket;
 import dev.heliosares.sync.net.packet.PlaySoundPacket;
 import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import dev.heliosares.sync.utils.CommandParser;
@@ -36,7 +37,7 @@ import java.util.logging.Level;
 public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     private static SyncSpigot instance;
     private SyncClient sync;
-    private boolean debug;
+    private boolean debug = true;
 
     public static SyncSpigot getInstance() {
         return instance;
@@ -168,6 +169,17 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 getServer().getOnlinePlayers().forEach(playSound);
             }
         });
+        sync.getEventHandler().registerListener(PacketType.HAS_PERMISSION, null, ((server, packet_) -> {
+            if (packet_.isResponse()) return;
+            if (!(packet_ instanceof HasPermissionPacket packet)) return;
+            Player player = getPlayer(packet.player().get());
+            if (player == null) return;
+            String node = packet.node().get();
+            if (node == null) return;
+            HasPermissionPacket response = packet.createResponse(new JSONObject());
+            response.result().set(player.hasPermission(node));
+            sync.send(response);
+        }));
     }
 
     public Player getPlayer(String key) {

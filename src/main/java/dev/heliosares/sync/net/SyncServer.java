@@ -122,9 +122,7 @@ public class SyncServer implements SyncNetCore {
                     // This look waits for clients
                     while (!closed) {
                         Socket socket = serverSocket.accept();
-                        Timer timer = new Timer("new sch");
                         ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
-                        System.out.println(timer);
 
                         plugin.debug("Connection accepted from port " + socket.getPort());
 

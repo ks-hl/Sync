@@ -10,13 +10,13 @@ public class PingPacket extends Packet {
     public PingPacket() {
         super(null, PacketType.PING, new JSONObject());
 
-        created = System.currentTimeMillis();
+        created = System.nanoTime();
     }
 
     public PingPacket(JSONObject json) {
         super(json);
 
-        created = System.currentTimeMillis();
+        created = System.nanoTime();
     }
 
     /**
@@ -35,8 +35,8 @@ public class PingPacket extends Packet {
         this.ping = ping;
     }
 
-    public long getRTT() {
-        if (created < ping || ping == 0) return -1;
-        return created - ping;
+    public double getRTT() {
+        if (created < ping || ping == 0) return 0;
+        return (created - ping) / 1000000d;
     }
 }

@@ -9,7 +9,7 @@ import java.util.UUID;
 public class ShowTitlePacket extends Packet {
 
     public ShowTitlePacket(@Nullable String title, @Nullable String subtitle, int fadeIn, int duration, int fadeOut, @Nullable UUID toUUID, @Nullable String toUsername) {
-        super(null, PacketType.COMMAND, new JSONObject());
+        super(null, PacketType.SHOW_TITLE, new JSONObject());
         title().set(title);
         subtitle().set(subtitle);
         if (fadeIn > 0) fadeIn().set(fadeIn);

@@ -62,6 +62,20 @@ public class SyncAPI {
     }
 
     @Deprecated
+    public static boolean send(dev.heliosares.sync.net.Packet packet) throws Exception {
+        SyncAPI.getInstance().print("Deprecated API usage");
+        Thread.dumpStack();
+        return send((Packet) packet);
+    }
+
+    @Deprecated
+    public static boolean send(String server, dev.heliosares.sync.net.Packet packet) throws Exception {
+        SyncAPI.getInstance().print("Deprecated API usage");
+        Thread.dumpStack();
+        return send(server, (Packet) packet);
+    }
+
+    @Deprecated
     public static void register(int packetID, String channel, NetEventHandler.PacketConsumer consumer) {
         SyncAPI.getInstance().print("Deprecated API usage");
         Thread.dumpStack();

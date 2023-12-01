@@ -67,6 +67,9 @@ public class SocketConnection {
             synchronized (in) {
                 Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(read())));
                 if (packet instanceof BlobPacket blobPacket) blobPacket.setBlob(read());
+
+                this.lastPacketReceived = System.currentTimeMillis();
+
                 if (packet.getType() != PacketType.KEEP_ALIVE) plugin.debug(() -> {
                     String line = "RECV";
                     if (this instanceof ServerClientHandler sch) {
@@ -78,16 +81,19 @@ public class SocketConnection {
                     line += ": " + packet;
                     return line;
                 });
+
                 if (packet.isResponse()) {
-                    ResponseAction action = responses.get(packet.getResponseID());
-                    try {
-                        if (action != null) action.accept(packet);
-                    } catch (Throwable t) {
-                        plugin.warning("Error while handling response packet " + packet);
-                        plugin.print(t);
-                    }
+                    plugin.runAsync(() -> {
+                        ResponseAction action = responses.get(packet.getResponseID());
+                        try {
+                            if (action != null) action.accept(packet);
+                        } catch (Throwable t) {
+                            plugin.warning("Error while handling response packet " + packet);
+                            plugin.print(t);
+                        }
+                    });
                 }
-                this.lastPacketReceived = System.currentTimeMillis();
+
                 cleanup();
                 return packet;
             }
@@ -108,7 +114,7 @@ public class SocketConnection {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
-        final long sendTime = System.currentTimeMillis();
+        final long sendTime = System.nanoTime();
         synchronized (out) {
             if (packet instanceof PingPacket && !packet.isResponse() && (plugin instanceof SyncClient || packet.getForward() == null)) {
                 final Consumer<Packet> responseConsumer_ = responseConsumer;
@@ -141,7 +147,7 @@ public class SocketConnection {
             if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
             out.flush();
         }
-        this.lastPacketSent = sendTime;
+        this.lastPacketSent = System.currentTimeMillis();
     }
 
     protected void send(byte[] b) throws IOException {

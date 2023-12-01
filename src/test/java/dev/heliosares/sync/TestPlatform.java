@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 import java.util.logging.*;
 
 public abstract class TestPlatform implements SyncCore {
-    private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(10);
+    private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(100);
     private final Logger logger;
 
     public TestPlatform(String name) {
@@ -19,12 +19,12 @@ public abstract class TestPlatform implements SyncCore {
 
     @Override
     public void newThread(Runnable run) {
-        scheduler.execute(run);
+        scheduler.submit(run);
     }
 
     @Override
     public void runAsync(Runnable run) {
-        scheduler.execute(run);
+        scheduler.submit(run);
     }
 
     @Override

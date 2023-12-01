@@ -7,6 +7,7 @@ import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.net.packet.CommandPacket;
+import dev.heliosares.sync.net.packet.HasPermissionPacket;
 import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
@@ -83,15 +84,9 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             @Nullable String json = messagePacket.json().get();
             @Nullable String node = messagePacket.node().get();
             @Nullable String to = messagePacket.to().get();
-            boolean others_only = messagePacket.otherServersOnly().get();
+            Boolean others_only = messagePacket.otherServersOnly().get();
             if (to != null) {
-                ProxiedPlayer toPlayer = getProxy().getPlayer(packet.getPayload().getString("to"));
-                if (toPlayer == null) {
-                    try {
-                        toPlayer = getProxy().getPlayer(UUID.fromString(to));
-                    } catch (IllegalArgumentException ignored) {
-                    }
-                }
+                ProxiedPlayer toPlayer = getPlayer(messagePacket.to().get());
                 if (toPlayer != null && (node == null || toPlayer.hasPermission(node))) tell(toPlayer, msg);
             } else {
                 Consumer<ProxiedPlayer> send;
@@ -100,7 +95,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
                     BaseComponent[] base = ComponentSerializer.parse(json);
                     send = p -> p.sendMessage(base);
                 } else return;
-                ServerInfo ignore = others_only ? getProxy().getServerInfo(server) : null;
+                ServerInfo ignore = (others_only != null && others_only) ? getProxy().getServerInfo(server) : null;
                 getProxy().getPlayers().stream().filter(p -> !p.getServer().getInfo().equals(ignore)).filter(p -> node == null || p.hasPermission(node)).forEach(send);
             }
 
@@ -109,6 +104,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             if (!(packet instanceof CommandPacket commandPacket)) return;
             try {
                 String message = commandPacket.command().get();
+                if (message == null) return;
 
                 print("Executing (from " + server + "): /" + message);
 
@@ -133,6 +129,27 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
                 print(e);
             }
         });
+        getSync().getEventHandler().registerListener(PacketType.HAS_PERMISSION, null, ((server, packet_) -> {
+            if (packet_.isResponse()) return;
+            if (!(packet_ instanceof HasPermissionPacket packet)) return;
+            ProxiedPlayer player = getPlayer(packet.player().get());
+            if (player == null) return;
+            String node = packet.node().get();
+            if (node == null) return;
+            HasPermissionPacket response = packet.createResponse(new JSONObject());
+            response.result().set(player.hasPermission(node));
+            sync.send(response);
+        }));
+    }
+
+    private ProxiedPlayer getPlayer(String value) {
+        ProxiedPlayer toPlayer = getProxy().getPlayer(value);
+        if (toPlayer != null) return toPlayer;
+        try {
+            return getProxy().getPlayer(UUID.fromString(value));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     @Override

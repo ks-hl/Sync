@@ -106,21 +106,28 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     continue;
                 }
                 final String forward = packet.getForward();
-                if (packet.getForward() != null) {
-                    packet.setForward(getName());
-                    Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
-                    if (forward.equalsIgnoreCase("all")) {
-                        server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
-                    } else {
-                        sendToServer.accept(forward);
+                plugin.runAsync(() -> {
+                    if (packet.getForward() != null) {
+                        packet.setForward(getName());
+                        Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
+                        if (forward.equalsIgnoreCase("all")) {
+                            server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
+                        } else {
+                            sendToServer.accept(forward);
+                        }
                     }
-                }
-                if (forward == null || forward.equalsIgnoreCase("all")) {
-                    server.getEventHandler().execute(getName(), packet);
-                    if (packet instanceof PingPacket pingPacket) {
-                        send(pingPacket.createResponse(), null, 0, null);
+                    if (forward == null || forward.equalsIgnoreCase("all")) {
+                        server.getEventHandler().execute(getName(), packet);
+                        if (packet instanceof PingPacket pingPacket) {
+                            try {
+                                send(pingPacket.createResponse(), null, 0, null);
+                            } catch (IOException e) {
+                                plugin.warning("Error while sending ping response");
+                                plugin.print(e);
+                            }
+                        }
                     }
-                }
+                });
             } catch (NullPointerException | SocketException | EOFException e1) {
                 if (plugin.debug()) {
                     plugin.print(e1);

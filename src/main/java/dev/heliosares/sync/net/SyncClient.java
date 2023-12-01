@@ -83,8 +83,6 @@ public class SyncClient implements SyncNetCore {
     }
 
     protected void connect(String host, int port) throws GeneralSecurityException, IOException {
-        if (connection != null) throw new IllegalStateException("Client already started");
-
         if (unableToConnectCount < 3 || plugin.debug()) {
             plugin.print("Client connecting to " + host + ":" + port + "...");
         }
@@ -107,79 +105,80 @@ public class SyncClient implements SyncNetCore {
      */
     public CompletableException<Exception> start(String host, int port) {
         if (connection != null) throw new IllegalStateException("Client already started");
-        plugin.scheduleAsync(this::keepAlive, 250, 500);
+        plugin.scheduleAsync(this::keepAlive, 250, 1000);
 
         handshakeComplete = false;
 
         plugin.newThread(() -> {
             while (!closed) {
                 try {
-                    handshakeComplete = false;
-                    connect(host, port);
-                    if (!connectedCompletable.isDone()) connectedCompletable.complete(null);
-                } catch (ConnectException e) {
-                    if (!connectedCompletable.isDone()) {
-                        connectedCompletable.complete(e);
-                        return;
-                    }
-                    if (!plugin.debug() && ++unableToConnectCount == 3) {
-                        plugin.print("Server not available. Continuing to attempt silently...");
-                    } else if (plugin.debug() || unableToConnectCount < 3) {
-                        plugin.print("Server not available. Retrying...");
-                    }
-                } catch (GeneralSecurityException e) {
-                    if (!connectedCompletable.isDone()) {
-                        connectedCompletable.complete(e);
-                        return;
-                    }
-                    if (unableToConnectCount < 3 || plugin.debug()) {
-                        plugin.print("Failed to authenticate: " + e.getMessage());
-                    }
-                } catch (IOException e) {
-                    if (unableToConnectCount < 3 || plugin.debug()) {
-                        if (!connectedCompletable.isDone()) {
-                            connectedCompletable.complete(e);
-                            return;
-                        }
-                        plugin.warning("Error during reconnection: ");
-                        plugin.print(e);
-                    }
-                }
+                    try {
+                        handshakeComplete = false;
+                        connect(host, port);
+                        if (!connectedCompletable.isDone()) connectedCompletable.complete(null);
+                    } catch (ConnectException e) {
+                        if (!connectedCompletable.isDone()) connectedCompletable.complete(e);
 
-                try {
-                    while (!closed) { // Listen for packets
-                        Packet packet = connection.listen();
-                        if (packet.getForward() != null) {
-                            packet.setOrigin(packet.getForward());
-                        } else {
-                            packet.setOrigin("proxy");
+                        unableToConnectCount++;
+                        if (!plugin.debug() && unableToConnectCount == 3) {
+                            plugin.print("Server not available. Continuing to attempt silently...");
+                        } else if (plugin.debug() || unableToConnectCount < 3) {
+                            plugin.print("Server not available. Retrying...");
                         }
-                        if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
-                            send(pingPacket.createResponse());
+                        continue;
+                    } catch (GeneralSecurityException e) {
+                        if (!connectedCompletable.isDone()) connectedCompletable.complete(e);
+
+                        if (unableToConnectCount < 3 || plugin.debug()) {
+                            plugin.print("Failed to authenticate: " + e.getMessage());
                         }
-                        if (packet.getType() == PacketType.SERVER_LIST) {
-                            servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
+                    } catch (IOException e) {
+                        if (unableToConnectCount < 3 || plugin.debug()) {
+                            if (!connectedCompletable.isDone()) {
+                                connectedCompletable.complete(e);
+                                return;
+                            }
+                            plugin.warning("Error during reconnection: ");
+                            plugin.print(e);
                         }
-                        eventHandler.execute("proxy", packet);
                     }
-                } catch (NullPointerException | SocketException | EOFException e) {
-                    plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
-                    if (plugin.debug() && !(e instanceof EOFException)) {
+
+                    try {
+                        while (!closed) { // Listen for packets
+                            Packet packet = connection.listen();
+                            if (packet.getForward() != null) {
+                                packet.setOrigin(packet.getForward());
+                            } else {
+                                packet.setOrigin("proxy");
+                            }
+                            if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
+                                send(pingPacket.createResponse());
+                            }
+                            if (packet.getType() == PacketType.SERVER_LIST) {
+                                servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
+                            }
+                            eventHandler.execute("proxy", packet);
+                        }
+                    } catch (NullPointerException | SocketException | EOFException e) {
+                        plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
+                        if (plugin.debug() && !(e instanceof EOFException)) {
+                            plugin.print(e);
+                        }
+                        if (closed) return;
+                    } catch (Exception e) {
+                        plugin.warning("Client crashed. Restarting...");
+                        plugin.print(e);
+                    } finally {
+                        closeTemporary();
+                    }
+                } finally {
+                    try {
+                        //noinspection BusyWait
+                        Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
+                    } catch (InterruptedException e) {
+                        plugin.warning("Failed to delay");
                         plugin.print(e);
                     }
-                    if (closed) return;
-                } catch (Exception e) {
-                    plugin.warning("Client crashed. Restarting...");
-                    plugin.print(e);
-                } finally {
-                    closeTemporary();
-                }
-                try {
-                    //noinspection BusyWait
-                    Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
-                } catch (InterruptedException e) {
-                    plugin.warning("Failed to delay");
-                    plugin.print(e);
                 }
             }
         });
