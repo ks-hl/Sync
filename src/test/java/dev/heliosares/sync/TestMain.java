@@ -172,6 +172,8 @@ public class TestMain {
             playerData.setServer("server1");
             playerData.setVanished(true);
             playerData.setHealth(10);
+
+            server.print(playerData.toString());
         }
 
         Thread.sleep(10);
@@ -179,6 +181,7 @@ public class TestMain {
         {
             PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
+            client1.print(playerData.toString());
 
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
             assertEquals(playerData.getCustomBoolean("test", "key2", true).get(), true);
@@ -193,6 +196,7 @@ public class TestMain {
         {
             PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
+            testClient4.print(playerData.toString());
 
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
             assertEquals(playerData.getCustomBoolean("test", "key2", true).get(), true);
@@ -207,6 +211,7 @@ public class TestMain {
         {
             PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;
+            client1.print(playerData.toString());
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value2");
 
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomBoolean("+", "a", true));

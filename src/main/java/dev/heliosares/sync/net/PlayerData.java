@@ -131,8 +131,11 @@ public class PlayerData {
 
         protected final void processJSON(JSONObject o) {
             if (!o.has(nameOnly)) return;
-            Object val = o.get(nameOnly);
-            setValueWithoutUpdate(val == null ? null : processVariable(val));
+            processVariable_(o.get(nameOnly));
+        }
+
+        protected final void processVariable_(Object o) {
+            setValueWithoutUpdate(o == null ? null : processVariable(o));
         }
 
         protected abstract T processVariable(Object o) throws IllegalArgumentException;
@@ -339,8 +342,7 @@ public class PlayerData {
             JSONObject customSub = custom.getJSONObject(keyName);
             consume(map -> {
                 for (String key : customSub.keySet()) {
-                    Object value = customSub.get(key);
-                    computeIfAbsent(key).processVariable(value);
+                    computeIfAbsent(key).processVariable_(customSub.get(key));
                 }
             });
         }
@@ -430,7 +432,7 @@ public class PlayerData {
         String nameOnly = field;
         for (int i = 0; i < 2; i++) nameOnly = nameOnly.substring(nameOnly.indexOf(".") + 1);
 
-        Variable<?> var;
+        Variable<?> variable;
         if (field.startsWith("custom.")) {
             String key = field.split("\\.")[1];
             MapOfVariables<?> map = customMaps.get(key);
@@ -438,13 +440,13 @@ public class PlayerData {
                 throw new IllegalArgumentException("Invalid variable type '" + key + "' for field " + field);
             }
             map.processJSON(payload);
-            var = map.computeIfAbsent(nameOnly);
+            variable = map.computeIfAbsent(nameOnly);
         } else {
-            var = internalVariables.get(field);
+            variable = internalVariables.get(field);
         }
-        if (var == null) throw new IllegalArgumentException("Invalid field to update: " + field);
+        if (variable == null) throw new IllegalArgumentException("Invalid field to update: " + field);
 
-        var.processVariable(payload.get(nameOnly));
+        variable.processVariable_(payload.get(nameOnly));
     }
 
     @Override
@@ -472,7 +474,7 @@ public class PlayerData {
         };
         StringBuilder out = new StringBuilder();
 
-        internalVariables.forEach((key, var) -> formatter.apply(key, var.get()));
+        internalVariables.forEach((key, var) -> out.append(formatter.apply(key, var.get())));
         out.append(formatter.apply("custom", ""));
         customMaps.forEach((key, map) -> {
             out.append(formatter.apply("  " + key, ""));
