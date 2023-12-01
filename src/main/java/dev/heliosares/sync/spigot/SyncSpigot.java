@@ -252,6 +252,9 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             return;
         }
         data.setVanished(isVanished(e.getPlayer()));
+        data.setHealth(e.getPlayer().getHealth());
+        data.setSaturation(e.getPlayer().getSaturation());
+        data.setFood(e.getPlayer().getFoodLevel());
     }
 
     @Override

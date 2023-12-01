@@ -171,6 +171,7 @@ public class TestMain {
             playerData.getCustomBlob("test", "key4", true).set("value4".getBytes());
             playerData.setServer("server1");
             playerData.setVanished(true);
+            playerData.setHealth(10);
         }
 
         Thread.sleep(10);
@@ -184,6 +185,7 @@ public class TestMain {
             assertEquals(playerData.getCustomStringSet("test", "key3", true).get(), Set.of("value3"));
             assertEquals(playerData.getServer(), "server1");
             assertEquals(new String(Objects.requireNonNull(playerData.getCustomBlob("test", "key4", true).get())), "value4");
+            assertEquals(playerData.getHealth(), 10, 1E-6);
         }
 
         testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);

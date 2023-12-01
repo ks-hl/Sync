@@ -52,7 +52,7 @@ public class PlayerData {
          */
         @SuppressWarnings("UnusedReturnValue")
         public final CompletableFuture<Boolean> set(T value) {
-            if (!this.equals(vanished) && !(plugin.getSync() instanceof SyncServer) && !this.name.startsWith("custom.")) {
+            if (!isAssignableByClients() && !(plugin.getSync() instanceof SyncServer)) {
                 throw new IllegalArgumentException("Cannot update the value of " + name + " from spigot servers.");
             }
             if (isFinal) {
@@ -85,6 +85,13 @@ public class PlayerData {
             return result;
         }
 
+        protected boolean isAssignableByClients() {
+            if (this.equals(server)) return false;
+            if (this.equals(alts)) return false;
+            if (internalVariables.containsKey(name)) return true;
+            return name.startsWith("custom.");
+        }
+
         void setValueWithoutUpdate(T value) {
             this.value = value;
             this.lastUpdated = System.currentTimeMillis();
@@ -100,6 +107,7 @@ public class PlayerData {
             return value;
         }
 
+        @SuppressWarnings("unused")
         public T computeIfNull(Supplier<T> supplier) {
             T val = get();
             if (val != null) return val;
@@ -107,10 +115,12 @@ public class PlayerData {
             return val;
         }
 
+        @SuppressWarnings("unused")
         public void modify(UnaryOperator<T> operator) {
             set(operator.apply(get()));
         }
 
+        @SuppressWarnings("unused")
         public long getLastUpdated() {
             return lastUpdated;
         }
@@ -121,14 +131,15 @@ public class PlayerData {
 
         protected final void processJSON(JSONObject o) {
             if (!o.has(nameOnly)) return;
-            processVariable(o.get(nameOnly));
+            Object val = o.get(nameOnly);
+            setValueWithoutUpdate(val == null ? null : processVariable(val));
         }
 
-        protected abstract void processVariable(Object o) throws IllegalArgumentException;
+        protected abstract T processVariable(Object o) throws IllegalArgumentException;
 
 
-        protected void throwInvalidVariableType() throws IllegalArgumentException {
-            throw new IllegalArgumentException("Invalid type for variable " + name);
+        protected IllegalArgumentException getInvalidVariableType() {
+            return new IllegalArgumentException("Invalid type for variable " + name);
         }
 
         @Override
@@ -154,10 +165,9 @@ public class PlayerData {
         }
 
         @Override
-        protected void processVariable(Object o) {
-            if (o instanceof String string) {
-                setValueWithoutUpdate(string);
-            } else throwInvalidVariableType();
+        protected String processVariable(Object o) {
+            if (o instanceof String string) return string;
+            throw getInvalidVariableType();
         }
     }
 
@@ -167,8 +177,8 @@ public class PlayerData {
         }
 
         @Override
-        protected void processVariable(Object o) {
-            setValueWithoutUpdate(Base64.getDecoder().decode(o.toString()));
+        protected byte[] processVariable(Object o) {
+            return Base64.getDecoder().decode(o.toString());
         }
 
         @Override
@@ -183,14 +193,12 @@ public class PlayerData {
         }
 
         @Override
-        protected void processVariable(Object o) {
-            if (o instanceof String string) {
-                try {
-                    setValueWithoutUpdate(UUID.fromString(string));
-                } catch (IllegalArgumentException ignored) {
-                    throwInvalidVariableType();
-                }
+        protected UUID processVariable(Object o) {
+            try {
+                return UUID.fromString(o.toString());
+            } catch (IllegalArgumentException ignored) {
             }
+            throw getInvalidVariableType();
         }
     }
 
@@ -200,10 +208,34 @@ public class PlayerData {
         }
 
         @Override
-        protected void processVariable(Object o) {
-            if (o instanceof Boolean bool) {
-                setValueWithoutUpdate(bool);
-            } else throwInvalidVariableType();
+        protected Boolean processVariable(Object o) {
+            if (o instanceof Boolean bool) return bool;
+            throw getInvalidVariableType();
+        }
+    }
+
+    public final class VariableDouble extends Variable<Double> {
+        public VariableDouble(String name, Double def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected Double processVariable(Object o) {
+            if (o instanceof Integer i) return Double.valueOf(i);
+            if (o instanceof Double d) return d;
+            throw getInvalidVariableType();
+        }
+    }
+
+    public final class VariableInteger extends Variable<Integer> {
+        public VariableInteger(String name, Integer def, boolean isFinal) {
+            super(name, def, isFinal);
+        }
+
+        @Override
+        protected Integer processVariable(Object o) {
+            if (o instanceof Integer i) return i;
+            throw getInvalidVariableType();
         }
     }
 
@@ -263,11 +295,9 @@ public class PlayerData {
         }
 
         @Override
-        protected void processVariable(Object o) {
-            if (o instanceof JSONArray array) {
-                T set = make(array);
-                setValueWithoutUpdate(set);
-            } else throwInvalidVariableType();
+        protected T processVariable(Object o) {
+            if (o instanceof JSONArray array) return make(array);
+            throw getInvalidVariableType();
         }
 
         protected abstract T make(JSONArray array);
@@ -281,7 +311,7 @@ public class PlayerData {
 
         @Override
         public String toString() {
-            return "[" + alts.get().stream().map(Object::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
+            return "[" + get().stream().map(Object::toString).reduce((a, b) -> a + ", " + b).orElse("") + "]";
         }
     }
 
@@ -321,12 +351,23 @@ public class PlayerData {
     }
 
     private final SyncCore plugin;
-    private final VariableString server;
     private final VariableString name;
     private final VariableUUID uuid;
+    private final VariableString server;
+    private final VariableString gamemode;
+    private final VariableString nickname;
     private final VariableBoolean vanished;
+    private final VariableDouble health;
+    private final VariableDouble saturation;
+    private final VariableInteger food;
     private final VariableSetUUID alts;
     private final VariableSetUUID ignoring;
+    private final ConcurrentMap<HashMap<String, Variable<?>>, String, Variable<?>> internalVariables = new ConcurrentMap<>(new HashMap<>() {
+        @Override
+        public int hashCode() {
+            return entrySet().stream().mapToInt(entry -> entry.getKey().hashCode() ^ entry.getValue().hashCode()).reduce(0, (a, b) -> a ^ b);
+        }
+    });
     private final MapOfVariables<VariableString> customStrings;
     private final MapOfVariables<VariableSetString> customStringSets;
     private final MapOfVariables<VariableBoolean> customBooleans;
@@ -335,12 +376,23 @@ public class PlayerData {
 
     PlayerData(SyncCore plugin, String server, String name, UUID uuid, boolean vanished) {
         this.plugin = plugin;
-        this.server = new VariableString("server", server, false);
-        this.name = new VariableString("name", name, true);
-        this.uuid = new VariableUUID("uuid", uuid, true);
-        this.vanished = new VariableBoolean("v", vanished, false);
-        this.alts = new VariableSetUUID("alts", new HashSet<>(), false);
-        this.ignoring = new VariableSetUUID("ignoring", new HashSet<>(), false);
+
+        this.name = putInternal(new VariableString("name", name, true));
+        this.uuid = putInternal(new VariableUUID("uuid", uuid, true));
+
+        this.server = putInternal(new VariableString("server", server, false));
+        this.gamemode = putInternal(new VariableString("gamemode", null, false));
+        this.nickname = putInternal(new VariableString("nickname", null, false));
+
+        this.vanished = putInternal(new VariableBoolean("v", vanished, false));
+
+        this.health = putInternal(new VariableDouble("health", null, false));
+        this.saturation = putInternal(new VariableDouble("saturation", null, false));
+
+        this.food = putInternal(new VariableInteger("food", null, false));
+
+        this.alts = putInternal(new VariableSetUUID("alts", new HashSet<>(), false));
+        this.ignoring = putInternal(new VariableSetUUID("ignoring", new HashSet<>(), false));
 
         this.customStrings = new MapOfVariables<>("s", varName -> new VariableString("custom.s." + varName, null, false));
         this.customStringSets = new MapOfVariables<>("ss", varName -> new VariableSetString("custom.ss." + varName, null, false));
@@ -348,14 +400,14 @@ public class PlayerData {
         this.customBlobs = new MapOfVariables<>("bl", varName -> new VariableBlob("custom.bl." + varName, null, false));
     }
 
+    private <T extends Variable<?>> T putInternal(T var) {
+        internalVariables.put(var.name, var);
+        return var;
+    }
+
     PlayerData(SyncCore plugin, JSONObject o) throws JSONException {
         this(plugin, null, null, null, false);
-        this.server.processJSON(o);
-        this.name.processJSON(o);
-        this.uuid.processJSON(o);
-        this.vanished.processJSON(o);
-        this.alts.processJSON(o);
-        this.ignoring.processJSON(o);
+        this.internalVariables.forEach((name, var) -> var.processJSON(o));
 
         if (o.has("custom")) {
             JSONObject custom = o.getJSONObject("custom");
@@ -366,12 +418,8 @@ public class PlayerData {
     @CheckReturnValue
     public JSONObject toJSON() {
         JSONObject o = new JSONObject();
-        this.server.putJSON(o);
-        this.name.putJSON(o);
-        this.uuid.putJSON(o);
-        this.vanished.putJSON(o);
-        this.alts.putJSON(o);
-        this.ignoring.putJSON(o);
+        this.internalVariables.forEach((name, var) -> var.putJSON(o));
+
         JSONObject custom = new JSONObject();
         customMaps.forEach((key, map) -> custom.put(key, map.toJSON()));
         o.put("custom", custom.isEmpty() ? null : custom);
@@ -382,27 +430,21 @@ public class PlayerData {
         String nameOnly = field;
         for (int i = 0; i < 2; i++) nameOnly = nameOnly.substring(nameOnly.indexOf(".") + 1);
 
-        (switch (field) {
-            case "server" -> server;
-            case "name" -> name;
-            case "uuid" -> uuid;
-            case "v" -> vanished;
-            case "alts" -> alts;
-            case "ignoring" -> ignoring;
-            default -> {
-                if (field.startsWith("custom.")) {
-                    String key = field.split("\\.")[1];
-                    MapOfVariables<?> map = customMaps.get(key);
-                    if (map != null) {
-                        map.processJSON(payload);
-                        Variable<?> var = map.computeIfAbsent(nameOnly);
-                        if (var != null) yield var;
-                    }
-                    throw new IllegalArgumentException("Invalid variable type '" + key + "' for field " + field);
-                }
-                throw new IllegalArgumentException("Invalid field to update: " + field);
+        Variable<?> var;
+        if (field.startsWith("custom.")) {
+            String key = field.split("\\.")[1];
+            MapOfVariables<?> map = customMaps.get(key);
+            if (map == null) {
+                throw new IllegalArgumentException("Invalid variable type '" + key + "' for field " + field);
             }
-        }).processVariable(payload.get(nameOnly));
+            map.processJSON(payload);
+            var = map.computeIfAbsent(nameOnly);
+        } else {
+            var = internalVariables.get(field);
+        }
+        if (var == null) throw new IllegalArgumentException("Invalid field to update: " + field);
+
+        var.processVariable(payload.get(nameOnly));
     }
 
     @Override
@@ -430,12 +472,7 @@ public class PlayerData {
         };
         StringBuilder out = new StringBuilder();
 
-        out.append(formatter.apply("name", name.get()));
-        out.append(formatter.apply("uuid", uuid.get()));
-        out.append(formatter.apply("server", server.get()));
-        out.append(formatter.apply("vanished", vanished.get()));
-        out.append(formatter.apply("alts", alts));
-        out.append(formatter.apply("ignoring", ignoring));
+        internalVariables.forEach((key, var) -> formatter.apply(key, var.get()));
         out.append(formatter.apply("custom", ""));
         customMaps.forEach((key, map) -> {
             out.append(formatter.apply("  " + key, ""));
@@ -447,7 +484,7 @@ public class PlayerData {
 
     @Override
     public int hashCode() {
-        return Objects.hash(server, name, uuid, vanished, alts, ignoring, customMaps);
+        return internalVariables.hashCode() ^ customMaps.hashCode();
     }
 
 
@@ -462,8 +499,37 @@ public class PlayerData {
     }
 
     @CheckReturnValue
+    @SuppressWarnings("unused")
+    public String getGameMode() {
+        return gamemode.get();
+    }
+
+    @CheckReturnValue
+    public Double getHealth() {
+        return health.get();
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public Double getSaturation() {
+        return saturation.get();
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public String getNickname() {
+        return nickname.get();
+    }
+
+    @CheckReturnValue
     public UUID getUUID() {
         return uuid.get();
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public Integer getFood() {
+        return food.get();
     }
 
     @CheckReturnValue
@@ -474,6 +540,24 @@ public class PlayerData {
 
     public void setVanished(boolean vanished) {
         this.vanished.set(vanished);
+    }
+
+    public void setHealth(double health) {
+        this.health.set(health);
+    }
+
+    public void setSaturation(double saturation) {
+        this.saturation.set(saturation);
+    }
+
+    @SuppressWarnings("unused")
+    public void setNickname(String nickname) {
+        this.nickname.set(nickname);
+    }
+
+    @SuppressWarnings("unused")
+    public void setGameMode(String gamemode) {
+        this.gamemode.set(gamemode);
     }
 
     @SuppressWarnings("unused")
@@ -500,6 +584,11 @@ public class PlayerData {
 
     public void setServer(String server) {
         this.server.set(server);
+    }
+
+    @SuppressWarnings("unused")
+    public void setFood(int foodLevel) {
+        this.food.set(foodLevel);
     }
 
     @SuppressWarnings("unused")

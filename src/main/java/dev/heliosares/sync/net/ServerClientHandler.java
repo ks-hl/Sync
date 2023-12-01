@@ -17,6 +17,7 @@ import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
+import java.security.ProviderException;
 import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -78,7 +79,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             server.updateClientsWithServerList();
             server.getUserManager().sendPlayers(getName(), null);
 
-        } catch (GeneralSecurityException e) {
+        } catch (GeneralSecurityException | ProviderException e) {
             plugin.print("Client failed to authenticate. " + getIP() + (plugin.debug() && e.getMessage() != null ? (", " + e.getMessage()) : ""));
             close();
             server.remove(this);
