@@ -154,6 +154,23 @@ public class TestMain {
     }
 
     @Test
+    public void testPlayerDataHash() throws Exception {
+        UUID uuid = UUID.randomUUID();
+
+        server.getSync().getUserManager().addPlayer("testplayer141", uuid, "proxy", false);
+
+        Thread.sleep(10);
+
+        assert client1.getSync().getUserManager().getPlayer(uuid) == null;
+
+        server.getSync().getUserManager().sendHash();
+
+        Thread.sleep(50);
+
+        assert client1.getSync().getUserManager().getPlayer(uuid) != null;
+    }
+
+    @Test
     public void testPlayerDataCustom() throws Exception {
         TestClient testClient4 = new TestClient("client4");
         server.reloadKeys(false);
@@ -219,6 +236,13 @@ public class TestMain {
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomStringSet("a", null, true));
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomBlob("a", "", true));
         }
+
+        server.getSync().getUserManager().removePlayer(uuid);
+
+        Thread.sleep(10);
+
+        assert client1.getSync().getUserManager().getPlayer(uuid) == null;
+        assert client2.getSync().getUserManager().getPlayer(uuid) == null;
 
     }
 

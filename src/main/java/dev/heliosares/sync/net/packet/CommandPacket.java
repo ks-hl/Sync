@@ -15,7 +15,7 @@ public class CommandPacket extends Packet {
 
     public CommandPacket(JSONObject json) {
         super(json);
-        command().requireNonnull();
+        if (!isResponse()) command().requireNonnull();
     }
 
     public Param.StringParam command() {

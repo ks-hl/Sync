@@ -1,9 +1,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>Sync</groupId>
+    <groupId>dev.kshl</groupId>
     <artifactId>Sync</artifactId>
-    <version>2.0</version>
+    <version>2.1</version>
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>
         <!--        <sourceDirectory>src</sourceDirectory>-->
@@ -41,7 +41,7 @@
                             <artifactSet>
                                 <includes>
                                     <include>org.json:json</include>
-                                    <include>com.github.ks-hl:KshLib</include>
+                                    <include>dev.kshl:KshLib</include>
                                 </includes>
                             </artifactSet>
                             <minimizeJar>true</minimizeJar>
@@ -153,9 +153,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.ks-hl</groupId>
+            <groupId>dev.kshl</groupId>
             <artifactId>KshLib</artifactId>
-            <version>1cfa391185</version>
+            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

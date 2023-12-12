@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCore;
+import dev.heliosares.sync.bungee.SyncBungee;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import org.json.JSONArray;
@@ -10,8 +11,15 @@ import org.json.JSONObject;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -28,18 +36,34 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         this.plugin = plugin;
 
         if (sync instanceof SyncServer) {
+            plugin.print("Registering hash task");
             plugin.scheduleAsync(() -> {
-                int hash = hashCode();
-                if (hash == lastHash) return;
-
                 try {
-                    sync.send(new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("hash", hash)));
-                    lastHash = hash;
+                    Set<UUID> remove = new HashSet<>();
+                    players.forEach((uuid, data) -> {
+                        if (((SyncBungee) plugin).getProxy().getPlayer(uuid) == null) remove.add(uuid);
+                    });
+                    remove.forEach(this::removePlayer);
+                    sendHash();
                 } catch (Exception e) {
                     plugin.print(e);
                 }
             }, 1000, 2000);
         }
+    }
+
+    public void sendHash() throws IOException {
+        if (!(sync instanceof SyncServer)) throw new IllegalStateException("Can't send hash from client");
+
+        int hash = UserManager.this.hashCode();
+        plugin.debug("Considering hash, " + hash);
+        if (hash == lastHash) {
+            plugin.debug("same hash");
+            return;
+        }
+        plugin.debug("sending");
+        lastHash = hash;
+        sync.send(new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("hash", hash)));
     }
 
     @Override
@@ -63,14 +87,17 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             data.handleUpdate(field, packet.getPayload());
         } else if (packet.getPayload().has("request") && plugin.getSync() instanceof SyncServer) {
             try {
-                sendPlayers(packet.getForward(), packet);
+                sendPlayers(server, packet);
             } catch (IOException e) {
                 plugin.print(e);
             }
         } else if (packet.getPayload().has("join") || packet.getPayload().has("set")) {
             boolean set = packet.getPayload().has("set");
             JSONArray array = packet.getPayload().getJSONArray(set ? "set" : "join");
-            players.consume(players -> players.putAll(getPlayerData(array)));
+            players.consume(players -> {
+                if (set) players.clear();
+                players.putAll(getPlayerData(array));
+            });
         } else if (packet.getPayload().has("quit")) {
             JSONArray array = packet.getPayload().getJSONArray("quit");
             players.consume(players -> array.toList().forEach(uuid -> players.remove(UUID.fromString((String) uuid))));
@@ -182,6 +209,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
 
     public void removePlayer(UUID uuid) {
         plugin.debug("Sending quit for " + uuid.toString());
+        players.remove(uuid);
         plugin.runAsync(() -> {
             try {
                 sync.send("all", new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("quit", new JSONArray().put(uuid.toString()))));
@@ -192,8 +220,9 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     }
 
     protected void request() {
+        if (sync instanceof SyncServer) throw new IllegalStateException("Can't send request for user data from server");
         try {
-            sync.send(null, new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("request", 1)).setForward(sync.getName()));
+            sync.send(null, new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("request", 1)));
         } catch (JSONException | IOException e) {
             plugin.print(e);
         }

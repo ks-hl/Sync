@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
@@ -156,6 +157,10 @@ public class PlayerData {
             return variable.name.equals(name) && Objects.equals(variable.value, value);
         }
 
+        public boolean equalsValue(T other) {
+            return Objects.equals(get(), other);
+        }
+
         @Override
         public String toString() {
             return name + "=" + get();
@@ -187,6 +192,11 @@ public class PlayerData {
         @Override
         public void putJSON(JSONObject o) {
             o.put(nameOnly, Base64.getEncoder().encodeToString(get()));
+        }
+
+        @Override
+        public boolean equalsValue(byte[] other) {
+            return Arrays.equals(get(), other);
         }
     }
 
@@ -227,6 +237,13 @@ public class PlayerData {
             if (o instanceof Integer i) return Double.valueOf(i);
             if (o instanceof Double d) return d;
             throw getInvalidVariableType();
+        }
+
+        @Override
+        public boolean equalsValue(Double other) {
+            Double value = get();
+            if (other == null || value == null) return value == other;
+            return Math.abs(other - value) < 1E-6;
         }
     }
 

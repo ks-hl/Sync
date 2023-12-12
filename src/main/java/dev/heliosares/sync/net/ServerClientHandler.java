@@ -81,6 +81,10 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
         } catch (GeneralSecurityException | ProviderException e) {
             plugin.print("Client failed to authenticate. " + getIP() + (plugin.debug() && e.getMessage() != null ? (", " + e.getMessage()) : ""));
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
             close();
             server.remove(this);
             return;

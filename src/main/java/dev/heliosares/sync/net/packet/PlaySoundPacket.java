@@ -21,7 +21,7 @@ public class PlaySoundPacket extends Packet {
 
     public PlaySoundPacket(JSONObject json) {
         super(json);
-        sound().requireNonnull();
+        if(!isResponse()) sound().requireNonnull();
     }
 
     public Param.StringParam to() {

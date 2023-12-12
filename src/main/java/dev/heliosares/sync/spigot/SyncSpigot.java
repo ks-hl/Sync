@@ -180,6 +180,8 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             response.result().set(player.hasPermission(node));
             sync.send(response);
         }));
+
+        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> getServer().getOnlinePlayers().forEach(this::updatePlayerData), 10, 10);
     }
 
     public Player getPlayer(String key) {
@@ -246,15 +248,20 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        PlayerData data = sync.getUserManager().getPlayer(e.getPlayer().getUniqueId());
+        updatePlayerData(e.getPlayer());
+    }
+
+    private void updatePlayerData(Player player) {
+        PlayerData data = sync.getUserManager().getPlayer(player.getUniqueId());
         if (data == null) {
-            warning("Player " + e.getPlayer().getName() + " joined consume no player data.");
+            warning("Player " + player.getName() + " joined consume no player data.");
             return;
         }
-        data.setVanished(isVanished(e.getPlayer()));
-        data.setHealth(e.getPlayer().getHealth());
-        data.setSaturation(e.getPlayer().getSaturation());
-        data.setFood(e.getPlayer().getFoodLevel());
+        data.setVanished(isVanished(player));
+        data.setHealth(player.getHealth());
+        data.setSaturation(player.getSaturation());
+        data.setFood(player.getFoodLevel());
+        data.setGameMode(player.getGameMode().toString());
     }
 
     @Override
