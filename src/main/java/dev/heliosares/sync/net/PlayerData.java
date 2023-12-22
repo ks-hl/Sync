@@ -13,6 +13,7 @@ import org.json.JSONObject;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
@@ -142,8 +143,8 @@ public class PlayerData {
         protected abstract T processVariable(Object o) throws IllegalArgumentException;
 
 
-        protected IllegalArgumentException getInvalidVariableType() {
-            return new IllegalArgumentException("Invalid type for variable " + name);
+        protected IllegalArgumentException getInvalidVariableType(Object value) {
+            return new IllegalArgumentException("Invalid type '" + (value == null ? null : value.getClass()) + "' for variable '" + name + "'");
         }
 
         @Override
@@ -175,7 +176,7 @@ public class PlayerData {
         @Override
         protected String processVariable(Object o) {
             if (o instanceof String string) return string;
-            throw getInvalidVariableType();
+            throw getInvalidVariableType(o);
         }
     }
 
@@ -211,7 +212,7 @@ public class PlayerData {
                 return UUID.fromString(o.toString());
             } catch (IllegalArgumentException ignored) {
             }
-            throw getInvalidVariableType();
+            throw getInvalidVariableType(o);
         }
     }
 
@@ -223,7 +224,7 @@ public class PlayerData {
         @Override
         protected Boolean processVariable(Object o) {
             if (o instanceof Boolean bool) return bool;
-            throw getInvalidVariableType();
+            throw getInvalidVariableType(o);
         }
     }
 
@@ -236,7 +237,8 @@ public class PlayerData {
         protected Double processVariable(Object o) {
             if (o instanceof Integer i) return Double.valueOf(i);
             if (o instanceof Double d) return d;
-            throw getInvalidVariableType();
+            if (o instanceof BigDecimal bd) return bd.doubleValue();
+            throw getInvalidVariableType(o);
         }
 
         @Override
@@ -255,7 +257,7 @@ public class PlayerData {
         @Override
         protected Integer processVariable(Object o) {
             if (o instanceof Integer i) return i;
-            throw getInvalidVariableType();
+            throw getInvalidVariableType(o);
         }
     }
 
@@ -317,7 +319,7 @@ public class PlayerData {
         @Override
         protected T processVariable(Object o) {
             if (o instanceof JSONArray array) return make(array);
-            throw getInvalidVariableType();
+            throw getInvalidVariableType(o);
         }
 
         protected abstract T make(JSONArray array);

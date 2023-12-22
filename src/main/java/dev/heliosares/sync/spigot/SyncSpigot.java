@@ -37,7 +37,7 @@ import java.util.logging.Level;
 public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     private static SyncSpigot instance;
     private SyncClient sync;
-    private boolean debug = true;
+    private boolean debug = false;
 
     public static SyncSpigot getInstance() {
         return instance;
