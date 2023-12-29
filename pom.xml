@@ -6,7 +6,6 @@
     <version>2.2</version>
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>
-        <!--        <sourceDirectory>src</sourceDirectory>-->
         <resources>
             <resource>
                 <directory>${basedir}</directory>
