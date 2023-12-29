@@ -88,8 +88,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         try {
             sync = new SyncClient(this, EncryptionRSA.load(file));
         } catch (FileNotFoundException | InvalidKeySpecException e) {
-            warning("Failed to load key file. Ensure it was correctly copied from the proxy.");
-            print(e);
+            print("Failed to load key file. Ensure it was correctly copied from the proxy.", e);
             setEnabled(false);
             return;
         }
@@ -123,7 +122,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                         try {
                             getSync().send(packet.createResponse(new JSONObject().put("msg", response)));
                         } catch (IOException e) {
-                            print(e);
+                            print(null, e);
                         }
                     }));
                 } else {
@@ -133,8 +132,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 }
                 dispatchCommand(sender, message);
             } catch (Exception e) {
-                getLogger().warning("Error while parsing: ");
-                print(e);
+                print("Error while parsing", e);
             }
         });
 
@@ -205,8 +203,11 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     }
 
     @Override
-    public void print(Throwable t) {
-        getLogger().log(Level.WARNING, t.getMessage(), t);
+    public void print(String message, Throwable t) {
+        if (message == null) message = "";
+        else message += ": ";
+        message += t.getMessage();
+        getLogger().log(Level.WARNING, message, t);
     }
 
     @Override

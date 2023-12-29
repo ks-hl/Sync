@@ -125,8 +125,7 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
                 debug("out: " + playerR.remaining());
                 getProxy().getPluginManager().dispatchCommand(sender, playerR.remaining());
             } catch (Exception e) {
-                getLogger().warning("Error while parsing: ");
-                print(e);
+                print("Error while parsing", e);
             }
         });
         getSync().getEventHandler().registerListener(PacketType.HAS_PERMISSION, null, ((server, packet_) -> {
@@ -171,13 +170,13 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             try (InputStream in = getResourceAsStream("config.yml")) {
                 Files.copy(in, file.toPath());
             } catch (IOException e) {
-                print(e);
+                print("Error while copying config.yml", e);
             }
         }
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(new File(getDataFolder(), "config.yml"));
         } catch (IOException e) {
-            print(e);
+            print("Error while loading config.yml", e);
         }
     }
 
@@ -187,8 +186,11 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     }
 
     @Override
-    public void print(Throwable t) {
-        getLogger().log(Level.WARNING, t.getMessage(), t);
+    public void print(String message, Throwable t) {
+        if (message == null) message = "";
+        else message += ": ";
+        message += t.getMessage();
+        getLogger().log(Level.WARNING, message, t);
     }
 
     @Override

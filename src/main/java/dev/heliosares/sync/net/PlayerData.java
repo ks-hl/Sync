@@ -78,7 +78,7 @@ public class PlayerData {
                     result.complete(true);
                     return;
                 } catch (IOException e) {
-                    plugin.print(e);
+                    plugin.print(null, e);
                 }
 
                 set(originalValue);

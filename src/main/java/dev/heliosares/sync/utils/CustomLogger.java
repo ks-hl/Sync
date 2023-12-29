@@ -1,5 +1,7 @@
 package dev.heliosares.sync.utils;
 
+import dev.kshl.kshlib.misc.StackUtil;
+
 import java.util.Date;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.LogRecord;
@@ -28,7 +30,11 @@ public class CustomLogger {
                     case "SEVERE" -> ANSI_RED;
                     default -> ANSI_RESET;
                 };
-                return color + String.format(format, new Date(record.getMillis()), record.getLevel().getLocalizedName(), record.getLoggerName(), record.getMessage()) + ANSI_RESET;
+                String line = color + String.format(format, new Date(record.getMillis()), record.getLevel().getLocalizedName(), record.getLoggerName(), record.getMessage());
+                if (record.getThrown() != null) {
+                    line += " " + StackUtil.format(record.getThrown(), 0);
+                }
+                return line + ANSI_RESET;
             }
         });
         logger.addHandler(handler);

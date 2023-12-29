@@ -7,7 +7,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.logging.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public abstract class TestPlatform implements SyncCore {
     private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(100);
@@ -38,8 +39,11 @@ public abstract class TestPlatform implements SyncCore {
     }
 
     @Override
-    public void print(Throwable t) {
-        getLogger().log(Level.WARNING, t.getMessage(), t);
+    public void print(String message, Throwable t) {
+        if (message == null) message = "";
+        else message += ": ";
+        message += t.getMessage();
+        getLogger().log(Level.WARNING, message, t);
     }
 
     @Override

@@ -138,8 +138,7 @@ public class SyncClient implements SyncNetCore {
                                 connectedCompletable.complete(e);
                                 return;
                             }
-                            plugin.warning("Error during reconnection: ");
-                            plugin.print(e);
+                            plugin.print("Error during reconnection", e);
                         }
                     }
 
@@ -162,12 +161,11 @@ public class SyncClient implements SyncNetCore {
                     } catch (NullPointerException | SocketException | EOFException e) {
                         plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
                         if (plugin.debug() && !(e instanceof EOFException)) {
-                            plugin.print(e);
+                            plugin.print(null, e);
                         }
                         if (closed) return;
                     } catch (Exception e) {
-                        plugin.warning("Client crashed. Restarting...");
-                        plugin.print(e);
+                        plugin.print("Client crashed. Restarting...", e);
                     } finally {
                         closeTemporary();
                     }
@@ -175,9 +173,7 @@ public class SyncClient implements SyncNetCore {
                     try {
                         //noinspection BusyWait
                         Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
-                    } catch (InterruptedException e) {
-                        plugin.warning("Failed to delay");
-                        plugin.print(e);
+                    } catch (InterruptedException ignored) {
                     }
                 }
             }
@@ -201,8 +197,7 @@ public class SyncClient implements SyncNetCore {
                 plugin.warning("timed out from proxy");
             }
         } catch (Exception e) {
-            plugin.warning("Error while sending keepAlive:");
-            plugin.print(e);
+            plugin.print("Error while sending keep-alive", e);
         }
     }
 
@@ -314,11 +309,6 @@ public class SyncClient implements SyncNetCore {
 
     public long getTimeOfLastPacketReceived() {
         return connection.getTimeOfLastPacketReceived();
-    }
-
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean isClosed() {
-        return closed;
     }
 
     public CompletableException<Exception> getConnectedCompletable() {

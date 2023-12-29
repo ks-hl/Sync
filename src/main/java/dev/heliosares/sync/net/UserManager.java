@@ -46,7 +46,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                     remove.forEach(this::removePlayer);
                     sendHash();
                 } catch (Exception e) {
-                    plugin.print(e);
+                    plugin.print(null, e);
                 }
             }, 1000, 2000);
         }
@@ -89,7 +89,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             try {
                 sendPlayers(server, packet);
             } catch (IOException e) {
-                plugin.print(e);
+                plugin.print(null, e);
             }
         } else if (packet.getPayload().has("join") || packet.getPayload().has("set")) {
             boolean set = packet.getPayload().has("set");
@@ -113,8 +113,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 list.put(data.getUUID(), data);
                 plugin.onNewPlayerData(data);
             } catch (JSONException e) {
-                plugin.warning("Malformed PlayerData packet: " + ((JSONObject) o).toString(2));
-                plugin.print(e);
+                plugin.print("Malformed PlayerData packet: " + ((JSONObject) o).toString(2), e);
             }
         });
         return list;
@@ -200,7 +199,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             try {
                 sync.send("all", new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("join", new JSONArray().put(data.toJSON()))));
             } catch (JSONException | IOException e) {
-                plugin.print(e);
+                plugin.print(null, e);
             }
 
             plugin.onNewPlayerData(data);
@@ -214,7 +213,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
             try {
                 sync.send("all", new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("quit", new JSONArray().put(uuid.toString()))));
             } catch (JSONException | IOException e) {
-                plugin.print(e);
+                plugin.print(null, e);
             }
         });
     }
@@ -224,7 +223,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         try {
             sync.send(null, new Packet(null, PacketType.PLAYER_DATA, new JSONObject().put("request", 1)));
         } catch (JSONException | IOException e) {
-            plugin.print(e);
+            plugin.print(null, e);
         }
     }
 

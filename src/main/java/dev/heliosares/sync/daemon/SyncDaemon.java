@@ -66,7 +66,7 @@ public class SyncDaemon implements SyncCore {
         try {
             run(plugin, args);
         } catch (Exception e) {
-            plugin.print(e);
+            plugin.print("Error while running", e);
             System.exit(2);
         }
 
@@ -165,8 +165,11 @@ public class SyncDaemon implements SyncCore {
     }
 
     @Override
-    public void print(Throwable t) {
-        getLogger().log(Level.WARNING, t.getMessage(), t);
+    public void print(String message, Throwable t) {
+        if (message == null) message = "";
+        else message += ": ";
+        message += t.getMessage();
+        getLogger().log(Level.WARNING, message, t);
     }
 
     @Override

@@ -17,7 +17,7 @@ public interface SyncCore {
 
     void print(String msg);
 
-    void print(Throwable t);
+    void print(String message, Throwable t);
 
     void debug(String msg);
 

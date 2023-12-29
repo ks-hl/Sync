@@ -96,7 +96,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     plugin.getSync().send(server, packet, response -> sender.sendMessage(response.getPayload().getString("msg")));
                 } catch (Exception e) {
                     sender.sendMessage("§cAn error occured");
-                    plugin.print(e);
+                    plugin.print("Error while processing command", e);
                     return;
                 }
                 sender.sendMessage("§aCommand sent.");
@@ -114,7 +114,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
             boolean el = false;
             for (String part : args) {
                 if (part.equalsIgnoreCase("then")) {
-                    if (condition.length() == 0) {
+                    if (condition.isEmpty()) {
                         sender.sendMessage("§cNo condition provided");
                         return true;
                     }
@@ -215,7 +215,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     target.sendMessage(msg);
                 } catch (Exception e) {
                     sender.sendMessage("§cAn error occured");
-                    plugin.print(e);
+                    plugin.print("Error while processing command", e);
                 }
             });
             return true;

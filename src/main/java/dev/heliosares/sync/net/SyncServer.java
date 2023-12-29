@@ -5,7 +5,6 @@ import dev.heliosares.sync.bungee.event.ClientDisconnectedEvent;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
-import dev.kshl.kshlib.misc.Timer;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -88,8 +87,7 @@ public class SyncServer implements SyncNetCore {
                     ch.send(packet, responseConsumer, timeoutMillis, timeoutAction);
                     any = true;
                 } catch (IOException e) {
-                    plugin.warning("Error while sending to: " + ch.getName() + ". Kicking");
-                    plugin.print(e);
+                    plugin.print("Error while sending to: " + ch.getName() + ". Kicking", e);
                     ch.close();
                     it.remove();
                 }
@@ -134,8 +132,7 @@ public class SyncServer implements SyncNetCore {
                     plugin.print("Server closed.");
                     return;
                 } catch (Exception e1) {
-                    plugin.warning("Server crashed:");
-                    plugin.print(e1);
+                    plugin.print("Server crashed", e1);
                 } finally {
                     closeTemporary();
                 }
@@ -143,9 +140,7 @@ public class SyncServer implements SyncNetCore {
                     //noinspection BusyWait
                     Thread.sleep(5000);
                     // Not busy waiting. A delay to wait to restart
-                } catch (InterruptedException e) {
-                    plugin.warning("Failed to delay");
-                    plugin.print(e);
+                } catch (InterruptedException ignored) {
                 }
             }
         });
@@ -215,13 +210,14 @@ public class SyncServer implements SyncNetCore {
     @Override
     public void closeTemporary() {
         clients.forEach(ServerClientHandler::close);
+        clients.clear();
         if (serverSocket == null || serverSocket.isClosed()) {
             return;
         }
         try {
             serverSocket.close();
         } catch (IOException e) {
-            plugin.print(e);
+            plugin.print("Error closing server", e);
         }
     }
 
@@ -285,4 +281,7 @@ public class SyncServer implements SyncNetCore {
         return plugin.hasWritePermission(user);
     }
 
+    public boolean isClosed() {
+        return closed;
+    }
 }

@@ -25,6 +25,7 @@ import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -94,8 +95,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             callDisconnectEvent(ClientDisconnectedEvent.Reason.UNAUTHORIZED);
             return;
         } catch (IOException e) {
-            plugin.print("Error during handshake.");
-            plugin.print(e);
+            plugin.print("Error during handshake.", e);
             close();
             server.remove(this);
             callDisconnectEvent(ClientDisconnectedEvent.Reason.ERROR_DURING_HANDSHAKE);
@@ -117,6 +117,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
 
         plugin.print(getName() + " connected on IP " + getIP() + (!writePermission ? ", read-only" : ""));
+        ClientDisconnectedEvent.Reason disconnectReason = null;
         while (isConnected()) {
             try {
                 Packet packet = listen();
@@ -148,25 +149,26 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                             try {
                                 send(pingPacket.createResponse(), null, 0, null);
                             } catch (IOException e) {
-                                plugin.warning("Error while sending ping response");
-                                plugin.print(e);
+                                plugin.print("Error while sending ping response", e);
                             }
                         }
                     }
                 });
-            } catch (NullPointerException | SocketException | EOFException e1) {
-                if (plugin.debug()) {
-                    plugin.print(e1);
+            } catch (Exception e1) {
+                if (e1 instanceof EOFException || (e1 instanceof SocketException socketException && "Socket closed".equals(socketException.getMessage()))) {
+                    disconnectReason = isClosed() ? ClientDisconnectedEvent.Reason.SERVER_DROPPED_CLIENT : ClientDisconnectedEvent.Reason.CLIENT_DISCONNECT;
+                    plugin.print(String.format(isClosed() ? "Server dropped client '%s'" : "Client '%s' disconnected", getName()));
+                } else {
+                    disconnectReason = ClientDisconnectedEvent.Reason.ERROR_AFTER_HANDSHAKE;
+                    plugin.print("Error from client " + getName() + ", disconnecting", e1);
                 }
                 break;
-            } catch (Exception e) {
-                plugin.print(e);
             }
         }
-        if (getName() != null) {
+        callDisconnectEvent(Objects.requireNonNullElse(disconnectReason, ClientDisconnectedEvent.Reason.SERVER_DROPPED_CLIENT));
+        if (getName() != null && disconnectReason == null) {
             plugin.print(getName() + " disconnected.");
         }
-        callDisconnectEvent(ClientDisconnectedEvent.Reason.CLIENT);
         close();
         server.remove(this);
     }

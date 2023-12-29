@@ -3,7 +3,6 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
-import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -42,8 +41,7 @@ public final class NetEventHandler {
             try {
                 handler.d.execute(server, packet);
             } catch (Throwable t) {
-                plugin.warning("Failed to pass " + packet + " to " + handler.channel());
-                plugin.print(t);
+                plugin.print("Failed to pass " + packet + " to " + handler.channel(), t);
             }
         });
     }

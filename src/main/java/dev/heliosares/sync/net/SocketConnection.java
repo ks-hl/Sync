@@ -100,8 +100,7 @@ public class SocketConnection {
                         try {
                             if (action != null) action.accept(packet);
                         } catch (Throwable t) {
-                            plugin.warning("Error while handling response packet " + packet);
-                            plugin.print(t);
+                            plugin.print("Error while handling response packet " + packet, t);
                         }
                     });
                 }
