@@ -51,8 +51,8 @@ import java.util.logging.Level;
 public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     private static SyncBungee instance;
     protected Configuration config;
-    private SyncServer sync;
     boolean debug;
+    private SyncServer sync;
 
     public SyncBungee() {
         try {
@@ -152,16 +152,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         }));
     }
 
-    private ProxiedPlayer getPlayer(String value) {
-        ProxiedPlayer toPlayer = getProxy().getPlayer(value);
-        if (toPlayer != null) return toPlayer;
-        try {
-            return getProxy().getPlayer(UUID.fromString(value));
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
-    }
-
     @Override
     public void onDisable() {
         print("Closing");
@@ -257,21 +247,6 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     }
 
     @Override
-    public boolean isAsync() {
-        return true;
-    }
-
-    @Override
-    public SyncServer getSync() {
-        return sync;
-    }
-
-    @Override
-    public PlatformType getPlatformType() {
-        return PlatformType.BUNGEE;
-    }
-
-    @Override
     public void onNewPlayerData(PlayerData data) {
     }
 
@@ -335,5 +310,30 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             return;
         }
         data.setServer(e.getServer().getInfo().getName());
+    }
+
+    private ProxiedPlayer getPlayer(String value) {
+        ProxiedPlayer toPlayer = getProxy().getPlayer(value);
+        if (toPlayer != null) return toPlayer;
+        try {
+            return getProxy().getPlayer(UUID.fromString(value));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    @Override
+    public boolean isAsync() {
+        return true;
+    }
+
+    @Override
+    public SyncServer getSync() {
+        return sync;
+    }
+
+    @Override
+    public PlatformType getPlatformType() {
+        return PlatformType.BUNGEE;
     }
 }
