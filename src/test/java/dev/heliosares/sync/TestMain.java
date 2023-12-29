@@ -58,9 +58,6 @@ public class TestMain {
             client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
 
             System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
-
-            Thread.sleep(1000);
-            client1.getSync().closeTemporary();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
