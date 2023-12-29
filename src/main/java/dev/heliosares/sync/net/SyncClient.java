@@ -171,8 +171,9 @@ public class SyncClient implements SyncNetCore {
                     }
                 } finally {
                     try {
+                        // Just a delay before attempting to reconnect - not busy waiting.
                         //noinspection BusyWait
-                        Thread.sleep(unableToConnectCount > 3 ? 5000 : 1000);
+                        Thread.sleep(1000);
                     } catch (InterruptedException ignored) {
                     }
                 }

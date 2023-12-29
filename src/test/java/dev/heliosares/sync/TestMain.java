@@ -279,6 +279,7 @@ public class TestMain {
     public void testConnectionTimeout() throws Exception {
         long start = System.currentTimeMillis();
         var client = new TestClient("timeout_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+            // makes it so the client won't attempt to reconnect after being timed out
             @Override
             public void closeTemporary() {
                 close();
