@@ -2,171 +2,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>dev.kshl</groupId>
-    <artifactId>Sync</artifactId>
-    <version>2.2</version>
-    <build>
-        <finalName>${project.artifactId}-${project.version}</finalName>
-        <resources>
-            <resource>
-                <directory>${basedir}</directory>
-                <filtering>true</filtering>
-                <includes>
-                    <include>plugin.yml</include>
-                    <include>bungee.yml</include>
-                    <include>config.yml</include>
-                </includes>
-            </resource>
-        </resources>
-        <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <release>17</release>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.0</version>
-                <executions>
-                    <execution>
-                        <id>pack</id>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <shadedArtifactAttached>true</shadedArtifactAttached>
-                            <artifactSet>
-                                <includes>
-<!--                                    <include>org.json:json</include>-->
-                                    <include>dev.kshl:KshLib</include>
-                                </includes>
-                            </artifactSet>
-                            <minimizeJar>true</minimizeJar>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>dev.heliosares.sync.daemon.SyncDaemon</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <configuration>
-                            <target>
-                                <delete dir="${testserver}/Test1/plugins" failonerror="false"
-                                        includes="${project.artifactId}-*.jar"/>
-                                <delete dir="${testserver}/Test2/plugins" failonerror="false"
-                                        includes="${project.artifactId}-*.jar"/>
-                                <delete dir="${testserver}/Proxy/plugins" failonerror="false"
-                                        includes="${project.artifactId}-*.jar"/>
-                                <copy file="${basedir}/target/${project.artifactId}-${project.version}-shaded.jar"
-                                      todir="${testserver}/Test1/plugins"/>
-                                <copy file="${basedir}/target/${project.artifactId}-${project.version}-shaded.jar"
-                                      todir="${testserver}/Test2/plugins"/>
-                                <copy file="${basedir}/target/${project.artifactId}-${project.version}-shaded.jar"
-                                      todir="${testserver}/Proxy/plugins"/>
-                            </target>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-    <repositories>
+    <artifactId>SyncParent</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>Core</module>
+        <module>Plugin</module>
+        <module>Daemon</module>
+    </modules>
 
-        <!--        Spigot-->
-        <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-
-        <!--        BungeeCord-->
-        <repository>
-            <id>bungeecord-repo</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </repository>
-
-        <!--        JSON-->
-        <!--        SuperVanish-->
-        <!--        KshLib-->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-
-        <!--        PlaceholderAPI-->
-        <repository>
-            <id>placeholderapi</id>
-            <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
-        </repository>
-
-    </repositories>
-    <dependencies>
-        <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.19.2-R0.1-SNAPSHOT</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.md-5</groupId>
-            <artifactId>bungeecord-api</artifactId>
-            <version>1.19-R0.1-SNAPSHOT</version>
-            <type>jar</type>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>net.md-5</groupId>
-            <artifactId>bungeecord-api</artifactId>
-            <version>1.19-R0.1-SNAPSHOT</version>
-            <type>javadoc</type>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20231013</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.LeonMangler</groupId>
-            <artifactId>SuperVanish</artifactId>
-            <version>6.2.6-2</version>
-        </dependency>
-        <dependency>
-            <groupId>me.clip</groupId>
-            <artifactId>placeholderapi</artifactId>
-            <version>2.11.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>dev.kshl</groupId>
-            <artifactId>KshLib</artifactId>
-            <version>LATEST</version>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
     <properties>
-        <jars>${env.USERPROFILE}/eclipse-workspace/jars</jars>
-        <testserver>${env.USERPROFILE}/Documents/TestServer/</testserver>
-        <project.build.sourceEncoding>Cp1252</project.build.sourceEncoding>
+        <revision>2.3</revision>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
