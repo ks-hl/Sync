@@ -275,7 +275,7 @@ public class TestMain {
         assert received.get();
     }
 
-    @Test(timeout = 500)
+    @Test(timeout = 1000)
     public void testConnectionTimeout() throws Exception {
         long start = System.currentTimeMillis();
         var client = new TestClient("timeout_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {

@@ -39,7 +39,7 @@
                             <shadedArtifactAttached>true</shadedArtifactAttached>
                             <artifactSet>
                                 <includes>
-                                    <include>org.json:json</include>
+<!--                                    <include>org.json:json</include>-->
                                     <include>dev.kshl:KshLib</include>
                                 </includes>
                             </artifactSet>
@@ -138,7 +138,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20230227</version>
+            <version>20231013</version>
         </dependency>
         <dependency>
             <groupId>com.github.LeonMangler</groupId>
@@ -154,7 +154,7 @@
         <dependency>
             <groupId>dev.kshl</groupId>
             <artifactId>KshLib</artifactId>
-            <version>1.0</version>
+            <version>LATEST</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

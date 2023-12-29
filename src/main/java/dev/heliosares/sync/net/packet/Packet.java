@@ -4,6 +4,8 @@ import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.PacketType;
 import org.json.JSONObject;
 
+import java.util.function.Consumer;
+
 public class Packet {
     private final String channel;
     private final PacketType type;
@@ -15,6 +17,10 @@ public class Packet {
 
     public Packet(String channel, PacketType type, JSONObject payload) {
         this(channel, type, payload, null, false);
+    }
+
+    public Packet(String channel, PacketType type) {
+        this(channel, type, new JSONObject(), null, false);
     }
 
     /**
@@ -141,6 +147,11 @@ public class Packet {
 
     public Packet setForward(String forward) {
         this.forward = forward;
+        return this;
+    }
+
+    public Packet modifyPayload(Consumer<JSONObject> payloadModifier) {
+        payloadModifier.accept(payload);
         return this;
     }
 }
