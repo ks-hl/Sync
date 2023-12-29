@@ -2,6 +2,9 @@ package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.bungee.SyncBungee;
+import dev.heliosares.sync.bungee.event.ClientConnectedEvent;
+import dev.heliosares.sync.bungee.event.ClientDisconnectedEvent;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
 import dev.kshl.kshlib.encryption.EncryptionAES;
@@ -32,7 +35,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     private final SyncCoreProxy plugin;
     private final SyncServer server;
 
-    public ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException {
+    ServerClientHandler(SyncCoreProxy plugin, SyncServer server, Socket socket) throws IOException {
         super(plugin, socket);
         this.plugin = plugin;
         this.server = server;
@@ -69,6 +72,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", client is on " + new String(otherVersion) + ", dropping");
                 close();
                 server.remove(this);
+                callDisconnectEvent(ClientDisconnectedEvent.Reason.PROTOCOL_MISMATCH);
                 return;
             }
             send(clientRSA.getUser().getBytes());
@@ -87,14 +91,31 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
             }
             close();
             server.remove(this);
+            callDisconnectEvent(ClientDisconnectedEvent.Reason.UNAUTHORIZED);
             return;
         } catch (IOException e) {
             plugin.print("Error during handshake.");
             plugin.print(e);
             close();
             server.remove(this);
+            callDisconnectEvent(ClientDisconnectedEvent.Reason.ERROR_DURING_HANDSHAKE);
             return;
         }
+
+        if (plugin instanceof SyncBungee plugin_) {
+            ClientConnectedEvent clientConnectedEvent = new ClientConnectedEvent(getName(), getIP(), !writePermission);
+
+            plugin_.getProxy().getPluginManager().callEvent(clientConnectedEvent);
+            if (clientConnectedEvent.isCancelled()) {
+                plugin.print("ClientConnectEvent cancelled for client '" + getName() + "' on IP '" + getIP() + "'");
+                close();
+                server.remove(this);
+                return;
+            }
+            writePermission = !clientConnectedEvent.isReadOnly();
+        }
+
+
         plugin.print(getName() + " connected on IP " + getIP() + (!writePermission ? ", read-only" : ""));
         while (isConnected()) {
             try {
@@ -145,7 +166,14 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
         if (getName() != null) {
             plugin.print(getName() + " disconnected.");
         }
+        callDisconnectEvent(ClientDisconnectedEvent.Reason.CLIENT);
         close();
         server.remove(this);
+    }
+
+    protected void callDisconnectEvent(ClientDisconnectedEvent.Reason reason) {
+        if (!(plugin instanceof SyncBungee plugin_)) return;
+
+        plugin_.getProxy().getPluginManager().callEvent(new ClientDisconnectedEvent(getName(), reason));
     }
 }

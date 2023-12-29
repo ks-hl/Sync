@@ -1,6 +1,7 @@
 package dev.heliosares.sync.net;
 
 import dev.heliosares.sync.SyncCoreProxy;
+import dev.heliosares.sync.bungee.event.ClientDisconnectedEvent;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
@@ -172,7 +173,7 @@ public class SyncServer implements SyncNetCore {
                     }
                 } else if (!ch.isConnected()) {
                     remove = true;
-                } else if (System.currentTimeMillis() - ch.getTimeOfLastPacketReceived() > 10000) {
+                } else if (System.currentTimeMillis() - ch.getTimeOfLastPacketReceived() > 3000) {
                     plugin.print(ch.getName() + " timed out");
                     remove = true;
                 } else {
@@ -184,6 +185,7 @@ public class SyncServer implements SyncNetCore {
                     }
                 }
                 if (remove) {
+                    ch.callDisconnectEvent(ClientDisconnectedEvent.Reason.TIMEOUT); //TODO cancellable?
                     ch.close();
                     it.remove();
                 }

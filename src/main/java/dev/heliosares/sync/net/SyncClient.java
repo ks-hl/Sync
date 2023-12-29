@@ -105,7 +105,7 @@ public class SyncClient implements SyncNetCore {
      */
     public CompletableException<Exception> start(String host, int port) {
         if (connection != null) throw new IllegalStateException("Client already started");
-        plugin.scheduleAsync(this::keepAlive, 250, 1000);
+        plugin.scheduleAsync(this::keepAlive, 250, 500);
 
         handshakeComplete = false;
 
