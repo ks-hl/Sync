@@ -54,6 +54,14 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     private SyncServer sync;
     boolean debug;
 
+    public SyncBungee() {
+        try {
+            SyncAPI.setInstance(this);
+        } catch (IllegalStateException e) {
+            print("Second instance", e);
+        }
+    }
+
     public static SyncBungee getInstance() {
         return instance;
     }

@@ -39,6 +39,14 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     private SyncClient sync;
     private boolean debug = false;
 
+    public SyncSpigot() {
+        try {
+            SyncAPI.setInstance(this);
+        } catch (IllegalStateException e) {
+            print("Second instance", e);
+        }
+    }
+
     public static SyncSpigot getInstance() {
         return instance;
     }
