@@ -57,13 +57,13 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 throw new InvalidKeyException("No key matching provided");
             }
             sendRaw(EncryptionDH.encrypt(keyDH, clientRSA.encrypt(getEncryption().encodeKey())));
-            if (!new String(read()).equals("ACK")) {
+            if (!new String(read().decrypted()).equals("ACK")) {
                 // Tests that the client has the decrypted AES key
                 throw new InvalidKeyException("Invalid key");
             }
             send("ACK".getBytes());
             byte[] myVersion = PROTOCOL_VERSION.getBytes();
-            byte[] otherVersion = read();
+            byte[] otherVersion = read().decrypted();
             send(myVersion);
             if (!Arrays.equals(otherVersion, myVersion)) {
                 plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", client is on " + new String(otherVersion) + ", dropping");

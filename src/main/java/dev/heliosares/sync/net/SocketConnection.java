@@ -6,6 +6,7 @@ import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import dev.kshl.kshlib.encryption.EncryptionAES;
+import dev.kshl.kshlib.misc.Formatter;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -65,22 +66,33 @@ public class SocketConnection {
     public Packet listen() throws Exception {
         try {
             synchronized (in) {
-                Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(read())));
-                if (packet instanceof BlobPacket blobPacket) blobPacket.setBlob(read());
+                PacketBytes packetBytes = read();
+                Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(packetBytes.decrypted())));
+                PacketBytes blobBytes_ = null;
+                if (packet instanceof BlobPacket blobPacket) {
+                    blobBytes_ = read();
+                    blobPacket.setBlob(blobBytes_.decrypted());
+                }
+                PacketBytes blobBytes = blobBytes_;
 
                 this.lastPacketReceived = System.currentTimeMillis();
 
-                if (packet.getType() != PacketType.KEEP_ALIVE) plugin.debug(() -> {
-                    String line = "RECV";
-                    if (this instanceof ServerClientHandler sch) {
-                        if (packet.getForward() != null) line = "FWD";
-                        line += " (" + sch.getName();
-                        if (packet.getForward() != null) line += " -> " + packet.getForward();
+                if (packet.getType() != PacketType.KEEP_ALIVE) {
+                    plugin.debug(() -> {
+                        String line = "RECV";
+                        if (this instanceof ServerClientHandler sch) {
+                            if (packet.getForward() != null) line = "FWD";
+                            line += " (" + sch.getName();
+                            if (packet.getForward() != null) line += " -> " + packet.getForward();
+                            line += ")";
+                        }
+                        line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
+                        if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
                         line += ")";
-                    }
-                    line += ": " + packet;
-                    return line;
-                });
+                        line += ": " + packet;
+                        return line;
+                    });
+                }
 
                 if (packet.isResponse()) {
                     plugin.runAsync(() -> {
@@ -134,42 +146,54 @@ public class SocketConnection {
                 }
             }
             String plain = packet.toString();
-            if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) // Don't debug for forwarding packets, that was already accomplished on receipt
+            PacketBytes packetBytes = send(plain.getBytes());
+            PacketBytes blobBytes_ = null;
+            if (packet instanceof BlobPacket blobPacket) blobBytes_ = send(blobPacket.getBlob());
+            final PacketBytes blobBytes = blobBytes_;
+            if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> {
                     String line = "SEND";
                     if (this instanceof ServerClientHandler sch) {
                         line += " (" + sch.getName() + ")";
                     }
+                    line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
+                    if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
+                    line += ")";
                     line += ": " + packet;
                     return line;
                 });
-            send(plain.getBytes());
-            if (packet instanceof BlobPacket blobPacket) send(blobPacket.getBlob());
+            }
             out.flush();
         }
         this.lastPacketSent = System.currentTimeMillis();
     }
 
-    protected void send(byte[] b) throws IOException {
+    protected PacketBytes send(byte[] plain) throws IOException {
+        byte[] ciphertext;
         try {
-            b = encryption.encrypt(b);
+            ciphertext = encryption.encrypt(plain);
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new IOException("Invalid session key. This is unexpected..");
         }
-        sendRaw(b);
+        sendRaw(ciphertext);
+        return new PacketBytes(plain, ciphertext);
     }
 
-    protected void sendRaw(byte[] b) throws IOException {
+    protected void sendRaw(byte[] plain) throws IOException {
         synchronized (out) {
-            out.writeInt(b == null ? 0 : b.length);
-            if (b != null && b.length > 0) {
-                out.write(b);
+            out.writeInt(plain == null ? 0 : plain.length);
+            if (plain != null && plain.length > 0) {
+                out.write(plain);
             }
         }
     }
 
-    protected byte[] read() throws IOException, IllegalBlockSizeException, BadPaddingException {
-        return encryption.decrypt(readRaw());
+    protected record PacketBytes(byte[] decrypted, byte[] encrypted) {
+    }
+
+    protected PacketBytes read() throws IOException, IllegalBlockSizeException, BadPaddingException {
+        byte[] ciphertext = readRaw();
+        return new PacketBytes(encryption.decrypt(ciphertext), ciphertext);
     }
 
     public byte[] readRaw() throws IOException {

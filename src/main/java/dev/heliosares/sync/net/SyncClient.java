@@ -60,7 +60,7 @@ public class SyncClient implements SyncNetCore {
         try {
             connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
             connection.send("ACK".getBytes());
-            if (!new String(connection.read()).equals("ACK")) {
+            if (!new String(connection.read().decrypted()).equals("ACK")) {
                 // Tests that the client has the decrypted AES key
                 throw new InvalidKeyException("Invalid key");
             }
@@ -69,14 +69,14 @@ public class SyncClient implements SyncNetCore {
         }
         byte[] myVersion = PROTOCOL_VERSION.getBytes();
         connection.send(myVersion);
-        byte[] otherVersion = connection.read();
+        byte[] otherVersion = connection.read().decrypted();
         if (!Arrays.equals(otherVersion, myVersion)) {
             plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
             close();
             return;
         }
-        connection.setName(new String(connection.read()));
-        byte[] connectionIDBytes = connection.read();
+        connection.setName(new String(connection.read().decrypted()));
+        byte[] connectionIDBytes = connection.read().decrypted();
         idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
 
         plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
