@@ -3,6 +3,7 @@ package dev.heliosares.sync;
 import dev.heliosares.sync.daemon.SyncDaemon;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
+import dev.heliosares.sync.net.SyncClient;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.net.packet.Packet;
@@ -263,7 +264,7 @@ public class TestMain {
     }
 
     @Test(timeout = 200)
-    public void testTimeout() throws Exception {
+    public void testResponseTimeout() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         client1.getSync().send(null, new Packet("test:void", PacketType.API, new JSONObject()), response -> {
         }, 30, () -> {
@@ -272,6 +273,41 @@ public class TestMain {
         });
 
         assert received.get();
+    }
+
+    @Test(timeout = 500)
+    public void testConnectionTimeout() throws Exception {
+        long start = System.currentTimeMillis();
+        var client = new TestClient("timeout_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+            @Override
+            public void closeTemporary() {
+                close();
+            }
+        }));
+        var server = new TestServer("timeout_server");
+
+        System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
+        start = System.currentTimeMillis();
+
+        server.getSync().start("localhost", PORT + 1);
+        server.reloadKeys(true);
+
+        System.out.println("serverStart: " + (System.currentTimeMillis() - start) + "ms");
+        start = System.currentTimeMillis();
+
+        CompletableException<Exception> client1Completable = client.getSync().start("localhost", PORT + 1);
+
+        System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
+        start = System.currentTimeMillis();
+
+        client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
+
+        System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
+
+        assert client.getSync().isConnected();
+        server.getSync().setTimeoutMillis(0);
+        Thread.sleep(110);
+        assert !client.getSync().isConnected();
     }
 
     @Test(timeout = 10000)

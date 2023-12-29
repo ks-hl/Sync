@@ -205,11 +205,9 @@ public class SyncClient implements SyncNetCore {
      * Permanently closes this instance of the client. Only call onDisable
      */
     public void close() {
-        if (closed) {
-            return;
-        }
+        if (closed) return;
         closed = true;
-        closeTemporary();
+        if (connection != null) connection.close();
     }
 
     /**
@@ -217,9 +215,7 @@ public class SyncClient implements SyncNetCore {
      * attempt to reconnect.
      */
     public void closeTemporary() {
-        if (connection == null) {
-            return;
-        }
+        if (closed || connection == null) return;
         handshakeComplete = false;
         connection.close();
     }

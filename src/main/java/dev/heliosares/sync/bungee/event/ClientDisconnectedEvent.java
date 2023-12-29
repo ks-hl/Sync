@@ -1,5 +1,7 @@
 package dev.heliosares.sync.bungee.event;
 
+import dev.heliosares.sync.net.SyncServer;
+
 public class ClientDisconnectedEvent extends ClientEvent {
 
     private final Reason reason;
@@ -35,7 +37,7 @@ public class ClientDisconnectedEvent extends ClientEvent {
          */
         SERVER_DROPPED_CLIENT,
         /**
-         * The client did not send any packets for more than 3 seconds.
+         * The client did not send any packets for more than {@link SyncServer#getTimeoutMillis()} milliseconds.
          */
         TIMEOUT
     }

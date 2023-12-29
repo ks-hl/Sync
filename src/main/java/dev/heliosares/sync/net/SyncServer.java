@@ -31,6 +31,7 @@ public class SyncServer implements SyncNetCore {
     private ServerSocket serverSocket;
     private boolean closed = false;
     private final IDProvider idProvider = new IDProvider((short) 0);
+    private long timeoutMillis = 3000L;
 
     public SyncServer(SyncCoreProxy plugin) {
         this.plugin = plugin;
@@ -145,7 +146,7 @@ public class SyncServer implements SyncNetCore {
             }
         });
 
-        plugin.scheduleAsync(this::keepAlive, 100, 1000);
+        plugin.scheduleAsync(this::keepAlive, 100, 100);
     }
 
     /**
@@ -168,7 +169,7 @@ public class SyncServer implements SyncNetCore {
                     }
                 } else if (!ch.isConnected()) {
                     remove = true;
-                } else if (System.currentTimeMillis() - ch.getTimeOfLastPacketReceived() > 3000) {
+                } else if (System.currentTimeMillis() - ch.getTimeOfLastPacketReceived() > getTimeoutMillis()) {
                     plugin.print(ch.getName() + " timed out");
                     remove = true;
                 } else {
@@ -186,6 +187,14 @@ public class SyncServer implements SyncNetCore {
                 }
             }
         });
+    }
+
+    public void setTimeoutMillis(long timeoutMillis) {
+        this.timeoutMillis = timeoutMillis;
+    }
+
+    public long getTimeoutMillis() {
+        return this.timeoutMillis;
     }
 
     public void updateClientsWithServerList() {
