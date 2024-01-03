@@ -376,6 +376,7 @@ public class PlayerData {
     private final VariableString gamemode;
     private final VariableString nickname;
     private final VariableBoolean vanished;
+    private final VariableBoolean afk;
     private final VariableDouble health;
     private final VariableDouble saturation;
     private final VariableInteger food;
@@ -404,6 +405,7 @@ public class PlayerData {
         this.nickname = putInternal(new VariableString("nickname", null, false));
 
         this.vanished = putInternal(new VariableBoolean("v", vanished, false));
+        this.afk = putInternal(new VariableBoolean("afk", false, false));
 
         this.health = putInternal(new VariableDouble("health", null, false));
         this.saturation = putInternal(new VariableDouble("saturation", null, false));
@@ -559,6 +561,17 @@ public class PlayerData {
 
     public void setVanished(boolean vanished) {
         this.vanished.set(vanished);
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public boolean isAFK() {
+        return afk.get();
+    }
+
+    @SuppressWarnings("unused")
+    public void setAFK(boolean vanished) {
+        this.afk.set(vanished);
     }
 
     public void setHealth(double health) {

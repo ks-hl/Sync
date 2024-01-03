@@ -13,6 +13,9 @@
 
     <build>
         <finalName>${project.artifactId}-${project.version}</finalName>
+
+        <sourceDirectory>src/main/java</sourceDirectory>
+        <testSourceDirectory>src/test/java</testSourceDirectory>
         <resources>
             <resource>
                 <directory>${basedir}</directory>
@@ -38,6 +41,7 @@
                         <configuration>
                             <artifactSet>
                                 <includes>
+<!--                                    <include>org.json:json</include>-->
                                     <include>${project.groupId}:SyncCore</include>
                                     <include>dev.kshl:KshLib</include>
                                 </includes>
@@ -102,6 +106,12 @@
             <id>placeholderapi</id>
             <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
         </repository>
+
+        <!--        Essentials-->
+        <repository>
+            <id>essentials-releases</id>
+            <url>https://repo.essentialsx.net/snapshots/</url>
+        </repository>
     </repositories>
     <dependencies>
         <dependency>
@@ -139,6 +149,18 @@
             <artifactId>placeholderapi</artifactId>
             <version>2.11.5</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.essentialsx</groupId>
+            <artifactId>EssentialsX</artifactId>
+            <version>2.20.0-SNAPSHOT</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
 

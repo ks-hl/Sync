@@ -1,5 +1,7 @@
 package dev.heliosares.sync.spigot;
 
+import com.earth2me.essentials.Essentials;
+import com.earth2me.essentials.User;
 import dev.heliosares.sync.MySender;
 import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCore;
@@ -20,6 +22,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.metadata.MetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.json.JSONObject;
@@ -38,6 +41,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
     private static SyncSpigot instance;
     private SyncClient sync;
     private boolean debug = false;
+    private Plugin essentials;
 
     public SyncSpigot() {
         try {
@@ -73,6 +77,10 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         try {
             this.getServer().getPluginManager().registerEvents(new VanishListener(this), this);
         } catch (Throwable ignored) {
+        }
+
+        if ((essentials = getServer().getPluginManager().getPlugin("Essentials")) != null) {
+            this.getServer().getPluginManager().registerEvents(new EssentialsListener(), this);
         }
 
         File file = new File(getDataFolder(), "private.key");
@@ -165,7 +173,7 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
                 warning("Invalid sound '" + soundPacket.sound().get() + "' from " + server);
                 return;
             }
-            Consumer<Player> playSound = player -> player.playSound(player.getEyeLocation(), sound, soundPacket.pitch().get(1d).floatValue(), soundPacket.volume().get(1d).floatValue());
+            Consumer<Player> playSound = player -> player.playSound(player.getEyeLocation(), sound, soundPacket.volume().get(1d).floatValue(), soundPacket.pitch().get(1d).floatValue());
             String to = soundPacket.to().get();
             if (to != null) {
                 Player toPlayer = getPlayer(to);
@@ -271,6 +279,12 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
         data.setSaturation(player.getSaturation());
         data.setFood(player.getFoodLevel());
         data.setGameMode(player.getGameMode().toString());
+
+        if (essentials != null && essentials instanceof Essentials essentials_) {
+            User user = essentials_.getUser(player);
+            data.setAFK(user.isAfk());
+            data.setNickname(user.getNickname());
+        }
     }
 
     @Override

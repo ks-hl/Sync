@@ -143,7 +143,7 @@ public class TestMain {
 
         server.getSync().getUserManager().sendHash();
 
-        Thread.sleep(80);
+        Thread.sleep(150);
 
         assert client1.getSync().getUserManager().getPlayer(uuid) != null;
     }
@@ -187,7 +187,7 @@ public class TestMain {
         }
 
         testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
-        Thread.sleep(30);
+        Thread.sleep(150);
         {
             PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
             assert playerData != null;

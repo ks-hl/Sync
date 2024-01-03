@@ -3,6 +3,7 @@ package dev.heliosares.sync.net.packet;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
+import java.math.BigDecimal;
 import java.util.Objects;
 
 public abstract class Param<T> {
@@ -65,6 +66,7 @@ public abstract class Param<T> {
 
         @Override
         protected Double map(Object o) {
+            if (o instanceof BigDecimal bd) return bd.doubleValue();
             if (o instanceof Integer i) return (double) i;
             return (Double) o;
         }
