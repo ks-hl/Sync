@@ -18,8 +18,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -143,9 +145,22 @@ public class TestMain {
 
         server.getSync().getUserManager().sendHash();
 
-        Thread.sleep(150);
+        await(() -> client1.getSync().getUserManager().getPlayer(uuid), 1000, "Player data timed out");
+    }
 
-        assert client1.getSync().getUserManager().getPlayer(uuid) != null;
+    public static <T> T await(Supplier<T> supplier, long timeout, String message) throws TimeoutException {
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < timeout) {
+            var out = supplier.get();
+            if (out != null) return out;
+            try {
+                //noinspection BusyWait
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        throw new TimeoutException(message);
     }
 
     @Test
@@ -187,10 +202,8 @@ public class TestMain {
         }
 
         testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
-        Thread.sleep(150);
         {
-            PlayerData playerData = testClient4.getSync().getUserManager().getPlayer(uuid);
-            assert playerData != null;
+            PlayerData playerData = await(() -> testClient4.getSync().getUserManager().getPlayer(uuid), 1000, "Player data timed out");
             testClient4.print(playerData.toString());
 
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");

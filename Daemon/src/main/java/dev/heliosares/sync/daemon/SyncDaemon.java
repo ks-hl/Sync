@@ -10,7 +10,6 @@ import dev.heliosares.sync.utils.CustomLogger;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -20,51 +19,56 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class SyncDaemon implements SyncCore {
+public abstract class SyncDaemon implements SyncCore {
 
-    private static final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(10);
-    private final SyncClient syncClient;
-    private final Logger logger;
+    private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(10);
+    private SyncClient syncClient;
 
-    public SyncDaemon(String name) throws FileNotFoundException, InvalidKeySpecException {
-        this.logger = CustomLogger.getLogger(name);
-        this.syncClient = new SyncClient(this, EncryptionRSA.load(getPrivateKeyOrGen(name)));
+    public File getPublicKeyFile() {
+        return new File("DAEMON_NAME.public.key");
     }
 
-    protected File getPrivateKeyOrGen(String name) {
-        File file = new File("private.key");
-        if (!file.exists()) {
-            print("Key does not exist, regenerating...");
-            File publicKeyFile = new File("DAEMON_NAME.public.key");
-            try {
-                boolean ignored = file.createNewFile();
-                if (!publicKeyFile.exists()) {
-                    boolean ignored2 = publicKeyFile.createNewFile();
-                }
-                EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
-                pair.privateKey().write(file);
-                pair.publicKey().write(publicKeyFile);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            print("Keys generated successfully. Please copy 'DAEMON_NAME.public.key' to the proxy under 'plugins/Sync/clients/DAEMON_NAME.public.key', renaming 'DAEMON_NAME' to the daemon's name");
-        }
-        return file;
+    public File getPrivateKeyFile() {
+        return new File("private.key");
     }
 
     public static void main(String[] args) {
         final SyncDaemon plugin;
-        try {
-            plugin = new SyncDaemon("daemon");
-        } catch (FileNotFoundException | InvalidKeySpecException e) {
-            System.err.println("Failed to load key file.");
-            //noinspection CallToPrintStackTrace
-            e.printStackTrace();
-            return;
-        }
+        Logger logger = CustomLogger.getLogger("Sync");
+        plugin = new SyncDaemon() {
+
+            @Override
+            public void print(String message, Throwable t) {
+                if (message == null) message = "";
+                else message += ": ";
+                message += t.getMessage();
+                logger.log(Level.WARNING, message, t);
+            }
+
+            @Override
+            public void debug(String msg) {
+                print("[Debug] " + msg);
+            }
+
+            @Override
+            public void warning(String msg) {
+                logger.warning(msg);
+            }
+
+            @Override
+            public void print(String msg) {
+                logger.info(msg);
+            }
+        };
 
         try {
-            run(plugin, args);
+            plugin.init();
+            String command = plugin.connect(args);
+            plugin.run(command);
+            plugin.close();
+        } catch (IllegalArgumentException e) {
+            plugin.warning(e.getMessage());
+            System.exit(1);
         } catch (Exception e) {
             plugin.print("Error while running", e);
             System.exit(2);
@@ -73,13 +77,18 @@ public class SyncDaemon implements SyncCore {
         System.exit(0);
     }
 
-    public static void run(SyncDaemon plugin, String... args) {
+    /**
+     * Connects to the Sync server
+     *
+     * @return The unused portion of the args parameter, typically the command to be executed
+     */
+    public String connect(String... args) throws Exception {
         if (args == null || args.length == 0) {
-            System.err.println("You must specify arguments (either just a command like `java -jar sync.jar say test` or consume a `-port:<port>` argument at the beginning.)");
-            return;
+            throw new IllegalArgumentException("You must specify arguments (either just a command like `java -jar sync.jar say test` or consume a `-port:<port>` argument at the beginning.)");
         }
-        int port = 8001;
+
         boolean portTerm = false;
+        int port = 8001;
         if (args[0].startsWith("-port:")) {
             try {
                 port = Integer.parseInt(args[0].substring("-port:".length()));
@@ -88,22 +97,51 @@ public class SyncDaemon implements SyncCore {
                 throw new RuntimeException("Invalid parameter: " + args[0], e);
             }
         }
+        connect(port);
+        return CommandParser.concat(portTerm ? 1 : 0, args);
+    }
 
-        try {
-            plugin.getSync().start(null, port).getAndThrow(1, TimeUnit.SECONDS);
-        } catch (Exception e1) {
-            throw new RuntimeException("Failed to connect.", e1);
+    public void init() throws IOException, InvalidKeySpecException {
+        if (syncClient != null) throw new IllegalStateException("Already initialized");
+        File privateKeyFile = getPrivateKeyFile();
+        if (!privateKeyFile.exists()) {
+            print("Key does not exist, regenerating...");
+            //noinspection ResultOfMethodCallIgnored
+            privateKeyFile.getParentFile().mkdirs();
+            boolean ignored = privateKeyFile.createNewFile();
+            File publicKeyFile = getPublicKeyFile();
+            if (!publicKeyFile.exists()) {
+                boolean ignored2 = publicKeyFile.createNewFile();
+            }
+            EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
+            pair.privateKey().write(privateKeyFile);
+            pair.publicKey().write(publicKeyFile);
+            print("Keys generated successfully. Please copy 'DAEMON_NAME.public.key' to the proxy under 'plugins/Sync/clients/DAEMON_NAME.public.key', renaming 'DAEMON_NAME' to the daemon's name");
         }
-        String command = CommandParser.concat(portTerm ? 1 : 0, args);
-        System.out.println("Sending: " + command);
+        this.syncClient = new SyncClient(this, EncryptionRSA.load(privateKeyFile));
+    }
+
+    public void connect(int port) throws Exception {
+        if (syncClient == null) throw new IllegalStateException("Not initialized");
+        print("Connecting on port " + port + "...");
+        getSync().start(null, port).getAndThrow(1, TimeUnit.SECONDS);
+        print("Connected as " + getSync().getName());
+    }
+
+    public void close() {
+        getSync().close();
+    }
+
+    public void run(String command) {
+        if (syncClient == null || !syncClient.isConnected()) throw new IllegalStateException("Not initialized");
+        print("Sending: " + command);
         try {
-            plugin.getSync().send(new CommandPacket(command));
-            System.out.println("Command sent.");
+            getSync().send(new CommandPacket(command));
+            print("Command sent.");
             Thread.sleep(100);
         } catch (Exception e1) {
             throw new RuntimeException("Failed to send command.", e1);
         }
-        plugin.getSync().close();
     }
 
     @Override
@@ -162,32 +200,5 @@ public class SyncDaemon implements SyncCore {
 
     @Override
     public void onNewPlayerData(PlayerData data) {
-    }
-
-    @Override
-    public void print(String message, Throwable t) {
-        if (message == null) message = "";
-        else message += ": ";
-        message += t.getMessage();
-        getLogger().log(Level.WARNING, message, t);
-    }
-
-    @Override
-    public void debug(String msg) {
-        print("[Debug] " + msg);
-    }
-
-    @Override
-    public void warning(String msg) {
-        getLogger().warning(msg);
-    }
-
-    @Override
-    public void print(String msg) {
-        getLogger().info(msg);
-    }
-
-    protected Logger getLogger() {
-        return logger;
     }
 }
