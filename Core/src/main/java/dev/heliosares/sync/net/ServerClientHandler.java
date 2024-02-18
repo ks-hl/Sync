@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncAPI;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
+import dev.kshl.kshlib.encryption.CodeGenerator;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.encryption.EncryptionDH;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
@@ -58,11 +59,14 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                 throw new InvalidKeyException("No key matching provided");
             }
             sendRaw(EncryptionDH.encrypt(keyDH, clientRSA.encrypt(getEncryption().encodeKey())));
-            if (!new String(read().decrypted()).equals("ACK")) {
+
+            final String nonce = "NCE-" + CodeGenerator.generateSecret(32, true, true, true);
+            send(nonce.getBytes());
+            if (!new String(read().decrypted()).equals("ACK-" + nonce)) {
                 // Tests that the client has the decrypted AES key
-                throw new InvalidKeyException("Invalid key");
+                throw new InvalidKeyException("Invalid acknowledgement");
             }
-            send("ACK".getBytes());
+
             byte[] myVersion = PROTOCOL_VERSION.getBytes();
             byte[] otherVersion = read().decrypted();
             send(myVersion);

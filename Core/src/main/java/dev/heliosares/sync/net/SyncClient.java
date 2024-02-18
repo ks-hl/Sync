@@ -59,11 +59,14 @@ public class SyncClient implements SyncNetCore {
         connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
         try {
             connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
-            connection.send("ACK".getBytes());
-            if (!new String(connection.read().decrypted()).equals("ACK")) {
+
+            final String nonce = new String(connection.read().decrypted());
+            if (!nonce.startsWith("NCE-")) {
                 // Tests that the client has the decrypted AES key
                 throw new InvalidKeyException("Invalid key");
             }
+            connection.send(("ACK-" + nonce).getBytes());
+
         } catch (EOFException e) {
             throw new InvalidKeyException("Server ended connection during authentication");
         }

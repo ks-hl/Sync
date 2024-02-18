@@ -164,7 +164,7 @@ public class TestMain {
         throw new TimeoutException(message);
     }
 
-    @Test
+    @Test(timeout = 3000L)
     public void testPlayerDataCustom() throws Exception {
         TestClient testClient4 = new TestClient("client4");
         server.reloadKeys(false);
@@ -174,8 +174,11 @@ public class TestMain {
         {
             server.getSync().getUserManager().addPlayer("testPlayer", uuid, "proxy", true);
             Thread.sleep(10);
-            PlayerData playerData = server.getSync().getUserManager().getPlayer(uuid);
-            assert playerData != null;
+            PlayerData playerData;
+            do {
+                Thread.sleep(3);
+                playerData = server.getSync().getUserManager().getPlayer(uuid);
+            } while (playerData == null);
             playerData.getCustomString("test", "key1", true).set("value1");
             playerData.getCustomBoolean("test", "key2", true).set(true);
             playerData.getCustomStringSet("test", "key3", true).set(Set.of("value3"));
@@ -187,11 +190,13 @@ public class TestMain {
             server.print(playerData.toString());
         }
 
-        Thread.sleep(10);
 
         {
-            PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
-            assert playerData != null;
+            PlayerData playerData;
+            do {
+                Thread.sleep(3);
+                playerData = client1.getSync().getUserManager().getPlayer(uuid);
+            } while (playerData == null);
             client1.print(playerData.toString());
 
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
@@ -218,11 +223,15 @@ public class TestMain {
         Thread.sleep(10);
 
         {
-            PlayerData playerData = client1.getSync().getUserManager().getPlayer(uuid);
-            assert playerData != null;
-            client1.print(playerData.toString());
-            assertEquals(playerData.getCustomString("test", "key1", true).get(), "value2");
+            PlayerData playerData_;
+            do {
+                Thread.sleep(3);
+                playerData_ = client1.getSync().getUserManager().getPlayer(uuid);
+            } while (playerData_ == null);
+            client1.print(playerData_.toString());
+            assertEquals(playerData_.getCustomString("test", "key1", true).get(), "value2");
 
+            PlayerData playerData = playerData_;
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomBoolean("+", "a", true));
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomString(null, "ed", true));
             assertThrows(IllegalArgumentException.class, () -> playerData.getCustomStringSet("a", null, true));
