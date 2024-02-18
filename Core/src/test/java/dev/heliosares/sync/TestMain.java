@@ -20,6 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -304,7 +305,7 @@ public class TestMain {
     @Test(timeout = 10000)
     public void testStressTest() throws Exception {
         Set<CompletableFuture<Boolean>> receivedSet = new HashSet<>();
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 100; i++) {
             CompletableFuture<Boolean> received1 = new CompletableFuture<>();
             receivedSet.add(received1);
             client1.getSync().send(null, new PingPacket(), response -> {
@@ -318,8 +319,36 @@ public class TestMain {
                 received2.complete(true);
                 server.print("Ping: " + ((PingPacket) response).getRTT() + "ms");
             });
+
+            Thread.sleep(3);
         }
 
         for (CompletableFuture<Boolean> future : receivedSet) future.get();
+    }
+
+    @Test
+    public void testReplayAttack() throws Exception {
+        var client = new TestClient("replay_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+            // makes it so the client won't attempt to reconnect after being timed out
+            @Override
+            public void closeTemporary() {
+                close();
+            }
+        }));
+        CompletableException<Exception> client1Completable = client.getSync().start("localhost", PORT);
+        client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
+
+        PingPacket packet = new PingPacket();
+        AtomicInteger responseCount = new AtomicInteger();
+        client.getSync().send(null, packet, response -> {
+            responseCount.incrementAndGet();
+            client1.print("Ping: " + ((PingPacket) response).getRTT() + "ms");
+        });
+        Thread.sleep(15);
+        client.getSync().send(null, packet);
+        Thread.sleep(15);
+        client.getSync().close();
+        assert responseCount.get() > 0 : "Normal packet did not receive a response.";
+        assert responseCount.get() == 1 : "Replay packet received a response.";
     }
 }

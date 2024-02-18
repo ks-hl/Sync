@@ -15,6 +15,7 @@ import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.utils.CommandParser;
 import dev.heliosares.sync.utils.CommandParser.Result;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
+import dev.kshl.kshlib.misc.Objects2;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.BaseComponent;
@@ -41,6 +42,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +69,12 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
     }
 
     public static void tell(CommandSender sender, String msg) {
-        sender.sendMessage(TextComponent.fromLegacyText(ChatColor.translateAlternateColorCodes('&', msg)));
+        if (sender.equals(getInstance().getProxy().getConsole())) {
+            msg = ChatColor.stripColor(msg);
+        } else {
+            msg = ChatColor.translateAlternateColorCodes('&', msg);
+        }
+        sender.sendMessage(TextComponent.fromLegacyText(msg));
     }
 
     @Override
@@ -150,6 +157,34 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
             response.result().set(player.hasPermission(node));
             sync.send(response);
         }));
+
+        // TODO this is a bandaid, find cause of players not getting added on join
+        getProxy().getScheduler().schedule(this, () -> {
+            Set<UUID> online = new HashSet<>(getProxy().getPlayers().stream().map(ProxiedPlayer::getUniqueId).toList());
+            Set<UUID> remove = new HashSet<>();
+            for (PlayerData data : getSync().getUserManager().getAllPlayerData()) {
+                if (!online.remove(data.getUUID())) remove.add(data.getUUID());
+            }
+            for (UUID uuid : online) {
+                warning("Secondary addition of " + uuid);
+                ProxiedPlayer player = getProxy().getPlayer(uuid);
+                addPlayerData(player.getName(), uuid);
+            }
+            for (UUID uuid : remove) {
+                warning("Secondary removal of " + uuid);
+                removePlayerData(uuid);
+            }
+            for (PlayerData data : getSync().getUserManager().getAllPlayerData()) {
+                ProxiedPlayer player = getProxy().getPlayer(data.getUUID());
+                if (player == null) continue;
+
+                String server = Objects2.mapIfNotNull(player.getServer(), s -> s.getInfo().getName());
+                if (Objects.equals(data.getServer(), server)) continue;
+
+                warning("Secondary set server of " + data.getName() + " to " + server);
+                data.setServer(server);
+            }
+        }, 3, 3, TimeUnit.SECONDS);
     }
 
     @Override
@@ -292,14 +327,22 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         return getProxy().getPlayer(uuid) != null;
     }
 
+    private void addPlayerData(String name, UUID uuid) {
+        getSync().getUserManager().addPlayer(name, uuid, "proxy", true);
+    }
+
+    private void removePlayerData(UUID uuid) {
+        getSync().getUserManager().removePlayer(uuid);
+    }
+
     @EventHandler
     public void on(LoginEvent e) {
-        getSync().getUserManager().addPlayer(e.getConnection().getName(), e.getConnection().getUniqueId(), "proxy", true);
+        addPlayerData(e.getConnection().getName(), e.getConnection().getUniqueId());
     }
 
     @EventHandler
     public void on(PlayerDisconnectEvent e) {
-        getSync().getUserManager().removePlayer(e.getPlayer().getUniqueId());
+        removePlayerData(e.getPlayer().getUniqueId());
     }
 
     @EventHandler

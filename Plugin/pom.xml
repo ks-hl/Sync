@@ -41,7 +41,7 @@
                         <configuration>
                             <artifactSet>
                                 <includes>
-<!--                                    <include>org.json:json</include>-->
+                                    <include>org.json:json</include>
                                     <include>${project.groupId}:SyncCore</include>
                                     <include>dev.kshl:KshLib</include>
                                 </includes>

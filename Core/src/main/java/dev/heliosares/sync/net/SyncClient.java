@@ -192,7 +192,7 @@ public class SyncClient implements SyncNetCore {
             if (!isConnected() || closed || connection == null || !connection.isConnected()) {
                 return;
             }
-            connection.sendKeepAlive();
+            connection.sendKeepAlive(idProvider);
             if (System.currentTimeMillis() - connection.getTimeOfLastPacketReceived() > 10000) {
                 closeTemporary();
                 plugin.warning("timed out from proxy");
@@ -312,4 +312,7 @@ public class SyncClient implements SyncNetCore {
         return connectedCompletable;
     }
 
+    IDProvider getIDProvider() {
+        return idProvider;
+    }
 }

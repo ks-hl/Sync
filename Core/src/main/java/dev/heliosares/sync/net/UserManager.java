@@ -190,7 +190,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
     public void addPlayer(String name, UUID uuid, String server, boolean sendPacket) {
         PlayerData data = new PlayerData(plugin, server, name, uuid, false);
 
-        players.consume(players -> players.put(uuid, data));
+        players.put(uuid, data);
 
         if (!sendPacket) return;
 

@@ -10,8 +10,8 @@ public class Packet {
     private final String channel;
     private final PacketType type;
     private final JSONObject payload;
-    private Long responseID;
-    private final boolean isResponse;
+    private IDProvider.ID responseID;
+    private IDProvider.ID replyToResponseID;
     private String origin;
     private String forward;
 
@@ -32,17 +32,12 @@ public class Packet {
     public Packet(JSONObject packet) throws MalformedPacketException {
         if (!packet.has("ty")) throw new MalformedPacketException("No type specified");
         type = PacketType.getByID(packet.getInt("ty"));
-        if (type == PacketType.KEEP_ALIVE) {
-            responseID = null;
-            isResponse = false;
-        } else if (packet.has("dir")) { // Get it? Like rid but backwards
-            responseID = packet.getLong("dir");
-            isResponse = true;
-        } else if (packet.has("rid")) {
-            responseID = packet.getLong("rid");
-            isResponse = false;
-        } else {
-            throw new MalformedPacketException("No response ID");
+
+        if (packet.has("rid")) {
+            responseID = IDProvider.parse(packet.getLong("rid"));
+        }
+        if (packet.has("rtr")) {
+            replyToResponseID = IDProvider.parse(packet.getLong("rtr"));
         }
         if (packet.has("ch")) channel = packet.getString("ch");
         else channel = null;
@@ -54,11 +49,16 @@ public class Packet {
     }
 
     protected Packet(String channel, PacketType type, JSONObject payload, Long responseID, boolean isResponse) {
-        this.responseID = responseID;
+        if (responseID != null) {
+            if (isResponse) {
+                this.replyToResponseID = IDProvider.parse(responseID);
+            } else {
+                this.responseID = IDProvider.parse(responseID);
+            }
+        }
         this.channel = channel;
         this.type = type;
         this.payload = payload;
-        this.isResponse = isResponse;
     }
 
     /**
@@ -69,16 +69,16 @@ public class Packet {
      */
     public Packet createResponse(JSONObject payload) {
         if (isResponse()) throw new IllegalArgumentException("Cannot reply to a response!");
-        return type.mapper.apply(new Packet(channel, type, payload, responseID, true).toJSON()).setForward(origin);
+        return type.mapper.apply(new Packet(channel, type, payload, responseID.combined(), true).toJSON(true)).setForward((origin == null || origin.equals("proxy")) ? null : origin);
     }
 
     public void assignResponseID(IDProvider provider) {
-        if (responseID == null) responseID = provider.getNextID().combined();
+        if (responseID == null) responseID = provider.getNextID();
     }
 
     @Override
     public String toString() {
-        return toJSON().toString(2);
+        return toJSON(true).toString(2);
     }
 
     /**
@@ -86,7 +86,7 @@ public class Packet {
      * <br>
      * rid - Response ID
      * <br>
-     * dir - Reply to Response ID
+     * rtr - Reply to Response ID
      * <br>
      * ch  - Channel
      * <br>
@@ -96,11 +96,16 @@ public class Packet {
      * <br>
      */
     public JSONObject toJSON() {
-        if (responseID == null && getType() != PacketType.KEEP_ALIVE)
+        return toJSON(false);
+    }
+
+    public JSONObject toJSON(boolean allowNullResponseID) {
+        if (!allowNullResponseID && responseID == null)
             throw new IllegalStateException("Can not send packet before assigning response ID");
         JSONObject json = new JSONObject();
         json.put("ty", type.id);
-        if (responseID != null) json.put(isResponse ? "dir" : "rid", responseID);
+        if (responseID != null) json.put("rid", responseID.combined());
+        if (replyToResponseID != null) json.put("rtr", replyToResponseID.combined());
         if (channel != null) json.put("ch", channel);
         if (payload != null && !payload.isEmpty()) json.put("pl", payload);
         if (forward != null) json.put("fw", forward);
@@ -117,11 +122,15 @@ public class Packet {
     }
 
     public boolean isResponse() {
-        return isResponse;
+        return replyToResponseID != null;
     }
 
-    public long getResponseID() {
+    public IDProvider.ID getResponseID() {
         return responseID;
+    }
+
+    public IDProvider.ID getReplyToResponseID() {
+        return replyToResponseID;
     }
 
     public String getChannel() {

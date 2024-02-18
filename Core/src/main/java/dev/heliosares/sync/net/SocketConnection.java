@@ -19,6 +19,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -37,6 +39,7 @@ public class SocketConnection {
     private long lastPacketSent = System.currentTimeMillis();
     private long lastPacketReceived = System.currentTimeMillis();
     private long lastCleanup;
+    private Map<Short, LinkedList<Long>> packetIDChain = new HashMap<>();
 
     public SocketConnection(SyncCore plugin, Socket socket) throws IOException {
         this.plugin = plugin;
@@ -64,61 +67,80 @@ public class SocketConnection {
 
     @Nonnull
     public Packet listen() throws Exception {
-        try {
-            synchronized (in) {
-                PacketBytes packetBytes = read();
-                Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(packetBytes.decrypted())));
-                PacketBytes blobBytes_ = null;
-                if (packet instanceof BlobPacket blobPacket) {
-                    blobBytes_ = read();
-                    blobPacket.setBlob(blobBytes_.decrypted());
-                }
-                PacketBytes blobBytes = blobBytes_;
-
-                this.lastPacketReceived = System.currentTimeMillis();
-
-                if (packet.getType() != PacketType.KEEP_ALIVE) {
-                    plugin.debug(() -> {
-                        String line = "RECV";
-                        if (this instanceof ServerClientHandler sch) {
-                            if (packet.getForward() != null) line = "FWD";
-                            line += " (" + sch.getName();
-                            if (packet.getForward() != null) line += " -> " + packet.getForward();
-                            line += ")";
-                        }
-                        line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
-                        if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
-                        line += ")";
-                        line += ": " + packet;
-                        return line;
-                    });
-                }
-
-                if (packet.isResponse()) {
-                    plugin.runAsync(() -> {
-                        ResponseAction action = responses.get(packet.getResponseID());
-                        try {
-                            if (action != null) action.accept(packet);
-                        } catch (Throwable t) {
-                            plugin.print("Error while handling response packet " + packet, t);
-                        }
-                    });
-                }
-
-                cleanup();
-                return packet;
+        synchronized (in) {
+            PacketBytes packetBytes = read();
+            Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(packetBytes.decrypted())));
+            PacketBytes blobBytes_ = null;
+            if (packet instanceof BlobPacket blobPacket) {
+                blobBytes_ = read();
+                blobPacket.setBlob(blobBytes_.decrypted());
             }
-        } catch (NullPointerException e) {
-            throw new IOException("null packet received");
+
+            if (packet.getResponseID() == null) {
+                throw new IllegalArgumentException("responseID=null for " + packet);
+            }
+
+            LinkedList<Long> last = packetIDChain.computeIfAbsent(packet.getResponseID().connectionID(), o -> new LinkedList<>());
+
+            if (!last.isEmpty() && packet.getResponseID().packetID() <= last.getLast()) {
+                if (last.getLast() - packet.getResponseID().packetID() > 10 || last.contains(packet.getResponseID().packetID())) {
+                    throw new IllegalArgumentException(String.format("%s already received. Replay attack? (%d!=[%s], packet=%s)", packet.getResponseID(), packet.getResponseID().packetID(), last.stream().map(Object::toString).reduce((a, b) -> a + "," + b).orElse(""), packet));
+                }
+            }
+            last.addLast(packet.getResponseID().packetID());
+            while (last.size() > 1) {
+                Long oldest = last.getFirst();
+                if (Math.abs(packet.getResponseID().packetID() - oldest) > 10) {
+                    last.removeFirst();
+                } else break;
+            }
+
+            PacketBytes blobBytes = blobBytes_;
+
+            this.lastPacketReceived = System.currentTimeMillis();
+
+            if (packet.getType() != PacketType.KEEP_ALIVE && packet.getType() == PacketType.PING /* TODO remove */) {
+                plugin.debug(() -> {
+                    String line = "RECV";
+                    if (this instanceof ServerClientHandler sch) {
+                        if (packet.getForward() != null) line = "FWD";
+                        line += " (" + sch.getName();
+                        if (packet.getForward() != null) line += " -> " + packet.getForward();
+                        line += ")";
+                    }
+                    line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
+                    if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
+                    line += ")";
+                    line += ": " + packet;
+                    return line;
+                });
+            }
+
+            if (packet.isResponse()) {
+                plugin.runAsync(() -> {
+                    ResponseAction action = responses.get(packet.getReplyToResponseID().combined());
+                    try {
+                        if (action != null) action.accept(packet);
+                    } catch (Throwable t) {
+                        plugin.print("Error while handling response packet " + packet, t);
+                    }
+                });
+            }
+
+            cleanup();
+            return packet;
         }
     }
 
-    public void sendKeepAlive() throws IOException {
+    public void sendKeepAlive(IDProvider idProvider) throws IOException {
         if (System.currentTimeMillis() - getTimeOfLastPacketSent() < 500) return;
+        if (idProvider == null) return;
 
         if (getName() == null) return;
 
-        send(new Packet(null, PacketType.KEEP_ALIVE, null), null, 0, null);
+        Packet packet = new Packet(null, PacketType.KEEP_ALIVE, null);
+        packet.assignResponseID(idProvider);
+        send(packet, null, 0, null);
     }
 
     protected void send(Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) throws IOException {
@@ -135,8 +157,8 @@ public class SocketConnection {
                 };
             }
             if (responseConsumer != null) {
-                ResponseAction responseAction = new ResponseAction(packet.getResponseID(), sendTime, responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
-                responses.put(packet.getResponseID(), responseAction);
+                ResponseAction responseAction = new ResponseAction(packet.getResponseID().combined(), sendTime, responseConsumer, timeoutMillis > 0 ? timeoutMillis : 300000L, timeoutAction);
+                responses.put(packet.getResponseID().combined(), responseAction);
                 if (timeoutAction != null) {
                     plugin.scheduleAsync(() -> {
                         ResponseAction action = responses.remove(responseAction.id());
@@ -149,7 +171,7 @@ public class SocketConnection {
             PacketBytes blobBytes_ = null;
             if (packet instanceof BlobPacket blobPacket) blobBytes_ = send(blobPacket.getBlob());
             final PacketBytes blobBytes = blobBytes_;
-            if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
+            if (packet.getType() != PacketType.KEEP_ALIVE && packet.getType() == PacketType.PING /* TODO remove */ && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> {
                     String line = "SEND";
                     if (this instanceof ServerClientHandler sch) {

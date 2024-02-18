@@ -173,7 +173,7 @@ public class SyncServer implements SyncNetCore {
                     remove = true;
                 } else {
                     try {
-                        ch.sendKeepAlive();
+                        ch.sendKeepAlive(idProvider);
                     } catch (IOException e) {
                         plugin.print(ch.getName() + " timed out");
                         remove = true;
@@ -291,5 +291,9 @@ public class SyncServer implements SyncNetCore {
 
     public boolean isClosed() {
         return closed;
+    }
+
+    IDProvider getIDProvider() {
+        return idProvider;
     }
 }

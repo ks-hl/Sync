@@ -92,7 +92,7 @@ public class PlayerData {
             return name.startsWith("custom.");
         }
 
-        void setValueWithoutUpdate(T value) {
+        void setValueWithoutUpdate(@Nullable T value) {
             this.value = value;
             this.lastUpdated = System.currentTimeMillis();
         }
@@ -134,7 +134,7 @@ public class PlayerData {
             processVariable_(o.get(nameOnly));
         }
 
-        protected final void processVariable_(Object o) {
+        protected final void processVariable_(@Nullable Object o) {
             setValueWithoutUpdate(o == null ? null : processVariable(o));
         }
 
@@ -377,6 +377,7 @@ public class PlayerData {
     private final VariableString nickname;
     private final VariableBoolean vanished;
     private final VariableBoolean afk;
+    private final VariableBoolean muted;
     private final VariableDouble health;
     private final VariableDouble saturation;
     private final VariableInteger food;
@@ -406,6 +407,7 @@ public class PlayerData {
 
         this.vanished = putInternal(new VariableBoolean("v", vanished, false));
         this.afk = putInternal(new VariableBoolean("afk", false, false));
+        this.muted = putInternal(new VariableBoolean("muted", false, false));
 
         this.health = putInternal(new VariableDouble("health", null, false));
         this.saturation = putInternal(new VariableDouble("saturation", null, false));
@@ -465,7 +467,7 @@ public class PlayerData {
         }
         if (variable == null) throw new IllegalArgumentException("Invalid field to update: " + field);
 
-        variable.processVariable_(payload.get(nameOnly));
+        variable.processVariable_(payload.opt(nameOnly));
     }
 
     @Override
@@ -572,6 +574,17 @@ public class PlayerData {
     @SuppressWarnings("unused")
     public void setAFK(boolean vanished) {
         this.afk.set(vanished);
+    }
+
+    @CheckReturnValue
+    @SuppressWarnings("unused")
+    public boolean isMuted() {
+        return muted.get();
+    }
+
+    @SuppressWarnings("unused")
+    public void setMuted(boolean muted) {
+        this.muted.set(muted);
     }
 
     public void setHealth(double health) {

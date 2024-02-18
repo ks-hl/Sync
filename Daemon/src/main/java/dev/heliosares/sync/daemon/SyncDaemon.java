@@ -65,6 +65,7 @@ public abstract class SyncDaemon implements SyncCore {
             plugin.init();
             String command = plugin.connect(args);
             plugin.run(command);
+            Thread.sleep(100);
             plugin.close();
         } catch (IllegalArgumentException e) {
             plugin.warning(e.getMessage());
@@ -107,7 +108,7 @@ public abstract class SyncDaemon implements SyncCore {
         if (!privateKeyFile.exists()) {
             print("Key does not exist, regenerating...");
             //noinspection ResultOfMethodCallIgnored
-            privateKeyFile.getParentFile().mkdirs();
+            privateKeyFile.getAbsoluteFile().getParentFile().mkdirs();
             boolean ignored = privateKeyFile.createNewFile();
             File publicKeyFile = getPublicKeyFile();
             if (!publicKeyFile.exists()) {
@@ -132,16 +133,12 @@ public abstract class SyncDaemon implements SyncCore {
         getSync().close();
     }
 
-    public void run(String command) {
+    public void run(String command) throws IOException {
         if (syncClient == null || !syncClient.isConnected()) throw new IllegalStateException("Not initialized");
         print("Sending: " + command);
-        try {
-            getSync().send(new CommandPacket(command));
-            print("Command sent.");
-            Thread.sleep(100);
-        } catch (Exception e1) {
-            throw new RuntimeException("Failed to send command.", e1);
-        }
+
+        getSync().send(new CommandPacket(command));
+        print("Command sent.");
     }
 
     @Override

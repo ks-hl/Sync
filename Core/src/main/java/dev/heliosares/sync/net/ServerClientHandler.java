@@ -114,30 +114,36 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                     plugin.warning(getName() + " tried to send a packet but does not have write permission: " + packet);
                     continue;
                 }
-                if (!packet.isResponse() && IDProvider.parse(packet.getResponseID()).connectionID() != connectionID) {
+                if (packet.getResponseID().connectionID() != connectionID) {
                     plugin.warning(getName() + " tried to send a packet with the wrong connectionID: " + packet);
                     continue;
                 }
                 final String forward = packet.getForward();
                 plugin.runAsync(() -> {
-                    if (packet.getForward() != null) {
-                        packet.setForward(getName());
-                        Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
-                        if (forward.equalsIgnoreCase("all")) {
-                            server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
-                        } else {
-                            sendToServer.accept(forward);
-                        }
-                    }
-                    if (forward == null || forward.equalsIgnoreCase("all")) {
-                        server.getEventHandler().execute(getName(), packet);
-                        if (packet instanceof PingPacket pingPacket) {
-                            try {
-                                send(pingPacket.createResponse(), null, 0, null);
-                            } catch (IOException e) {
-                                plugin.print("Error while sending ping response", e);
+                    try {
+                        if (packet.getForward() != null) {
+                            packet.setForward(getName());
+                            Consumer<String> sendToServer = serverName -> server.send(serverName, packet);
+                            if (forward.equalsIgnoreCase("all")) {
+                                server.getServers().stream().filter(name -> !name.equalsIgnoreCase(getName())).forEach(sendToServer);
+                            } else {
+                                sendToServer.accept(forward);
                             }
                         }
+                        if (forward == null || forward.equalsIgnoreCase("all")) {
+                            if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
+                                Packet resp = pingPacket.createResponse();
+                                resp.assignResponseID(plugin.getSync().getIDProvider());
+                                try {
+                                    send(resp, null, 0, null);
+                                } catch (IOException e) {
+                                    plugin.print("Error while sending ping response", e);
+                                }
+                            }
+                            server.getEventHandler().execute(getName(), packet);
+                        }
+                    } catch (Throwable t) {
+                        plugin.print("Error handling packet async", t);
                     }
                 });
             } catch (Exception e1) {

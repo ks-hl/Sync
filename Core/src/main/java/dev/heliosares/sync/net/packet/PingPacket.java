@@ -36,7 +36,7 @@ public class PingPacket extends Packet {
     }
 
     public double getRTT() {
-        if (created < ping || ping == 0) return 0;
+        if (created < ping || ping == 0) return -1;
         return (created - ping) / 1000000d;
     }
 }
