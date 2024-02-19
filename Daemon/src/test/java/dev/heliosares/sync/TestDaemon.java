@@ -14,7 +14,7 @@ public class TestDaemon {
     @Test(timeout = 3000)
     public void testDaemon() throws Exception {
         long start = System.currentTimeMillis();
-        var server = new TestServer("server");
+        var server = new TestServer("server", null);
         var client1 = new TestClient("client1");
 
         System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");

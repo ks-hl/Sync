@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -17,7 +18,11 @@ public class TestServer extends TestPlatform implements SyncCoreProxy {
 
     public TestServer(String name, Function<SyncCore, SyncServer> syncServerFunction) {
         super(name);
-        this.syncNetCore = syncServerFunction.apply(this);
+        if (syncServerFunction == null) {
+            syncNetCore = new SyncServer(this, Map.of());
+        } else {
+            this.syncNetCore = syncServerFunction.apply(this);
+        }
     }
 
     public void reloadKeys(boolean print) {

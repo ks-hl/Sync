@@ -44,9 +44,9 @@ public class TestMain {
     }
 
     private static void delete(File file) {
-        if (file.isDirectory()) {
-            for (File file_ : file.listFiles()) delete(file_);
-        }
+        var files = file.listFiles();
+        if (files != null) for (File file_ : files) delete(file_);
+        //noinspection ResultOfMethodCallIgnored
         file.delete();
     }
 
@@ -55,7 +55,6 @@ public class TestMain {
     }
 
     private TestServer createServer(@Nullable Function<SyncCore, SyncServer> syncServerFunction) {
-        if (syncServerFunction == null) syncServerFunction = pl -> new SyncServer(pl, Map.of());
         TestServer server = new TestServer("server-" + ++serverID, syncServerFunction);
 
         server.getSync().start("localhost", 0);
@@ -93,12 +92,12 @@ public class TestMain {
     @Test(expected = GeneralSecurityException.class, timeout = 1000)
     public void testWrongKey() throws Exception {
         TestServer server = createServer();
-        TestClient client1 = createClient("client1", server);
-        TestClient client = createClient("client44873217", server, false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        TestClient goodClient = createClient("client", server);
+        createClient("client44873217", server, false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
             // makes it so the client uses client1's key ID
             @Override
             public String getRSAUserID() {
-                return client1.getSync().getRSAUserID();
+                return goodClient.getSync().getRSAUserID();
             }
         }));
     }
