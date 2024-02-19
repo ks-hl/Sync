@@ -41,7 +41,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -87,7 +89,14 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
         getProxy().getPluginManager().registerCommand(this, new MTellCommand("mtell", this));
         getProxy().getPluginManager().registerListener(this, this);
 
-        sync = new SyncServer(this);
+        var p2pHostSection = config.getSection("p2p-hosts");
+        Map<String, String> p2pHosts = new HashMap<>();
+        if (p2pHostSection != null) {
+            for (String key : p2pHostSection.getKeys()) {
+                p2pHosts.put(key, p2pHostSection.getString(key));
+            }
+        }
+        sync = new SyncServer(this, p2pHosts);
         reloadKeys(false);
 
         for (ProxiedPlayer player : getProxy().getPlayers()) {

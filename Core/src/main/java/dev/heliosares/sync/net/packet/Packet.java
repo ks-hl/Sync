@@ -46,6 +46,7 @@ public class Packet {
         else payload = new JSONObject();
 
         if (packet.has("fw")) forward = packet.getString("fw");
+        if (packet.has("or")) origin = packet.getString("or");
     }
 
     protected Packet(String channel, PacketType type, JSONObject payload, Long responseID, boolean isResponse) {
@@ -106,9 +107,10 @@ public class Packet {
         json.put("ty", type.id);
         if (responseID != null) json.put("rid", responseID.combined());
         if (replyToResponseID != null) json.put("rtr", replyToResponseID.combined());
-        if (channel != null) json.put("ch", channel);
+        json.put("ch", channel);
         if (payload != null && !payload.isEmpty()) json.put("pl", payload);
-        if (forward != null) json.put("fw", forward);
+        json.put("fw", forward);
+        json.put("or", origin);
         return json;
     }
 

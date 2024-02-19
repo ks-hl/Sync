@@ -8,6 +8,8 @@ import dev.heliosares.sync.utils.CompletableException;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.encryption.EncryptionDH;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.annotation.Nullable;
 import javax.crypto.SecretKey;
@@ -16,16 +18,19 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class SyncClient implements SyncNetCore {
     public static final String PROTOCOL_VERSION = SyncAPI.PROTOCOL_VERSION;
@@ -36,41 +41,67 @@ public class SyncClient implements SyncNetCore {
     private SocketConnection connection;
     private boolean closed;
     private int unableToConnectCount = 0;
-    private Set<String> servers = new HashSet<>();
-
+    private final Map<String, P2PServerData> servers = new HashMap<>();
     private IDProvider idProvider;
     private boolean handshakeComplete;
     private final CompletableException<Exception> connectedCompletable = new CompletableException<>();
+    private P2PServer p2pServer;
 
     public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
+        this(plugin, encryption, true);
+    }
+
+    protected SyncClient(SyncCore plugin, EncryptionRSA encryption, boolean userManager) {
         this.plugin = plugin;
         this.eventHandler = new NetEventHandler(plugin);
-        this.usermanager = new UserManager(plugin, this);
         this.encryptionRSA = encryption;
-        eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
+        if (userManager) {
+            this.usermanager = new UserManager(plugin, this);
+            eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
+        } else {
+            this.usermanager = null;
+        }
+    }
+
+    @Nullable
+    public Boolean hasWritePermission(String name) {
+        var client = servers.get(name);
+        if (client == null) return null;
+        return client.write();
+    }
+
+    public String getRSAUserID() {
+        return encryptionRSA.getUUID().toString();
     }
 
     protected void handshake(SocketConnection connection) throws IOException, GeneralSecurityException {
         AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
+        plugin.debug("Received DH parameters");
         PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
+        plugin.debug("Received DH public");
         KeyPair keyPair = EncryptionDH.generate(params);
-        SecretKey keyDB = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
+        SecretKey keyDH = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
+        plugin.debug("Sending DH public");
         connection.sendRaw(keyPair.getPublic().getEncoded());
-        connection.sendRaw(EncryptionDH.encrypt(keyDB, encryptionRSA.getUUID().toString().getBytes()));
+        plugin.debug("Sending RSA ID");
+        connection.sendRaw(EncryptionDH.encrypt(keyDH, getRSAUserID().getBytes()));
         try {
-            connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDB, connection.readRaw()))));
+            connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDH, connection.readRaw()))));
+            plugin.debug("Received AES");
 
             final String nonce = new String(connection.read().decrypted());
             if (!nonce.startsWith("NCE-")) {
                 // Tests that the client has the decrypted AES key
-                throw new InvalidKeyException("Invalid key");
+                throw new InvalidKeyException("Invalid nonce");
             }
-            connection.send(("ACK-" + nonce).getBytes());
+            plugin.debug("Received nonce: " + nonce + ", sending ack");
+            connection.send(encryptionRSA.encrypt(("ACK-" + nonce).getBytes()));
 
         } catch (EOFException e) {
             throw new InvalidKeyException("Server ended connection during authentication");
         }
         byte[] myVersion = PROTOCOL_VERSION.getBytes();
+        plugin.debug("Sending protocol version v" + PROTOCOL_VERSION);
         connection.send(myVersion);
         byte[] otherVersion = connection.read().decrypted();
         if (!Arrays.equals(otherVersion, myVersion)) {
@@ -78,9 +109,27 @@ public class SyncClient implements SyncNetCore {
             close();
             return;
         }
+        plugin.debug("Protocol version match");
         connection.setName(new String(connection.read().decrypted()));
+        plugin.debug("Received name: " + getName());
         byte[] connectionIDBytes = connection.read().decrypted();
         idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
+        plugin.debug("Received connection ID: " + idProvider.getConnectionID());
+        plugin.debug("Starting P2P Server...");
+        p2pServer = new P2PServer(plugin);
+        p2pServer.start();
+        tr:
+        try {
+            for (int i = 0; i < 500; i++) {
+                Thread.sleep(1);
+                if (p2pServer.getPort() > 0) break tr;
+            }
+            throw new IOException("Failed to find port/start P2P server.");
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        plugin.debug("P2P server running on port " + p2pServer.getPort());
+        connection.send(ByteBuffer.allocate(4).putInt(p2pServer.getPort()).array());
 
         plugin.print("Authenticated as " + connection.getName() + ", ID=" + idProvider.getConnectionID());
     }
@@ -97,7 +146,7 @@ public class SyncClient implements SyncNetCore {
         handshakeComplete = true;
         unableToConnectCount = 0;
 
-        usermanager.request();
+        if (usermanager != null) usermanager.request();
     }
 
     /**
@@ -148,18 +197,57 @@ public class SyncClient implements SyncNetCore {
                     try {
                         while (!closed) { // Listen for packets
                             Packet packet = connection.listen();
-                            if (packet.getForward() != null) {
-                                packet.setOrigin(packet.getForward());
-                            } else {
-                                packet.setOrigin("proxy");
-                            }
                             if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
                                 send(pingPacket.createResponse());
                             }
                             if (packet.getType() == PacketType.SERVER_LIST) {
-                                servers = packet.getPayload().getJSONArray("servers").toList().stream().map(o -> (String) o).collect(Collectors.toUnmodifiableSet());
+                                JSONArray arr = packet.getPayload().getJSONArray("servers");
+
+                                Set<String> unhandled = new HashSet<>(servers.keySet());
+                                for (Object o : arr) {
+                                    if (!(o instanceof JSONObject json)) continue;
+                                    String name = json.getString("name");
+                                    if (name.equals(getName())) continue;
+                                    boolean write = json.getBoolean("write");
+                                    unhandled.remove(name);
+                                    String newHost = json.optString("p2p_host", null);
+                                    int newPort = 0;
+                                    if (newHost != null) {
+                                        newPort = json.getInt("p2p_port");
+                                    }
+                                    P2PServerData previous = servers.get(name);
+                                    if (previous != null) {
+                                        if (Objects.equals(newHost, previous.host()) && previous.port() == newPort && previous.write() == write) {
+                                            continue; // no change (same p2p server)
+                                        }
+                                    }
+
+                                    if (previous != null && previous.client() != null && !previous.host().equals(newHost)) {
+                                        // had a host, but there is now no host or there is a replacement host. Disconnect.
+                                        previous.client().close();
+                                        servers.put(name, null);
+                                    }
+                                    if (previous == null || previous.host() == null) {
+                                        // Have a new host, connect
+                                        P2PServerData newContainer;
+                                        if (newHost == null) {
+                                            newContainer = new P2PServerData(null, 0, null, write);
+                                        } else {
+                                            newContainer = new P2PServerData(newHost, newPort, new P2PClient(plugin, name), write);
+                                            newContainer.client().connect(newHost, newPort);
+                                        }
+                                        servers.put(name, newContainer);
+                                    }
+                                }
+                                for (String s : unhandled) {
+                                    var prev = servers.get(s);
+                                    if (prev != null && prev.client() != null) {
+                                        prev.client().close();
+                                    }
+                                    servers.remove(s);
+                                }
                             }
-                            eventHandler.execute("proxy", packet);
+                            eventHandler.execute(packet.getOrigin() == null ? "proxy" : packet.getOrigin(), packet);
                         }
                     } catch (NullPointerException | SocketException | EOFException e) {
                         plugin.print("Connection closed." + (closed ? "" : " Retrying..."));
@@ -252,9 +340,7 @@ public class SyncClient implements SyncNetCore {
     public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) throws IOException {
         checkAsync();
         if (server != null && !server.equals("all")) {
-            if (servers == null || !servers.contains(server)) {
-                return false;
-            }
+            if (!servers.containsKey(server)) return false;
         }
         if (server != null) packet.setForward(server);
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
@@ -295,7 +381,7 @@ public class SyncClient implements SyncNetCore {
     }
 
     public Set<String> getServers() {
-        return servers;
+        return servers.keySet();
     }
 
     @Override
@@ -315,7 +401,8 @@ public class SyncClient implements SyncNetCore {
         return connectedCompletable;
     }
 
-    IDProvider getIDProvider() {
+    public IDProvider getIDProvider() {
         return idProvider;
     }
+
 }

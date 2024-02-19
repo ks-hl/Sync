@@ -72,6 +72,19 @@ public class TestMain {
         completableException.getAndThrow();
     }
 
+    @Test(expected = GeneralSecurityException.class)
+    public void testWrongKey() throws Exception {
+        TestClient client = new TestClient("client44873217", false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+            // makes it so the client uses client1's key ID
+            @Override
+            public String getRSAUserID() {
+                return client1.getSync().getRSAUserID();
+            }
+        }));
+        CompletableException<Exception> completableException = client.getSync().start("localhost", PORT);
+        completableException.getAndThrow();
+    }
+
     @Test(timeout = 3000)
     public void testAPIPacket() throws Exception {
         CompletableFuture<Boolean> received = new CompletableFuture<>();
@@ -166,10 +179,13 @@ public class TestMain {
 
     @Test(timeout = 3000L)
     public void testPlayerDataCustom() throws Exception {
+        client1.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+
         TestClient testClient4 = new TestClient("client4");
         server.reloadKeys(false);
-        server.runAsync(() -> testClient4.getSync().start("localhost", PORT));
-        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        testClient4.getSync().start("localhost", PORT);
+        testClient4.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
         UUID uuid = UUID.randomUUID();
         {
             server.getSync().getUserManager().addPlayer("testPlayer", uuid, "proxy", true);
@@ -250,14 +266,17 @@ public class TestMain {
     @Test(timeout = 3000)
     public void testForwardedResponse() throws Exception {
         client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        Thread.sleep(10);
+        client1.warning("Client1 servers: " + client1.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
+        client1.warning("Client2 servers: " + client2.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
 
         CompletableFuture<Boolean> received1 = new CompletableFuture<>();
         client2.getSync().getEventHandler().registerListener(PacketType.API, "test:channel2", (server1, packet) -> client2.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
-        client1.getSync().send("client2", new Packet("test:channel2", PacketType.API, new JSONObject().put("ping", "ping")), response -> received1.complete(true));
+        assert client1.getSync().send("client2", new Packet("test:channel2", PacketType.API, new JSONObject().put("ping", "ping")), response -> received1.complete(true));
 
         CompletableFuture<Boolean> received2 = new CompletableFuture<>();
         client1.getSync().getEventHandler().registerListener(PacketType.API, "test:channel3", (server1, packet) -> client1.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
-        client2.getSync().send("client1", new Packet("test:channel3", PacketType.API, new JSONObject().put("ping", "ping")), response -> received2.complete(true));
+        assert client2.getSync().send("client1", new Packet("test:channel3", PacketType.API, new JSONObject().put("ping", "ping")), response -> received2.complete(true));
 
         assert received1.get();
         assert received2.get();
@@ -312,7 +331,7 @@ public class TestMain {
     }
 
     @Test(timeout = 10000)
-    public void testStressTest() throws Exception {
+    public void spamPing() throws Exception {
         Set<CompletableFuture<Boolean>> receivedSet = new HashSet<>();
         for (int i = 0; i < 100; i++) {
             CompletableFuture<Boolean> received1 = new CompletableFuture<>();
@@ -359,5 +378,14 @@ public class TestMain {
         client.getSync().close();
         assert responseCount.get() > 0 : "Normal packet did not receive a response.";
         assert responseCount.get() == 1 : "Replay packet received a response.";
+    }
+
+    @Test
+    public void testP2P() throws Exception {
+        TestClient client = new TestClient("p2p_client1");
+        server.reloadKeys(false);
+        server.runAsync(() -> client.getSync().start("localhost", PORT));
+        client.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        Thread.sleep(3000);
     }
 }

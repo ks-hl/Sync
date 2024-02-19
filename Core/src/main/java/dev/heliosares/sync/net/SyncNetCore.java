@@ -30,4 +30,6 @@ public interface SyncNetCore {
     String getName();
 
     UserManager getUserManager();
+
+    IDProvider getIDProvider();
 }

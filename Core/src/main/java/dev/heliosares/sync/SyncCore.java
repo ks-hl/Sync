@@ -1,5 +1,6 @@
 package dev.heliosares.sync;
 
+import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
@@ -11,6 +12,7 @@ public interface SyncCore {
     void runAsync(Runnable run);
 
     void scheduleAsync(Runnable run, long delay, long period);
+
     void scheduleAsync(Runnable run, long delay);
 
     void warning(String msg);
@@ -40,5 +42,4 @@ public interface SyncCore {
     PlatformType getPlatformType();
 
     void onNewPlayerData(PlayerData data);
-
 }

@@ -23,8 +23,8 @@ public final class NetEventHandler {
     }
 
     public void registerListener(PacketType type, String channel, PacketConsumer consumer) {
-        if (channel != null && !channel.matches("\\w+:\\w+")) {
-            throw new IllegalArgumentException("Channel name must conform to 'PluginName:Channel'");
+        if (channel != null && !channel.matches("\\w+:[\\w-]+")) {
+            throw new IllegalArgumentException("Channel name must conform to 'PluginName:Channel', '" + channel + "' does not");
         }
         listeners.consume(listeners -> listeners.add(new EventHandler(type, channel, consumer)));
     }

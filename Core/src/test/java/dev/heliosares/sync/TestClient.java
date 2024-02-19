@@ -1,5 +1,6 @@
 package dev.heliosares.sync;
 
+import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.SyncClient;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 

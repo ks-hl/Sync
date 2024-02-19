@@ -21,19 +21,20 @@ public enum PacketType {
     PING(2, PingPacket::new),//
     SERVER_LIST(3),//
     PLAYER_DATA(4),//
+    P2P_AUTH(5, BlobPacket::new),//
 
 
     // API
-    API(5), //
-    API_WITH_BLOB(6, BlobPacket::new), //
+    API(30), //
+    API_WITH_BLOB(31, BlobPacket::new), //
 
 
     // UTILITY
-    COMMAND(7, CommandPacket::new), //
-    MESSAGE(8, MessagePacket::new),//
-    PLAY_SOUND(9, PlaySoundPacket::new),//
-    SHOW_TITLE(10, ShowTitlePacket::new),//
-    HAS_PERMISSION(11, HasPermissionPacket::new);//
+    COMMAND(60, CommandPacket::new), //
+    MESSAGE(61, MessagePacket::new),//
+    PLAY_SOUND(62, PlaySoundPacket::new),//
+    SHOW_TITLE(63, ShowTitlePacket::new),//
+    HAS_PERMISSION(64, HasPermissionPacket::new);//
 
     public final int id;
     public final Function<JSONObject, Packet> mapper;
@@ -54,5 +55,9 @@ public enum PacketType {
     public static Packet getPacketFromJSON(JSONObject o) {
         if (!o.has("ty")) throw new MalformedPacketException("No type specified");
         return getByID(o.getInt("ty")).mapper.apply(o);
+    }
+
+    public boolean hasBlob() {
+        return this == API_WITH_BLOB || this == P2P_AUTH;
     }
 }

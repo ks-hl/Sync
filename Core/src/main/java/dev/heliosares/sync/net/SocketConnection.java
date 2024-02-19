@@ -7,6 +7,7 @@ import dev.heliosares.sync.net.packet.PingPacket;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.misc.Formatter;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -39,7 +40,7 @@ public class SocketConnection {
     private long lastPacketSent = System.currentTimeMillis();
     private long lastPacketReceived = System.currentTimeMillis();
     private long lastCleanup;
-    private Map<Short, LinkedList<Long>> packetIDChain = new HashMap<>();
+    private final Map<Short, LinkedList<Long>> packetIDChain = new HashMap<>();
 
     public SocketConnection(SyncCore plugin, Socket socket) throws IOException {
         this.plugin = plugin;
@@ -69,7 +70,13 @@ public class SocketConnection {
     public Packet listen() throws Exception {
         synchronized (in) {
             PacketBytes packetBytes = read();
-            Packet packet = PacketType.getPacketFromJSON(new JSONObject(new String(packetBytes.decrypted())));
+            String packetString = new String(packetBytes.decrypted());
+            Packet packet;
+            try {
+                packet = PacketType.getPacketFromJSON(new JSONObject(packetString));
+            } catch (JSONException e) {
+                throw new RuntimeException("Non-JSON packet received: " + packetString, e);
+            }
             PacketBytes blobBytes_ = null;
             if (packet instanceof BlobPacket blobPacket) {
                 blobBytes_ = read();
@@ -99,7 +106,7 @@ public class SocketConnection {
 
             this.lastPacketReceived = System.currentTimeMillis();
 
-            if (packet.getType() != PacketType.KEEP_ALIVE && packet.getType() == PacketType.PING /* TODO remove */) {
+            if (packet.getType() != PacketType.KEEP_ALIVE) {
                 plugin.debug(() -> {
                     String line = "RECV";
                     if (this instanceof ServerClientHandler sch) {
@@ -171,7 +178,7 @@ public class SocketConnection {
             PacketBytes blobBytes_ = null;
             if (packet instanceof BlobPacket blobPacket) blobBytes_ = send(blobPacket.getBlob());
             final PacketBytes blobBytes = blobBytes_;
-            if (packet.getType() != PacketType.KEEP_ALIVE && packet.getType() == PacketType.PING /* TODO remove */ && (packet.getForward() == null || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
+            if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getOrigin() == null || packet.getOrigin().equals("proxy") || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> {
                     String line = "SEND";
                     if (this instanceof ServerClientHandler sch) {

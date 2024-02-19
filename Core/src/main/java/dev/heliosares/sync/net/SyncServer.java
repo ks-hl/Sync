@@ -1,5 +1,6 @@
 package dev.heliosares.sync.net;
 
+import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.kshl.kshlib.concurrent.ConcurrentCollection;
@@ -17,25 +18,28 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
-    final SyncCoreProxy plugin;
+    final SyncCore plugin;
     private final NetEventHandler eventhandler;
     private final ConcurrentCollection<ArrayList<ServerClientHandler>, ServerClientHandler> clients = new ConcurrentCollection<>(new ArrayList<>());
     private final UserManager usermanager;
+    private final Map<String, String> p2pHostNames;
     private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;
     private boolean closed = false;
     private final IDProvider idProvider = new IDProvider((short) 0);
     private long timeoutMillis = 3000L;
 
-    public SyncServer(SyncCoreProxy plugin) {
+    public SyncServer(SyncCore plugin, Map<String, String> p2pHostNames) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
+        this.p2pHostNames = p2pHostNames;
         eventhandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
@@ -115,13 +119,13 @@ public class SyncServer implements SyncNetCore {
             // This loop restarts the server on failure
             while (!closed) {
                 try {
-                    serverSocket = new ServerSocket(port, 0, InetAddress.getByName(host));
+                    serverSocket = new ServerSocket(port, 0, host == null ? null : InetAddress.getByName(host));
 
-                    plugin.print("Server running on port " + port + ".");
+                    plugin.print("Server running on port " + serverSocket.getLocalPort() + ".");
                     // This look waits for clients
                     while (!closed) {
                         Socket socket = serverSocket.accept();
-                        ServerClientHandler ch = new ServerClientHandler(plugin, SyncServer.this, socket);
+                        var ch = accept(socket);
 
                         plugin.debug("Connection accepted from port " + socket.getPort());
 
@@ -146,6 +150,10 @@ public class SyncServer implements SyncNetCore {
         });
 
         plugin.scheduleAsync(this::keepAlive, 100, 100);
+    }
+
+    protected ServerClientHandler accept(Socket socket) throws IOException {
+        return new ServerClientHandler(plugin, SyncServer.this, socket);
     }
 
     /**
@@ -197,7 +205,21 @@ public class SyncServer implements SyncNetCore {
     }
 
     public void updateClientsWithServerList() {
-        send(new Packet(null, PacketType.SERVER_LIST, new JSONObject().put("servers", new JSONArray(getServers()))));
+        JSONObject payload = new JSONObject();
+        JSONArray servers = new JSONArray();
+        for (ServerClientHandler client : getClients()) {
+            if (client != null && client.isConnected() && client.getName() != null) {
+                JSONObject element = new JSONObject();
+                element.put("name", client.getName());
+                element.put("p2p_port", client.getP2PPort());
+                String hostname = p2pHostNames.get(client.getName());
+                element.put("p2p_host", hostname);
+                element.put("write", client.writePermission);
+                servers.put(element);
+            }
+        }
+        payload.put("servers", servers);
+        send(new Packet(null, PacketType.SERVER_LIST, payload));
     }
 
     /**
@@ -286,14 +308,19 @@ public class SyncServer implements SyncNetCore {
     }
 
     public boolean hasWritePermission(String user) {
-        return plugin.hasWritePermission(user);
+        if (!(plugin instanceof SyncCoreProxy syncCoreProxy)) throw new UnsupportedOperationException();
+        return syncCoreProxy.hasWritePermission(user);
     }
 
     public boolean isClosed() {
         return closed;
     }
 
-    IDProvider getIDProvider() {
+    public IDProvider getIDProvider() {
         return idProvider;
+    }
+
+    public int getPort() {
+        return serverSocket.getLocalPort();
     }
 }
