@@ -42,7 +42,7 @@ public class SyncClient implements SyncNetCore {
     private boolean closed;
     private int unableToConnectCount = 0;
     private final Map<String, P2PServerData> servers = new HashMap<>();
-    private IDProvider idProvider;
+    IDProvider idProvider;
     private boolean handshakeComplete;
     private final CompletableException<Exception> connectedCompletable = new CompletableException<>();
     private P2PServer p2pServer;
@@ -234,7 +234,8 @@ public class SyncClient implements SyncNetCore {
                                             newContainer = new P2PServerData(null, 0, null, write);
                                         } else {
                                             newContainer = new P2PServerData(newHost, newPort, new P2PClient(plugin, name), write);
-                                            newContainer.client().connect(newHost, newPort);
+                                            newContainer.client().start(newHost, newPort);
+                                            newContainer.client().idProvider = idProvider;
                                         }
                                         servers.put(name, newContainer);
                                     }
@@ -342,9 +343,24 @@ public class SyncClient implements SyncNetCore {
         if (server != null && !server.equals("all")) {
             if (!servers.containsKey(server)) return false;
         }
-        if (server != null) packet.setForward(server);
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
         packet.assignResponseID(idProvider);
+        P2PServerData serverData = servers.get(server);
+        if (serverData != null && serverData.client() != null && serverData.client().isConnected() && serverData.client().isHandshakeComplete()) {
+            return serverData.client().send(null, packet, responseConsumer, timeoutMillis, timeoutAction);
+        }
+        if (p2pServer != null) {
+            for (ServerClientHandler client : p2pServer.getClients()) {
+                if (!client.isConnected()) continue;
+                if (client.isClosed()) continue;
+                if (!client.isHandshakeComplete()) continue;
+                if (!client.getName().equals(server)) continue;
+
+                client.send(packet, responseConsumer, timeoutMillis, timeoutAction);
+                return true;
+            }
+        }
+        if (server != null) packet.setForward(server);
         connection.send(packet, responseConsumer, timeoutMillis, timeoutAction);
         return true;
     }
@@ -382,6 +398,13 @@ public class SyncClient implements SyncNetCore {
 
     public Set<String> getServers() {
         return servers.keySet();
+    }
+
+    public boolean hasP2PConnectionTo(String server) {
+        P2PServerData serverData = servers.get(server);
+        if (serverData == null) return false;
+        if (serverData.client() == null) return false;
+        return serverData.client().isConnected() && serverData.client().isHandshakeComplete();
     }
 
     @Override

@@ -38,6 +38,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     private int p2pPort;
     protected boolean writePermission;
     protected short connectionID;
+    private boolean handshakeComplete;
 
     ServerClientHandler(SyncCore plugin, SyncServer server, Socket socket) throws IOException {
         super(plugin, socket);
@@ -103,6 +104,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     public void run() {
         try {
             handshake();
+            handshakeComplete = true;
         } catch (GeneralSecurityException | ProviderException e) {
             plugin.print("Client failed to authenticate. " + getIP() + (plugin.debug() && e.getMessage() != null ? (", " + e.getMessage()) : ""));
             try {
@@ -197,5 +199,9 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
 
     public int getP2PPort() {
         return p2pPort;
+    }
+
+    public boolean isHandshakeComplete() {
+        return handshakeComplete;
     }
 }

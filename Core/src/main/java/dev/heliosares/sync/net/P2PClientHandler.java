@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class P2PClientHandler extends ServerClientHandler {
@@ -44,21 +46,28 @@ public class P2PClientHandler extends ServerClientHandler {
         if (!hasWritePermission) {
             throw new GeneralSecurityException("Client does not have write permissions: " + getName());
         }
+        writePermission = true;
         String context = UUID.randomUUID().toString().replace("-", "");
         plugin.debug("Sending context=" + context);
         sendRaw(context.getBytes());
         if (!new String(readRaw()).equals("ACK-CTXT")) {
             throw new IOException("Context not acknowledged correctly.");
         }
-        BlobPacket blobPacket = new BlobPacket("Sync:" + context, PacketType.P2P_AUTH, new JSONObject());
+        BlobPacket authPacket = new BlobPacket("Sync:" + context, PacketType.P2P_AUTH, new JSONObject());
         SecretKey aes = EncryptionAES.generateRandomKey();
         setEncryption(new EncryptionAES(aes));
-        blobPacket.setBlob(aes.getEncoded());
-        plugin.getSync().send(getName(), blobPacket);
-
-        if (!new String(readRaw()).equals("ACK-KEY")) {
-            throw new IOException("Key exchange not acknowledged correctly.");
+        authPacket.setBlob(getEncryption().encodeKey());
+        CompletableFuture<Short> connectionID = new CompletableFuture<>();
+        plugin.getSync().send(getName(), authPacket, resp -> connectionID.complete(resp.getResponseID().connectionID()));
+        try {
+            this.connectionID = connectionID.get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new IOException("Failed to get connection ID", e);
         }
+        if (!new String(read().decrypted()).equals("TEST-KEY")) {
+            throw new IOException("Key exchange failed.");
+        }
+        send("TEST-KEY".getBytes());
 
         plugin.print("[P2P] Client " + getName() + " connected!");
     }

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class SyncServer implements SyncNetCore {
@@ -34,6 +35,7 @@ public class SyncServer implements SyncNetCore {
     private boolean closed = false;
     private final IDProvider idProvider = new IDProvider((short) 0);
     private long timeoutMillis = 3000L;
+    private final CompletableFuture<Integer> portCompletable = new CompletableFuture<>();
 
     public SyncServer(SyncCore plugin, Map<String, String> p2pHostNames) {
         this.plugin = plugin;
@@ -120,7 +122,7 @@ public class SyncServer implements SyncNetCore {
             while (!closed) {
                 try {
                     serverSocket = new ServerSocket(port, 0, host == null ? null : InetAddress.getByName(host));
-
+                    portCompletable.complete(serverSocket.getLocalPort());
                     plugin.print("Server running on port " + serverSocket.getLocalPort() + ".");
                     // This look waits for clients
                     while (!closed) {
@@ -322,5 +324,9 @@ public class SyncServer implements SyncNetCore {
 
     public int getPort() {
         return serverSocket.getLocalPort();
+    }
+
+    public CompletableFuture<Integer> getPortCompletable() {
+        return portCompletable;
     }
 }

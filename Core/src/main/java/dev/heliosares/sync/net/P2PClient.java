@@ -3,10 +3,10 @@ package dev.heliosares.sync.net;
 import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.kshl.kshlib.encryption.EncryptionAES;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -30,26 +30,33 @@ public class P2PClient extends SyncClient {
         String context = new String(connection.readRaw());
         plugin.debug("Received context=" + context);
 
-        CompletableFuture<EncryptionAES> keyCompletableFuture = new CompletableFuture<>();
+        CompletableFuture<Void> completable = new CompletableFuture<>();
         plugin.getSync().getEventHandler().registerListener(PacketType.P2P_AUTH, "Sync:" + context, (server, packet) -> {
-            if (keyCompletableFuture.isDone()) return;
-            plugin.debug("Received auth packet " + packet);
+            if (packet.isResponse()) return;
+            if (completable.isDone()) return;
             if (!server.equals(partnerName)) {
                 plugin.warning("Received P2P_AUTH packet from the wrong server");
                 return;
             }
             if (!(packet instanceof BlobPacket blobPacket)) return;
 
-            keyCompletableFuture.complete(new EncryptionAES(blobPacket.getBlob()));
+            connection.setEncryption(new EncryptionAES(blobPacket.getBlob()));
+            completable.complete(null);
+            plugin.getSync().send(server, packet.createResponse(new JSONObject()));
         });
 
         connection.sendRaw("ACK-CTXT".getBytes());
         try {
-            connection.setEncryption(keyCompletableFuture.get(3, TimeUnit.SECONDS));
+            completable.get(3, TimeUnit.SECONDS);
+            if (connection.getEncryption() == null) throw new TimeoutException();
         } catch (InterruptedException | TimeoutException | ExecutionException e) {
             throw new IOException("AES key exchange timed out");
         }
-        connection.send("ACK-KEY".getBytes());
+
+        connection.send("TEST-KEY".getBytes());
+        if (!new String(connection.read().decrypted()).equals("TEST-KEY")) {
+            throw new IOException("Key exchange failed.");
+        }
 
         plugin.print("[P2P] Handshake complete!");
     }

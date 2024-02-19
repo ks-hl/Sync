@@ -3,7 +3,7 @@ package dev.heliosares.sync.net.packet;
 import dev.heliosares.sync.net.PacketType;
 import org.json.JSONObject;
 
-import java.util.Base64;
+import java.util.HexFormat;
 
 public class BlobPacket extends Packet {
     private byte[] blob;
@@ -39,7 +39,16 @@ public class BlobPacket extends Packet {
 
     @Override
     public String toString() {
-        String line = super.toString() + ", blob";
+        return super.toString() + ", " + blobToString();
+    }
+
+    @Override
+    public String toHumanString() {
+        return super.toHumanString() + ", " + blobToString();
+    }
+
+    public String blobToString() {
+        String line = "blob";
         if (blob == null) {
             line += "=null";
         } else {
@@ -47,8 +56,8 @@ public class BlobPacket extends Packet {
             if (this.getType() == PacketType.P2P_AUTH) {
                 line += "REDACTED";
             } else {
-                String encoded = Base64.getEncoder().encodeToString(blob);
-                if (encoded.length() > 255) encoded = encoded.substring(0, 255) + "...";
+                String encoded = HexFormat.of().formatHex(blob);
+                if (encoded.length() > 512) encoded = encoded.substring(0, 512) + "...";
                 line += encoded;
             }
         }

@@ -118,7 +118,7 @@ public class SocketConnection {
                     line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
                     if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
                     line += ")";
-                    line += ": " + packet;
+                    line += ": " + packet.toHumanString();
                     return line;
                 });
             }
@@ -176,7 +176,10 @@ public class SocketConnection {
             String plain = packet.toString();
             PacketBytes packetBytes = send(plain.getBytes());
             PacketBytes blobBytes_ = null;
-            if (packet instanceof BlobPacket blobPacket) blobBytes_ = send(blobPacket.getBlob());
+            if (packet instanceof BlobPacket blobPacket) {
+                if (blobPacket.getBlob() == null) blobPacket.setBlob(new byte[0]);
+                blobBytes_ = send(blobPacket.getBlob());
+            }
             final PacketBytes blobBytes = blobBytes_;
             if (packet.getType() != PacketType.KEEP_ALIVE && (packet.getOrigin() == null || packet.getOrigin().equals("proxy") || (!(this instanceof ServerClientHandler)))) { // Don't debug for forwarding packets, that was already accomplished on receipt
                 plugin.debug(() -> {
@@ -187,7 +190,7 @@ public class SocketConnection {
                     line += " (" + Formatter.byteSizeToString(packetBytes.encrypted().length);
                     if (blobBytes != null) line += "+" + Formatter.byteSizeToString(blobBytes.encrypted().length);
                     line += ")";
-                    line += ": " + packet;
+                    line += ": " + packet.toHumanString();
                     return line;
                 });
             }

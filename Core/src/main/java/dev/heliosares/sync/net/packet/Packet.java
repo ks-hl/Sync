@@ -82,6 +82,17 @@ public class Packet {
         return toJSON(true).toString(2);
     }
 
+    public String toHumanString() {
+        String out = toJSON(true).toString(2);
+
+        out = out.replaceAll("(\"ty\":\\s?\\d+),", "$1 (" + getType().toString() + "),");
+        if (getResponseID() != null) {
+            out = out.replaceAll("(\"rid\":\\s?\\d+),", "$1 (conID=" + getResponseID().connectionID() + ",pktID=" + getResponseID().packetID() + "),");
+        }
+
+        return out;
+    }
+
     /**
      * typ - Packet ID
      * <br>

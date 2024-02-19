@@ -1,7 +1,6 @@
 package dev.heliosares.sync;
 
 import dev.heliosares.sync.net.DisconnectReason;
-import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.SyncServer;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 
@@ -9,15 +8,16 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 public class TestServer extends TestPlatform implements SyncCoreProxy {
-    SyncServer syncNetCore = new SyncServer(this, Map.of("p2p_client1","localhost"));
+    private final SyncServer syncNetCore;
 
-    public TestServer(String name) {
+    public TestServer(String name, Function<SyncCore, SyncServer> syncServerFunction) {
         super(name);
+        this.syncNetCore = syncServerFunction.apply(this);
     }
 
     public void reloadKeys(boolean print) {

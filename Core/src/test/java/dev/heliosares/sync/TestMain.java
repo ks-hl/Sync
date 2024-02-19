@@ -3,16 +3,20 @@ package dev.heliosares.sync;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncClient;
+import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
-import dev.heliosares.sync.utils.CompletableException;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.security.GeneralSecurityException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -22,72 +26,88 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 public class TestMain {
-    private static final TestClient client1;
-    private static final TestClient client2;
-    private static final TestServer server;
-
-    private static final int PORT = 8002;
+    private static int serverID = 0;
+    private static final Map<String, Integer> clientID = new HashMap<>();
 
     static {
-        boolean ignored = new File("test").delete();
-        try {
-            long start = System.currentTimeMillis();
-            client1 = new TestClient("client1");
-            client2 = new TestClient("client2");
-            server = new TestServer("server");
+        delete(new File("test"));
+    }
 
-            System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
-            start = System.currentTimeMillis();
-
-            server.getSync().start("localhost", PORT);
-            server.reloadKeys(true);
-
-            System.out.println("serverStart: " + (System.currentTimeMillis() - start) + "ms");
-            start = System.currentTimeMillis();
-
-            CompletableException<Exception> client1Completable = client1.getSync().start("localhost", PORT);
-            client2.getSync().start("localhost", PORT);
-
-            System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
-            start = System.currentTimeMillis();
-
-            client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
-
-            System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+    private static void delete(File file) {
+        if (file.isDirectory()) {
+            for (File file_ : file.listFiles()) delete(file_);
         }
+        file.delete();
     }
 
-    @Test(expected = GeneralSecurityException.class)
+    private TestServer createServer() {
+        return createServer(null);
+    }
+
+    private TestServer createServer(@Nullable Function<SyncCore, SyncServer> syncServerFunction) {
+        if (syncServerFunction == null) syncServerFunction = pl -> new SyncServer(pl, Map.of());
+        TestServer server = new TestServer("server-" + ++serverID, syncServerFunction);
+
+        server.getSync().start("localhost", 0);
+        server.reloadKeys(true);
+        try {
+            server.getSync().getPortCompletable().get(3000, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed while awaiting server start", e);
+        }
+        return server;
+    }
+
+    private TestClient createClient(String name, TestServer testServer) throws Exception {
+        return createClient(name, testServer, true, null);
+    }
+
+    private TestClient createClient(String name, TestServer testServer, boolean implKey, @Nullable BiFunction<TestPlatform, EncryptionRSA, SyncClient> clientCreator) throws Exception {
+        int count = clientID.compute(name, (name_, count_) -> count_ == null ? 0 : (count_ + 1));
+        if (count > 0) {
+            name += "-" + count;
+        }
+        TestClient client = new TestClient(name, implKey, clientCreator);
+        testServer.reloadKeys(false);
+        client.getSync().start("localhost", testServer.getSync().getPort());
+        client.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        return client;
+    }
+
+    @Test(expected = GeneralSecurityException.class, timeout = 3000)
     public void testMissingKey() throws Exception {
-        TestClient client3 = new TestClient("client3", false, null);
-        CompletableException<Exception> completableException = client3.getSync().start("localhost", PORT);
-        completableException.getAndThrow();
+        TestServer server = createServer();
+        createClient("client_missingkey", server, false, null);
     }
 
-    @Test(expected = GeneralSecurityException.class)
+    @Test(expected = GeneralSecurityException.class, timeout = 1000)
     public void testWrongKey() throws Exception {
-        TestClient client = new TestClient("client44873217", false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        TestServer server = createServer();
+        TestClient client1 = createClient("client1", server);
+        TestClient client = createClient("client44873217", server, false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
             // makes it so the client uses client1's key ID
             @Override
             public String getRSAUserID() {
                 return client1.getSync().getRSAUserID();
             }
         }));
-        CompletableException<Exception> completableException = client.getSync().start("localhost", PORT);
-        completableException.getAndThrow();
     }
 
     @Test(timeout = 3000)
     public void testAPIPacket() throws Exception {
+        TestServer server = createServer();
         CompletableFuture<Boolean> received = new CompletableFuture<>();
+        TestClient client1 = createClient("client1", server);
         client1.getSync().getEventHandler().registerListener(PacketType.API, null, (server1, packet) -> received.complete(packet.getPayload().get("key").equals("value")));
         server.getSync().send(new Packet(null, PacketType.API, new JSONObject().put("key", "value")));
 
@@ -96,9 +116,11 @@ public class TestMain {
 
     @Test(timeout = 3000)
     public void testAPIResponse() throws Exception {
+        TestServer server = createServer();
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         server.getSync().getEventHandler().registerListener(PacketType.API, "test:channel", (server1, packet) -> server.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
         AtomicBoolean timeOut = new AtomicBoolean();
+        TestClient client1 = createClient("client1", server);
         client1.getSync().send(null, new Packet("test:channel", PacketType.API, new JSONObject().put("ping", "ping")), response -> received.complete(true), 100, () -> timeOut.set(true));
 
         assert received.get();
@@ -108,6 +130,7 @@ public class TestMain {
 
     @Test(timeout = 3000)
     public void testBlobResponse() throws Throwable {
+        TestServer server = createServer();
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         AtomicReference<Throwable> error = new AtomicReference<>();
 
@@ -127,6 +150,7 @@ public class TestMain {
             }
             server.getSync().send(server1, blobPacket1.createResponse(new JSONObject()).setBlob(msg2.getBytes()));
         });
+        TestClient client1 = createClient("client1", server);
         client1.getSync().send(null, new BlobPacket("test:blob", new JSONObject()).setBlob(msg1.getBytes()), response -> {
             if (!(response instanceof BlobPacket blobPacket)) {
                 error.set(new IllegalArgumentException("Invalid packet class: " + response.getClass().getName()));
@@ -147,15 +171,16 @@ public class TestMain {
         assert false;
     }
 
-    @Test
+    @Test(timeout = 1000)
     public void testPlayerDataHash() throws Exception {
+        TestServer server = createServer();
+        TestClient client1 = createClient("client1", server);
         UUID uuid = UUID.randomUUID();
 
+        Thread.sleep(10);
         server.getSync().getUserManager().addPlayer("testplayer141", uuid, "proxy", false);
 
-        Thread.sleep(10);
-
-        assert client1.getSync().getUserManager().getPlayer(uuid) == null;
+        assertNull(client1.getSync().getUserManager().getPlayer(uuid));
 
         server.getSync().getUserManager().sendHash();
 
@@ -179,13 +204,10 @@ public class TestMain {
 
     @Test(timeout = 3000L)
     public void testPlayerDataCustom() throws Exception {
-        client1.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
-        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        TestServer server = createServer();
+        TestClient client1 = createClient("client", server);
+        TestClient client2 = createClient("client", server);
 
-        TestClient testClient4 = new TestClient("client4");
-        server.reloadKeys(false);
-        testClient4.getSync().start("localhost", PORT);
-        testClient4.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
         UUID uuid = UUID.randomUUID();
         {
             server.getSync().getUserManager().addPlayer("testPlayer", uuid, "proxy", true);
@@ -223,10 +245,11 @@ public class TestMain {
             assertEquals(playerData.getHealth(), 10, 1E-6);
         }
 
-        testClient4.getSync().getConnectedCompletable().getAndThrow(3000L, TimeUnit.MILLISECONDS);
+        TestClient client4 = createClient("client4", server);
+
         {
-            PlayerData playerData = await(() -> testClient4.getSync().getUserManager().getPlayer(uuid), 1000, "Player data timed out");
-            testClient4.print(playerData.toString());
+            PlayerData playerData = await(() -> client4.getSync().getUserManager().getPlayer(uuid), 1000, "Player data timed out");
+            client4.print(playerData.toString());
 
             assertEquals(playerData.getCustomString("test", "key1", true).get(), "value1");
             assertEquals(playerData.getCustomBoolean("test", "key2", true).get(), true);
@@ -265,25 +288,29 @@ public class TestMain {
 
     @Test(timeout = 3000)
     public void testForwardedResponse() throws Exception {
-        client2.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
+        TestServer server = createServer();
+        TestClient client1 = createClient("client", server);
+        TestClient client2 = createClient("client", server);
         Thread.sleep(10);
         client1.warning("Client1 servers: " + client1.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
         client1.warning("Client2 servers: " + client2.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
 
         CompletableFuture<Boolean> received1 = new CompletableFuture<>();
         client2.getSync().getEventHandler().registerListener(PacketType.API, "test:channel2", (server1, packet) -> client2.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
-        assert client1.getSync().send("client2", new Packet("test:channel2", PacketType.API, new JSONObject().put("ping", "ping")), response -> received1.complete(true));
+        assert client1.getSync().send(client2.getSync().getName(), new Packet("test:channel2", PacketType.API, new JSONObject().put("ping", "ping")), response -> received1.complete(true));
 
         CompletableFuture<Boolean> received2 = new CompletableFuture<>();
         client1.getSync().getEventHandler().registerListener(PacketType.API, "test:channel3", (server1, packet) -> client1.getSync().send(packet.createResponse(new JSONObject().put("pong", "pong"))));
-        assert client2.getSync().send("client1", new Packet("test:channel3", PacketType.API, new JSONObject().put("ping", "ping")), response -> received2.complete(true));
+        assert client2.getSync().send(client1.getSync().getName(), new Packet("test:channel3", PacketType.API, new JSONObject().put("ping", "ping")), response -> received2.complete(true));
 
         assert received1.get();
         assert received2.get();
     }
 
-    @Test(timeout = 200)
+    @Test(timeout = 1000)
     public void testResponseTimeout() throws Exception {
+        TestServer server = createServer();
+        TestClient client1 = createClient("client", server);
         CompletableFuture<Boolean> received = new CompletableFuture<>();
         client1.getSync().send(null, new Packet("test:void", PacketType.API, new JSONObject()), response -> {
         }, 30, () -> {
@@ -296,33 +323,14 @@ public class TestMain {
 
     @Test(timeout = 1000)
     public void testConnectionTimeout() throws Exception {
-        long start = System.currentTimeMillis();
-        var client = new TestClient("timeout_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        var server = createServer();
+        var client = createClient("timeout_client1", server, true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
             // makes it so the client won't attempt to reconnect after being timed out
             @Override
             public void closeTemporary() {
                 close();
             }
         }));
-        var server = new TestServer("timeout_server");
-
-        System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
-        start = System.currentTimeMillis();
-
-        server.getSync().start("localhost", PORT + 1);
-        server.reloadKeys(true);
-
-        System.out.println("serverStart: " + (System.currentTimeMillis() - start) + "ms");
-        start = System.currentTimeMillis();
-
-        CompletableException<Exception> client1Completable = client.getSync().start("localhost", PORT + 1);
-
-        System.out.println("clientStart: " + (System.currentTimeMillis() - start) + "ms");
-        start = System.currentTimeMillis();
-
-        client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
-
-        System.out.println("clientStartWait: " + (System.currentTimeMillis() - start) + "ms");
 
         assert client.getSync().isConnected();
         server.getSync().setTimeoutMillis(0);
@@ -332,6 +340,8 @@ public class TestMain {
 
     @Test(timeout = 10000)
     public void spamPing() throws Exception {
+        TestServer server = createServer();
+        TestClient client1 = createClient("client", server);
         Set<CompletableFuture<Boolean>> receivedSet = new HashSet<>();
         for (int i = 0; i < 100; i++) {
             CompletableFuture<Boolean> received1 = new CompletableFuture<>();
@@ -343,7 +353,7 @@ public class TestMain {
 
             CompletableFuture<Boolean> received2 = new CompletableFuture<>();
             receivedSet.add(received2);
-            server.getSync().send("client1", new PingPacket(), response -> {
+            server.getSync().send(client1.getSync().getName(), new PingPacket(), response -> {
                 received2.complete(true);
                 server.print("Ping: " + ((PingPacket) response).getRTT() + "ms");
             });
@@ -354,17 +364,17 @@ public class TestMain {
         for (CompletableFuture<Boolean> future : receivedSet) future.get();
     }
 
-    @Test
+    @Test(timeout = 1000)
     public void testReplayAttack() throws Exception {
-        var client = new TestClient("replay_client1", true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        TestServer server = createServer();
+        TestClient client1 = createClient("client", server);
+        var client = createClient("replay_client", server, true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
             // makes it so the client won't attempt to reconnect after being timed out
             @Override
             public void closeTemporary() {
                 close();
             }
         }));
-        CompletableException<Exception> client1Completable = client.getSync().start("localhost", PORT);
-        client1Completable.getAndThrow(3000, TimeUnit.MILLISECONDS);
 
         PingPacket packet = new PingPacket();
         AtomicInteger responseCount = new AtomicInteger();
@@ -380,12 +390,27 @@ public class TestMain {
         assert responseCount.get() == 1 : "Replay packet received a response.";
     }
 
-    @Test
+    @Test(timeout = 3000)
     public void testP2P() throws Exception {
-        TestClient client = new TestClient("p2p_client1");
-        server.reloadKeys(false);
-        server.runAsync(() -> client.getSync().start("localhost", PORT));
-        client.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
-        Thread.sleep(3000);
+        TestServer server = createServer(pl -> new SyncServer(pl, Map.of("p2p_client", "localhost")) {
+            @Override
+            public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) {
+                if (packet.getType() == PacketType.PING) {
+                    throw new UnsupportedOperationException();
+                }
+                return super.send(server, packet, responseConsumer, timeoutMillis, timeoutAction);
+            }
+        });
+        TestClient client = createClient("client", server);
+        TestClient p2p_client = createClient("p2p_client", server);
+        Thread.sleep(100);
+        assert client.getSync().hasP2PConnectionTo(p2p_client.getSync().getName());
+
+        CompletableFuture<Boolean> received2 = new CompletableFuture<>();
+        client.getSync().send(p2p_client.getSync().getName(), new PingPacket(), resp -> {
+            received2.complete(true);
+            server.print("Ping: " + ((PingPacket) resp).getRTT() + "ms");
+        });
+        received2.get();
     }
 }
