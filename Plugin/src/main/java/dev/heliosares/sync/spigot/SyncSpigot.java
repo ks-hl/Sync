@@ -83,26 +83,32 @@ public class SyncSpigot extends JavaPlugin implements SyncCore, Listener {
             this.getServer().getPluginManager().registerEvents(new EssentialsListener(), this);
         }
 
-        File file = new File(getDataFolder(), "private.key");
-        if (!file.exists()) {
+        File clientKeyFile = new File(getDataFolder(), "private.key");
+        if (!clientKeyFile.exists()) {
             print("Key does not exist, regenerating...");
             File publicKeyFile = new File(getDataFolder(), "SERVER_NAME.public.key");
             try {
-                boolean ignored = file.createNewFile();
+                boolean ignored = clientKeyFile.createNewFile();
                 if (!publicKeyFile.exists()) {
                     boolean ignored2 = publicKeyFile.createNewFile();
                 }
                 EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
-                pair.privateKey().write(file);
+                pair.privateKey().write(clientKeyFile);
                 pair.publicKey().write(publicKeyFile);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             print("Keys generated successfully. Please copy 'plugins/Sync/SERVER_NAME.public.key' to the proxy under 'plugins/Sync/clients/SERVER_NAME.public.key', renaming 'SERVER_NAME' to the server's name");
         }
+        File serverKeyFile = new File(getDataFolder(), "server.key");
+        if (!serverKeyFile.exists()) {
+            warning("Please copy 'server.key' from proxy to Sync folder.");
+            setEnabled(false);
+            return;
+        }
 
         try {
-            sync = new SyncClient(this, EncryptionRSA.load(file));
+            sync = new SyncClient(this, EncryptionRSA.load(clientKeyFile), EncryptionRSA.load(serverKeyFile));
         } catch (FileNotFoundException | InvalidKeySpecException e) {
             print("Failed to load key file. Ensure it was correctly copied from the proxy.", e);
             setEnabled(false);

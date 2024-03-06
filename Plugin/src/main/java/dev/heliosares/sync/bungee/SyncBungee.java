@@ -96,7 +96,30 @@ public class SyncBungee extends Plugin implements SyncCoreProxy, Listener {
                 p2pHosts.put(key, p2pHostSection.getString(key));
             }
         }
-        sync = new SyncServer(this, p2pHosts);
+        File privateKeyFile = new File(getDataFolder(), "private.key");
+        if (!privateKeyFile.exists()) {
+            print("Key does not exist, generating...");
+            File publicKeyFile = new File(getDataFolder(), "server.key");
+            try {
+                boolean ignored = privateKeyFile.createNewFile();
+                if (!publicKeyFile.exists()) {
+                    boolean ignored2 = publicKeyFile.createNewFile();
+                }
+                EncryptionRSA.RSAPair pair = EncryptionRSA.generate();
+                pair.privateKey().write(privateKeyFile);
+                pair.publicKey().write(publicKeyFile);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            print("Keys generated successfully. Please copy 'plugins/Sync/server.key' to each server under 'plugins/Sync/server.key'.");
+        }
+        try {
+            sync = new SyncServer(this, p2pHosts, EncryptionRSA.load(privateKeyFile));
+        } catch (FileNotFoundException ignored) {
+        } catch (InvalidKeySpecException e) {
+            warning("Invalid 'server.key'.");
+            throw new RuntimeException(e);
+        }
         reloadKeys(false);
 
         for (ProxiedPlayer player : getProxy().getPlayers()) {

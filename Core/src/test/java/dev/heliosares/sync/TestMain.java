@@ -26,7 +26,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -38,6 +37,7 @@ import static org.junit.Assert.assertThrows;
 public class TestMain {
     private static int serverID = 0;
     private static final Map<String, Integer> clientID = new HashMap<>();
+    private static final EncryptionRSA.RSAPair serverRSAPair = EncryptionRSA.generate();
 
     static {
         delete(new File("test"));
@@ -55,7 +55,7 @@ public class TestMain {
     }
 
     private TestServer createServer(@Nullable Function<SyncCore, SyncServer> syncServerFunction) {
-        TestServer server = new TestServer("server-" + ++serverID, syncServerFunction);
+        TestServer server = new TestServer("server-" + ++serverID, syncServerFunction, serverRSAPair.privateKey());
 
         server.getSync().start("localhost", 0);
         server.reloadKeys(true);
@@ -71,12 +71,12 @@ public class TestMain {
         return createClient(name, testServer, true, null);
     }
 
-    private TestClient createClient(String name, TestServer testServer, boolean implKey, @Nullable BiFunction<TestPlatform, EncryptionRSA, SyncClient> clientCreator) throws Exception {
+    private TestClient createClient(String name, TestServer testServer, boolean implKey, @Nullable SyncClient.CreatorFunction clientCreator) throws Exception {
         int count = clientID.compute(name, (name_, count_) -> count_ == null ? 0 : (count_ + 1));
         if (count > 0) {
             name += "-" + count;
         }
-        TestClient client = new TestClient(name, implKey, clientCreator);
+        TestClient client = new TestClient(name, implKey, clientCreator, serverRSAPair.publicKey());
         testServer.reloadKeys(false);
         client.getSync().start("localhost", testServer.getSync().getPort());
         client.getSync().getConnectedCompletable().getAndThrow(3000, TimeUnit.MILLISECONDS);
@@ -93,7 +93,7 @@ public class TestMain {
     public void testWrongKey() throws Exception {
         TestServer server = createServer();
         TestClient goodClient = createClient("client", server);
-        createClient("client44873217", server, false, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        createClient("client44873217", server, false, ((testPlatform, encryptionRSA, serverRSAPublic) -> new SyncClient(testPlatform, encryptionRSA, serverRSAPublic) {
             // makes it so the client uses client1's key ID
             @Override
             public String getRSAUserID() {
@@ -320,10 +320,10 @@ public class TestMain {
         assert received.get();
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 3000)
     public void testConnectionTimeout() throws Exception {
         var server = createServer();
-        var client = createClient("timeout_client1", server, true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        var client = createClient("timeout_client1", server, true, ((testPlatform, encryptionRSA, serverRSAPublic) -> new SyncClient(testPlatform, encryptionRSA, serverRSAPublic) {
             // makes it so the client won't attempt to reconnect after being timed out
             @Override
             public void closeTemporary() {
@@ -367,7 +367,7 @@ public class TestMain {
     public void testReplayAttack() throws Exception {
         TestServer server = createServer();
         TestClient client1 = createClient("client", server);
-        var client = createClient("replay_client", server, true, ((testPlatform, encryptionRSA) -> new SyncClient(testPlatform, encryptionRSA) {
+        var client = createClient("replay_client", server, true, ((testPlatform, encryptionRSA, serverRSAPublic) -> new SyncClient(testPlatform, encryptionRSA, serverRSAPublic) {
             // makes it so the client won't attempt to reconnect after being timed out
             @Override
             public void closeTemporary() {
@@ -391,7 +391,7 @@ public class TestMain {
 
     @Test(timeout = 3000)
     public void testP2P() throws Exception {
-        TestServer server = createServer(pl -> new SyncServer(pl, Map.of("p2p_client", "localhost")) {
+        TestServer server = createServer(pl -> new SyncServer(pl, Map.of("p2p_client", "localhost"), serverRSAPair.privateKey()) {
             @Override
             public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) {
                 if (packet.getType() == PacketType.PING) {

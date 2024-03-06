@@ -17,7 +17,7 @@ public class P2PClient extends SyncClient {
     private final String partnerName;
 
     public P2PClient(SyncCore plugin, String partnerName) {
-        super(plugin, null, false);
+        super(plugin, null, null, false);
 
         this.plugin = plugin;
         this.partnerName = partnerName;

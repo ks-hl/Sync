@@ -1,6 +1,5 @@
 package dev.heliosares.sync;
 
-import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.SyncClient;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 
@@ -8,17 +7,16 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.function.BiFunction;
 
 public class TestClient extends TestPlatform {
     private final SyncClient syncNetCore;
     private final String name;
 
-    public TestClient(String name) throws InvalidKeySpecException {
-        this(name, true, null);
+    public TestClient(String name, EncryptionRSA serverRSA) throws InvalidKeySpecException {
+        this(name, true, null, serverRSA);
     }
 
-    public TestClient(String name, boolean implKey, BiFunction<TestPlatform, EncryptionRSA, SyncClient> clientCreator) throws InvalidKeySpecException {
+    public TestClient(String name, boolean implKey, SyncClient.CreatorFunction clientCreator, EncryptionRSA serverRSA) throws InvalidKeySpecException {
         super(name);
         if (clientCreator == null) clientCreator = SyncClient::new;
         this.name = name;
@@ -44,7 +42,7 @@ public class TestClient extends TestPlatform {
         }
 
         try {
-            syncNetCore = clientCreator.apply(this, EncryptionRSA.load(file));
+            syncNetCore = clientCreator.create(this, EncryptionRSA.load(file), serverRSA);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }

@@ -19,7 +19,7 @@ public class P2PClientHandler extends ServerClientHandler {
     private final SyncClient syncClient;
 
     P2PClientHandler(SyncCore plugin, SyncServer server, Socket socket) throws IOException {
-        super(plugin, server, socket);
+        super(plugin, server, socket, null);
 
         this.plugin = plugin;
         this.syncClient = (SyncClient) plugin.getSync();

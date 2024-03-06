@@ -32,6 +32,10 @@ public abstract class SyncDaemon implements SyncCore {
         return new File("private.key");
     }
 
+    public File getServerKeyFile() {
+        return new File("server.key");
+    }
+
     public static void main(String[] args) {
         final SyncDaemon plugin;
         Logger logger = CustomLogger.getLogger("Sync");
@@ -119,7 +123,14 @@ public abstract class SyncDaemon implements SyncCore {
             pair.publicKey().write(publicKeyFile);
             print("Keys generated successfully. Please copy 'DAEMON_NAME.public.key' to the proxy under 'plugins/Sync/clients/DAEMON_NAME.public.key', renaming 'DAEMON_NAME' to the daemon's name");
         }
-        this.syncClient = new SyncClient(this, EncryptionRSA.load(privateKeyFile));
+
+        File serverKeyFile = getServerKeyFile();
+        if (!serverKeyFile.exists()) {
+            warning("Please copy 'server.key' from proxy to Sync folder.");
+            throw new IOException();
+        }
+
+        this.syncClient = new SyncClient(this, EncryptionRSA.load(privateKeyFile), EncryptionRSA.load(serverKeyFile));
     }
 
     public void connect(int port) throws Exception {

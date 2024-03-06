@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class P2PServer extends SyncServer {
     public P2PServer(SyncCore plugin) {
-        super(plugin, Map.of());
+        super(plugin, Map.of(), null);
     }
 
     public void start() {

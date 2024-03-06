@@ -30,6 +30,7 @@ public class SyncServer implements SyncNetCore {
     private final ConcurrentCollection<ArrayList<ServerClientHandler>, ServerClientHandler> clients = new ConcurrentCollection<>(new ArrayList<>());
     private final UserManager usermanager;
     private final Map<String, String> p2pHostNames;
+    private final EncryptionRSA serverRSA;
     private Set<EncryptionRSA> clientEncryptionRSA;
     private ServerSocket serverSocket;
     private boolean closed = false;
@@ -37,11 +38,12 @@ public class SyncServer implements SyncNetCore {
     private long timeoutMillis = 3000L;
     private final CompletableFuture<Integer> portCompletable = new CompletableFuture<>();
 
-    public SyncServer(SyncCore plugin, Map<String, String> p2pHostNames) {
+    public SyncServer(SyncCore plugin, Map<String, String> p2pHostNames, EncryptionRSA serverRSA) {
         this.plugin = plugin;
         this.eventhandler = new NetEventHandler(plugin);
         this.usermanager = new UserManager(plugin, this);
         this.p2pHostNames = p2pHostNames;
+        this.serverRSA = serverRSA;
         eventhandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
     }
 
@@ -155,7 +157,7 @@ public class SyncServer implements SyncNetCore {
     }
 
     protected ServerClientHandler accept(Socket socket) throws IOException {
-        return new ServerClientHandler(plugin, SyncServer.this, socket);
+        return new ServerClientHandler(plugin, SyncServer.this, socket, serverRSA);
     }
 
     /**

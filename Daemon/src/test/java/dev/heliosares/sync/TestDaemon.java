@@ -3,6 +3,7 @@ package dev.heliosares.sync;
 import dev.heliosares.sync.net.PacketType;
 import dev.heliosares.sync.net.packet.CommandPacket;
 import dev.heliosares.sync.utils.CompletableException;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -14,8 +15,9 @@ public class TestDaemon {
     @Test(timeout = 3000)
     public void testDaemon() throws Exception {
         long start = System.currentTimeMillis();
-        var server = new TestServer("server", null);
-        var client1 = new TestClient("client1");
+        var pair = EncryptionRSA.generate();
+        var server = new TestServer("server", null, pair.privateKey());
+        var client1 = new TestClient("client1", pair.publicKey());
 
         System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
         start = System.currentTimeMillis();
@@ -38,7 +40,7 @@ public class TestDaemon {
         CompletableFuture<Boolean> receivedClient1 = new CompletableFuture<>();
         CompletableFuture<Boolean> receivedDaemon = new CompletableFuture<>();
         server.getSync().getEventHandler().registerListener(PacketType.COMMAND, null, (serverSender, packet) -> {
-            System.out.println(serverSender+" RECV " + packet);
+            System.out.println(serverSender + " RECV " + packet);
             if (serverSender.equals("client1")) receivedClient1.complete(true);
             if (serverSender.equals("daemon1")) receivedDaemon.complete(true);
         });

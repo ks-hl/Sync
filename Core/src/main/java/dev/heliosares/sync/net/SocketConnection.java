@@ -206,11 +206,18 @@ public class SocketConnection {
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new IOException("Invalid session key. This is unexpected..");
         }
-        sendRaw(ciphertext);
+        sendRaw_(ciphertext);
         return new PacketBytes(plain, ciphertext);
     }
 
     protected void sendRaw(byte[] plain) throws IOException {
+        if (encryption != null) {
+            throw new IOException("Cannot sendRaw after setting encryption");
+        }
+        sendRaw_(plain);
+    }
+
+    private void sendRaw_(byte[] plain) throws IOException {
         synchronized (out) {
             out.writeInt(plain == null ? 0 : plain.length);
             if (plain != null && plain.length > 0) {

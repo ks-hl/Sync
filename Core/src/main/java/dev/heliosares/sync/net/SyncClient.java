@@ -5,25 +5,21 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
 import dev.heliosares.sync.utils.CompletableException;
+import dev.kshl.kshlib.encryption.CodeGenerator;
 import dev.kshl.kshlib.encryption.EncryptionAES;
-import dev.kshl.kshlib.encryption.EncryptionDH;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
-import javax.crypto.SecretKey;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,7 +33,8 @@ public class SyncClient implements SyncNetCore {
     private final SyncCore plugin;
     private final NetEventHandler eventHandler;
     private final UserManager usermanager;
-    private final EncryptionRSA encryptionRSA;
+    private final EncryptionRSA clientRSA;
+    private final EncryptionRSA serverRSA;
     private SocketConnection connection;
     private boolean closed;
     private int unableToConnectCount = 0;
@@ -47,14 +44,20 @@ public class SyncClient implements SyncNetCore {
     private final CompletableException<Exception> connectedCompletable = new CompletableException<>();
     private P2PServer p2pServer;
 
-    public SyncClient(SyncCore plugin, EncryptionRSA encryption) {
-        this(plugin, encryption, true);
+    @FunctionalInterface
+    public interface CreatorFunction {
+        SyncClient create(SyncCore plugin, EncryptionRSA clientRSA, EncryptionRSA serverRSA);
     }
 
-    protected SyncClient(SyncCore plugin, EncryptionRSA encryption, boolean userManager) {
+    public SyncClient(SyncCore plugin, EncryptionRSA clientRSA, EncryptionRSA serverRSA) {
+        this(plugin, clientRSA, serverRSA, true);
+    }
+
+    protected SyncClient(SyncCore plugin, EncryptionRSA clientRSA, EncryptionRSA serverRSA, boolean userManager) {
         this.plugin = plugin;
         this.eventHandler = new NetEventHandler(plugin);
-        this.encryptionRSA = encryption;
+        this.clientRSA = clientRSA;
+        this.serverRSA = serverRSA;
         if (userManager) {
             this.usermanager = new UserManager(plugin, this);
             eventHandler.registerListener(PacketType.PLAYER_DATA, null, usermanager);
@@ -71,31 +74,25 @@ public class SyncClient implements SyncNetCore {
     }
 
     public String getRSAUserID() {
-        return encryptionRSA.getUUID().toString();
+        return clientRSA.getUUID().toString();
     }
 
     protected void handshake(SocketConnection connection) throws IOException, GeneralSecurityException {
-        AlgorithmParameters params = EncryptionDH.generateParameters(connection.readRaw());
-        plugin.debug("Received DH parameters");
-        PublicKey serverPublicKey = EncryptionDH.getPublicKey(connection.readRaw());
-        plugin.debug("Received DH public");
-        KeyPair keyPair = EncryptionDH.generate(params);
-        SecretKey keyDH = EncryptionDH.combine(keyPair.getPrivate(), serverPublicKey);
-        plugin.debug("Sending DH public");
-        connection.sendRaw(keyPair.getPublic().getEncoded());
         plugin.debug("Sending RSA ID");
-        connection.sendRaw(EncryptionDH.encrypt(keyDH, getRSAUserID().getBytes()));
+        connection.sendRaw(serverRSA.encrypt(getRSAUserID().getBytes()));
+        String clientNonce = CodeGenerator.generateSecret(32, true, true, true);
+        connection.sendRaw(serverRSA.encrypt(clientNonce.getBytes()));
         try {
-            connection.setEncryption(new EncryptionAES(encryptionRSA.decrypt(EncryptionDH.decrypt(keyDH, connection.readRaw()))));
-            plugin.debug("Received AES");
+            connection.setEncryption(new EncryptionAES(clientRSA.decrypt(connection.readRaw())));
+            plugin.debug("Received AES key");
 
-            final String nonce = new String(connection.read().decrypted());
-            if (!nonce.startsWith("NCE-")) {
-                // Tests that the client has the decrypted AES key
+            final String nonce = new String(serverRSA.decrypt(connection.read().decrypted()));
+            if (!nonce.endsWith(" " + clientNonce) || nonce.length() != 65) {
+                // Tests that the client has the decrypted AES key and confirms identity of server (encrypted with server private key)
                 throw new InvalidKeyException("Invalid nonce");
             }
             plugin.debug("Received nonce: " + nonce + ", sending ack");
-            connection.send(encryptionRSA.encrypt(("ACK-" + nonce).getBytes()));
+            connection.send(clientRSA.encrypt(("ACK " + nonce).getBytes()));
 
         } catch (EOFException e) {
             throw new InvalidKeyException("Server ended connection during authentication");
@@ -182,8 +179,9 @@ public class SyncClient implements SyncNetCore {
                         if (!connectedCompletable.isDone()) connectedCompletable.complete(e);
 
                         if (unableToConnectCount < 3 || plugin.debug()) {
-                            plugin.print("Failed to authenticate: " + e.getMessage());
+                            plugin.print("Failed to authenticate: " + e.getClass().getName() + " " + e.getMessage());
                         }
+                        continue;
                     } catch (IOException e) {
                         if (unableToConnectCount < 3 || plugin.debug()) {
                             if (!connectedCompletable.isDone()) {

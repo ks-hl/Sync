@@ -16,10 +16,10 @@ import java.util.function.Function;
 public class TestServer extends TestPlatform implements SyncCoreProxy {
     private final SyncServer syncNetCore;
 
-    public TestServer(String name, Function<SyncCore, SyncServer> syncServerFunction) {
+    public TestServer(String name, Function<SyncCore, SyncServer> syncServerFunction, EncryptionRSA serverRSA) {
         super(name);
         if (syncServerFunction == null) {
-            syncNetCore = new SyncServer(this, Map.of());
+            syncNetCore = new SyncServer(this, Map.of(), serverRSA);
         } else {
             this.syncNetCore = syncServerFunction.apply(this);
         }
