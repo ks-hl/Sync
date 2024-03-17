@@ -17,7 +17,7 @@ import java.util.UUID;
 public class SyncAPI {
     private static SyncCore instance;
     public static UUID ConsoleUUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
-    public static final String PROTOCOL_VERSION = "2";
+    public static final String PROTOCOL_VERSION = "3";
 
     public static @Nonnull SyncCore getInstance() {
         if (instance != null) return instance;

@@ -4,6 +4,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
+import dev.heliosares.sync.net.packet.ResetConnectionIDPacket;
 import dev.kshl.kshlib.concurrent.ConcurrentMap;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.misc.Formatter;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Manages a Socket's connection. Agnostic to client/server.
@@ -31,7 +33,7 @@ public class SocketConnection {
     private EncryptionAES encryption;
     private final SyncCore plugin;
     private final Socket socket;
-    private final IDProvider idProvider;
+    private final Supplier<IDProvider> idProviderSupplier;
     private final DataOutputStream out;
     private final DataInputStream in;
     private final long created;
@@ -43,10 +45,10 @@ public class SocketConnection {
     private long lastCleanup;
     private final Map<Short, LinkedList<Long>> packetIDChain = new HashMap<>();
 
-    public SocketConnection(SyncCore plugin, Socket socket) throws IOException {
+    public SocketConnection(SyncCore plugin, Socket socket, Supplier<IDProvider> idProviderSupplier) throws IOException {
         this.plugin = plugin;
         this.socket = socket;
-        this.idProvider = plugin.getSync().getIDProvider();
+        this.idProviderSupplier = idProviderSupplier;
         this.created = System.currentTimeMillis();
         out = new DataOutputStream(socket.getOutputStream());
         in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -136,6 +138,11 @@ public class SocketConnection {
                 });
             }
 
+            if (packet.getResponseID().connectionID() == 0 && packet.getType() == PacketType.RESET_CONNECTION_ID && packet instanceof ResetConnectionIDPacket resetConnectionIDPacket) {
+                packetIDChain.remove(resetConnectionIDPacket.id().get());
+                send(packet.createResponse(new JSONObject()), null, 3000, null);
+            }
+
             cleanup();
             return packet;
         }
@@ -148,7 +155,6 @@ public class SocketConnection {
         if (getName() == null) return;
 
         Packet packet = new Packet(null, PacketType.KEEP_ALIVE, (JSONObject) null);
-        packet.assignResponseID(idProvider);
         send(packet, null, 0, null);
     }
 
@@ -156,7 +162,8 @@ public class SocketConnection {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
-        packet.assignResponseID(idProvider);
+
+        packet.assignResponseID(idProviderSupplier.get());
         final long sendTime = System.nanoTime();
         synchronized (out) {
             if (packet instanceof PingPacket && !packet.isResponse() && (plugin instanceof SyncClient || packet.getForward() == null)) {

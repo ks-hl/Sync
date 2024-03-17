@@ -71,7 +71,6 @@ public class SyncServer implements SyncNetCore {
 
     @Override
     public boolean send(@Nullable String server, Packet packet, @Nullable Consumer<Packet> responseConsumer, long timeoutMillis, @Nullable Runnable timeoutAction) {
-        packet.assignResponseID(idProvider);
         return clients.function(clients -> {
             boolean any = false;
             String[] servers = (server == null || server.equals("all")) ? null : server.split(",");
@@ -157,7 +156,7 @@ public class SyncServer implements SyncNetCore {
     }
 
     protected ServerClientHandler accept(Socket socket) throws IOException {
-        return new ServerClientHandler(plugin, SyncServer.this, socket, serverRSA);
+        return new ServerClientHandler(plugin, SyncServer.this, socket, serverRSA, this::getIDProvider);
     }
 
     /**
@@ -216,8 +215,7 @@ public class SyncServer implements SyncNetCore {
                 JSONObject element = new JSONObject();
                 element.put("name", client.getName());
                 element.put("p2p_port", client.getP2PPort());
-                String hostname = p2pHostNames.get(client.getName());
-                element.put("p2p_host", hostname);
+                element.put("p2p_host", p2pHostNames.get(client.getName()));
                 element.put("write", client.writePermission);
                 servers.put(element);
             }

@@ -5,6 +5,7 @@ import dev.heliosares.sync.SyncCore;
 import dev.heliosares.sync.SyncCoreProxy;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
+import dev.heliosares.sync.net.packet.ResetConnectionIDPacket;
 import dev.kshl.kshlib.encryption.CodeGenerator;
 import dev.kshl.kshlib.encryption.EncryptionAES;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class ServerClientHandler extends SocketConnection implements Runnable {
     public static final String PROTOCOL_VERSION = SyncAPI.PROTOCOL_VERSION;
@@ -36,8 +38,8 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     protected short connectionID;
     private boolean handshakeComplete;
 
-    ServerClientHandler(SyncCore plugin, SyncServer server, Socket socket, EncryptionRSA serverRSA) throws IOException {
-        super(plugin, socket);
+    ServerClientHandler(SyncCore plugin, SyncServer server, Socket socket, EncryptionRSA serverRSA, Supplier<IDProvider> idProviderSupplier) throws IOException {
+        super(plugin, socket, idProviderSupplier);
         this.plugin = plugin;
         this.server = server;
         this.serverRSA = serverRSA;
@@ -46,6 +48,19 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
     protected void handshake() throws GeneralSecurityException, IOException {
         String debugKey = getIP().substring(getIP().indexOf(":") + 1);
         Consumer<String> debug = s -> plugin.debug("[" + debugKey + " Handshake] " + s);
+
+        byte[] myVersion = PROTOCOL_VERSION.getBytes();
+        byte[] otherVersion = readRaw();
+        debug.accept("Other protocol is " + new String(otherVersion) + ", sending my protocol v" + PROTOCOL_VERSION);
+        sendRaw(myVersion);
+        if (!Arrays.equals(otherVersion, myVersion)) {
+            plugin.warning("[" + debugKey + "] Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", client is on " + new String(otherVersion) + ", dropping");
+            close();
+            server.remove(this);
+            callDisconnectEvent(DisconnectReason.PROTOCOL_MISMATCH);
+            return;
+        }
+
 
         String identity = new String(serverRSA.decrypt(readRaw()));
         plugin.print("Client connecting under identity: " + identity + " from " + getIP());
@@ -73,23 +88,22 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
         }
         debug.accept("Nonce acknowledged");
 
-        byte[] myVersion = PROTOCOL_VERSION.getBytes();
-        byte[] otherVersion = read().decrypted();
-        debug.accept("Other protocol is " + new String(otherVersion) + ", sending my protocol v" + PROTOCOL_VERSION);
-        send(myVersion);
-        if (!Arrays.equals(otherVersion, myVersion)) {
-            plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", client is on " + new String(otherVersion) + ", dropping");
-            close();
-            server.remove(this);
-            callDisconnectEvent(DisconnectReason.PROTOCOL_MISMATCH);
-            return;
-        }
         debug.accept("Sending name " + clientRSA.getUser());
         setName(clientRSA.getUser());
         send(getName().getBytes());
         connectionID = connectionIDs.computeIfAbsent(clientRSA.getUser(), s -> ++lastConnectionID);
+
         debug.accept("Sending connection ID=" + connectionID);
         send(new byte[]{(byte) (connectionID >> 8), (byte) (connectionID)});
+
+        for (ServerClientHandler client : server.getClients()) {
+            if (!client.isConnected() || !client.isHandshakeComplete()) continue;
+            server.send(null, new ResetConnectionIDPacket(connectionID), null, 3000, () -> {
+                plugin.warning(client.getName() + " did not respond to connection ID reset within 3 seconds, dropping..");
+                client.close();
+            });
+        }
+
         p2pPort = ByteBuffer.wrap(read().decrypted()).getInt();
         writePermission = server.hasWritePermission(getName());
         server.updateClientsWithServerList();

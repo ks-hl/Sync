@@ -78,6 +78,17 @@ public class SyncClient implements SyncNetCore {
     }
 
     protected void handshake(SocketConnection connection) throws IOException, GeneralSecurityException {
+
+        byte[] myVersion = PROTOCOL_VERSION.getBytes();
+        plugin.debug("Sending protocol version v" + PROTOCOL_VERSION);
+        connection.sendRaw(myVersion);
+        byte[] otherVersion = connection.readRaw();
+        if (!Arrays.equals(otherVersion, myVersion)) {
+            plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
+            close();
+            return;
+        }
+
         plugin.debug("Sending RSA ID");
         connection.sendRaw(serverRSA.encrypt(getRSAUserID().getBytes()));
         String clientNonce = CodeGenerator.generateSecret(32, true, true, true);
@@ -97,15 +108,6 @@ public class SyncClient implements SyncNetCore {
         } catch (EOFException e) {
             throw new InvalidKeyException("Server ended connection during authentication");
         }
-        byte[] myVersion = PROTOCOL_VERSION.getBytes();
-        plugin.debug("Sending protocol version v" + PROTOCOL_VERSION);
-        connection.send(myVersion);
-        byte[] otherVersion = connection.read().decrypted();
-        if (!Arrays.equals(otherVersion, myVersion)) {
-            plugin.warning("Mismatched protocol versions, I'm on " + PROTOCOL_VERSION + ", server is on " + new String(otherVersion) + ", shutting down");
-            close();
-            return;
-        }
         plugin.debug("Protocol version match");
         connection.setName(new String(connection.read().decrypted()));
         plugin.debug("Received name: " + getName());
@@ -113,7 +115,7 @@ public class SyncClient implements SyncNetCore {
         idProvider = new IDProvider((short) ((connectionIDBytes[0] << 8) | (connectionIDBytes[1] & 0xFF)));
         plugin.debug("Received connection ID: " + idProvider.getConnectionID());
         plugin.debug("Starting P2P Server...");
-        p2pServer = new P2PServer(plugin);
+        p2pServer = new P2PServer(plugin, this::getIDProvider);
         p2pServer.start();
         tr:
         try {
@@ -136,7 +138,7 @@ public class SyncClient implements SyncNetCore {
             plugin.print("Client connecting to " + host + ":" + port + "...");
         }
 
-        connection = new SocketConnection(plugin, new Socket(host, port));
+        connection = new SocketConnection(plugin, new Socket(host, port), this::getIDProvider);
 
         handshake(connection);
 
@@ -279,7 +281,7 @@ public class SyncClient implements SyncNetCore {
      */
     public void keepAlive() {
         try {
-            if (!isConnected() || closed || connection == null || !connection.isConnected()) {
+            if (!isConnected() || closed || connection == null || !connection.isConnected() || idProvider == null) {
                 return;
             }
             connection.sendKeepAlive(idProvider);
@@ -342,6 +344,7 @@ public class SyncClient implements SyncNetCore {
             if (!servers.containsKey(server)) return false;
         }
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
+        packet.assignResponseID(idProvider);
         P2PServerData serverData = servers.get(server);
         if (serverData != null && serverData.client() != null && serverData.client().isConnected() && serverData.client().isHandshakeComplete()) {
             return serverData.client().send(null, packet, responseConsumer, timeoutMillis, timeoutAction);

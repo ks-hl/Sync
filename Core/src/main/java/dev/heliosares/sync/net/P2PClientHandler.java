@@ -13,13 +13,14 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 public class P2PClientHandler extends ServerClientHandler {
     private final SyncCore plugin;
     private final SyncClient syncClient;
 
-    P2PClientHandler(SyncCore plugin, SyncServer server, Socket socket) throws IOException {
-        super(plugin, server, socket, null);
+    P2PClientHandler(SyncCore plugin, SyncServer server, Socket socket, Supplier<IDProvider> idProviderSupplier) throws IOException {
+        super(plugin, server, socket, null, idProviderSupplier);
 
         this.plugin = plugin;
         this.syncClient = (SyncClient) plugin.getSync();

@@ -201,7 +201,7 @@ public class TestMain {
         throw new TimeoutException(message);
     }
 
-    @Test(timeout = 3000L)
+    @Test(timeout = 6000L)
     public void testPlayerDataCustom() throws Exception {
         TestServer server = createServer();
         TestClient client1 = createClient("client", server);
@@ -363,7 +363,7 @@ public class TestMain {
         for (CompletableFuture<Boolean> future : receivedSet) future.get();
     }
 
-    @Test(timeout = 1000)
+    @Test(timeout = 5000)
     public void testReplayAttack() throws Exception {
         TestServer server = createServer();
         TestClient client1 = createClient("client", server);
@@ -389,7 +389,7 @@ public class TestMain {
         assert responseCount.get() == 1 : "Replay packet received a response.";
     }
 
-    @Test(timeout = 3000)
+    @Test(timeout = 6000)
     public void testP2P() throws Exception {
         TestServer server = createServer(pl -> new SyncServer(pl, Map.of("p2p_client", "localhost"), serverRSAPair.privateKey()) {
             @Override

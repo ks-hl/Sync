@@ -8,6 +8,7 @@ import dev.heliosares.sync.net.packet.MessagePacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
 import dev.heliosares.sync.net.packet.PlaySoundPacket;
+import dev.heliosares.sync.net.packet.ResetConnectionIDPacket;
 import dev.heliosares.sync.net.packet.ShowTitlePacket;
 import org.json.JSONObject;
 
@@ -22,6 +23,7 @@ public enum PacketType {
     SERVER_LIST(3),//
     PLAYER_DATA(4),//
     P2P_AUTH(5, BlobPacket::new),//
+    RESET_CONNECTION_ID(6, ResetConnectionIDPacket::new), //
 
 
     // API

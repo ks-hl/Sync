@@ -59,6 +59,19 @@ public abstract class Param<T> {
         }
     }
 
+    public static class ShortParam extends Param<Short> {
+        ShortParam(JSONObject handle, String key) {
+            super(handle, key);
+        }
+
+        @Override
+        protected Short map(Object o) {
+            Integer val = (Integer) o;
+            if (val == null) return null;
+            return val.shortValue();
+        }
+    }
+
     public static class DoubleParam extends Param<Double> {
         DoubleParam(JSONObject handle, String key) {
             super(handle, key);
