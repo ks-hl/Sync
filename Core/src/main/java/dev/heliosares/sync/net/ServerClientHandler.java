@@ -155,6 +155,7 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                         if (forward == null || forward.equalsIgnoreCase("all")) {
                             if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
                                 Packet resp = pingPacket.createResponse();
+                                resp.assignResponseID(plugin.getSync().getIDProvider());
                                 try {
                                     send(resp, null, 0, null);
                                 } catch (IOException e) {
