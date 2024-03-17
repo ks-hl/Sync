@@ -31,6 +31,7 @@ public class SocketConnection {
     private EncryptionAES encryption;
     private final SyncCore plugin;
     private final Socket socket;
+    private final IDProvider idProvider;
     private final DataOutputStream out;
     private final DataInputStream in;
     private final long created;
@@ -45,6 +46,7 @@ public class SocketConnection {
     public SocketConnection(SyncCore plugin, Socket socket) throws IOException {
         this.plugin = plugin;
         this.socket = socket;
+        this.idProvider = plugin.getSync().getIDProvider();
         this.created = System.currentTimeMillis();
         out = new DataOutputStream(socket.getOutputStream());
         in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -145,7 +147,7 @@ public class SocketConnection {
 
         if (getName() == null) return;
 
-        Packet packet = new Packet(null, PacketType.KEEP_ALIVE, null);
+        Packet packet = new Packet(null, PacketType.KEEP_ALIVE, (JSONObject) null);
         packet.assignResponseID(idProvider);
         send(packet, null, 0, null);
     }
@@ -154,6 +156,7 @@ public class SocketConnection {
         if (closed) return;
         if (packet.isResponse() && responseConsumer != null)
             throw new IllegalArgumentException("Cannot specify consumer for a response");
+        packet.assignResponseID(idProvider);
         final long sendTime = System.nanoTime();
         synchronized (out) {
             if (packet instanceof PingPacket && !packet.isResponse() && (plugin instanceof SyncClient || packet.getForward() == null)) {

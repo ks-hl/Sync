@@ -342,7 +342,6 @@ public class SyncClient implements SyncNetCore {
             if (!servers.containsKey(server)) return false;
         }
         if (idProvider == null) throw new IllegalStateException("Can not send packets before setting connection ID");
-        packet.assignResponseID(idProvider);
         P2PServerData serverData = servers.get(server);
         if (serverData != null && serverData.client() != null && serverData.client().isConnected() && serverData.client().isHandshakeComplete()) {
             return serverData.client().send(null, packet, responseConsumer, timeoutMillis, timeoutAction);

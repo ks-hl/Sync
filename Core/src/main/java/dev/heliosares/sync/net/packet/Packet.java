@@ -19,6 +19,10 @@ public class Packet {
         this(channel, type, payload, null, false);
     }
 
+    public Packet(String channel, PacketType type, String payload) {
+        this(channel, type, payload == null || payload.isEmpty() ? null : new JSONObject(payload));
+    }
+
     public Packet(String channel, PacketType type) {
         this(channel, type, new JSONObject(), null, false);
     }

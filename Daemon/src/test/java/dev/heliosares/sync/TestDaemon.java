@@ -6,6 +6,7 @@ import dev.heliosares.sync.utils.CompletableException;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -15,9 +16,10 @@ public class TestDaemon {
     @Test(timeout = 3000)
     public void testDaemon() throws Exception {
         long start = System.currentTimeMillis();
-        var pair = EncryptionRSA.generate();
-        var server = new TestServer("server", null, pair.privateKey());
-        var client1 = new TestClient("client1", pair.publicKey());
+        var serverPair = EncryptionRSA.generate();
+
+        var server = new TestServer("server", null, serverPair.privateKey());
+        var client1 = new TestClient("client1", serverPair.publicKey());
 
         System.out.println("instances: " + (System.currentTimeMillis() - start) + "ms");
         start = System.currentTimeMillis();
@@ -46,8 +48,9 @@ public class TestDaemon {
         });
 
         client1.getSync().send(new CommandPacket("test"));
-        TestDaemonPlatform testDaemon = new TestDaemonPlatform("daemon1");
-        testDaemon.init();
+        EncryptionRSA.RSAPair daemonPair = EncryptionRSA.generate();
+        daemonPair.publicKey().write(new File("test/clients/daemon1.public.key"));
+        TestDaemonPlatform testDaemon = new TestDaemonPlatform("daemon1", daemonPair.privateKey(), serverPair.publicKey());
         server.reloadKeys(false);
         String command = testDaemon.connect("-port:" + PORT, "hello");
         testDaemon.run(command);

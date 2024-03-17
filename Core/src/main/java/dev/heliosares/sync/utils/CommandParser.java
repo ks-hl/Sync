@@ -1,12 +1,14 @@
 package dev.heliosares.sync.utils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class CommandParser {
 
     public static List<String> tab(List<String> out, String currentArg) {
-        return out.stream().filter((s) -> s.toLowerCase().startsWith(currentArg)).collect(Collectors.toList());
+        if (out == null) return new ArrayList<>();
+        return out.stream().filter((s) -> s != null && s.toLowerCase().startsWith(currentArg)).collect(Collectors.toList());
     }
 
     public static Result parse(String key, String cmd) {

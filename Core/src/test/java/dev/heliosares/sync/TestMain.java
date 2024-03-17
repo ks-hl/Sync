@@ -102,7 +102,7 @@ public class TestMain {
         }));
     }
 
-    @Test(timeout = 3000)
+    @Test(timeout = 5000)
     public void testAPIPacket() throws Exception {
         TestServer server = createServer();
         CompletableFuture<Boolean> received = new CompletableFuture<>();

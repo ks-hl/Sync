@@ -2,10 +2,9 @@ package dev.heliosares.sync;
 
 import dev.heliosares.sync.daemon.SyncDaemon;
 import dev.heliosares.sync.utils.CustomLogger;
+import dev.kshl.kshlib.encryption.EncryptionRSA;
 
 import java.io.File;
-import java.io.IOException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,19 +13,10 @@ public class TestDaemonPlatform extends SyncDaemon {
     private final String name;
     private final Logger logger;
 
-    public TestDaemonPlatform(String name) {
+    public TestDaemonPlatform(String name, EncryptionRSA clientRSA, EncryptionRSA serverRSA) {
+        super(clientRSA, serverRSA);
         this.name = name;
         this.logger = CustomLogger.getLogger(name);
-    }
-
-    @Override
-    public File getPublicKeyFile() {
-        return new File("test/clients/" + name + ".public.key");
-    }
-
-    @Override
-    public File getPrivateKeyFile() {
-        return new File("test/" + name + "/private.key");
     }
 
     private Logger getLogger() {

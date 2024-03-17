@@ -47,7 +47,9 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
         String debugKey = getIP().substring(getIP().indexOf(":") + 1);
         Consumer<String> debug = s -> plugin.debug("[" + debugKey + " Handshake] " + s);
 
-        UUID user_uuid = UUID.fromString(new String(serverRSA.decrypt(readRaw())));
+        String identity = new String(serverRSA.decrypt(readRaw()));
+        plugin.print("Client connecting under identity: " + identity + " from " + getIP());
+        UUID user_uuid = UUID.fromString(identity);
         debug.accept("Received RSA ID " + user_uuid);
         EncryptionRSA clientRSA = server.getEncryptionFor(user_uuid);
         if (clientRSA == null) {
@@ -153,7 +155,6 @@ public class ServerClientHandler extends SocketConnection implements Runnable {
                         if (forward == null || forward.equalsIgnoreCase("all")) {
                             if (!packet.isResponse() && packet instanceof PingPacket pingPacket) {
                                 Packet resp = pingPacket.createResponse();
-                                resp.assignResponseID(plugin.getSync().getIDProvider());
                                 try {
                                     send(resp, null, 0, null);
                                 } catch (IOException e) {
