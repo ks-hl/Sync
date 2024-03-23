@@ -77,6 +77,14 @@ public class Packet {
         return type.mapper.apply(new Packet(channel, type, payload, responseID.combined(), true).toJSON(true)).setForward((origin == null || origin.equals("proxy")) ? null : origin);
     }
 
+    public Packet createResponse(String payload) {
+        return createResponse(new JSONObject(payload));
+    }
+
+    public Packet createResponse() {
+        return createResponse(new JSONObject());
+    }
+
     public void assignResponseID(IDProvider provider) {
         if (responseID == null) responseID = provider.getNextID();
     }
@@ -165,6 +173,14 @@ public class Packet {
 
     public JSONObject getPayload() {
         return payload;
+    }
+
+    public Object getPayload(String key) {
+        return payload.opt(key);
+    }
+
+    public String getPayloadString() {
+        return payload.toString();
     }
 
     public String getForward() {
