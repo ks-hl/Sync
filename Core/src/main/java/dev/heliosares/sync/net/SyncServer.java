@@ -323,6 +323,7 @@ public class SyncServer implements SyncNetCore {
     }
 
     public int getPort() {
+        if (serverSocket == null) return 0;
         return serverSocket.getLocalPort();
     }
 
