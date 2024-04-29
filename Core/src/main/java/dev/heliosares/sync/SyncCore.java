@@ -1,6 +1,5 @@
 package dev.heliosares.sync;
 
-import dev.heliosares.sync.net.IDProvider;
 import dev.heliosares.sync.net.PlayerData;
 import dev.heliosares.sync.net.SyncNetCore;
 
@@ -32,7 +31,7 @@ public interface SyncCore {
     void setDebug(boolean debug);
 
     enum PlatformType {
-        SPIGOT, BUNGEE, DAEMON
+        SPIGOT, BUNGEE, VELOCITY, DAEMON
     }
 
     boolean isAsync();

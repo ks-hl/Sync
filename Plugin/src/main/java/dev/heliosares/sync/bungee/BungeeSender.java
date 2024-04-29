@@ -3,49 +3,29 @@ package dev.heliosares.sync.bungee;
 import dev.heliosares.sync.MySender;
 import net.md_5.bungee.api.CommandSender;
 
-public class BungeeSender implements MySender {
-
-    private final SyncBungee plugin;
-    private final CommandSender sender;
+public class BungeeSender extends MySender<CommandSender, SyncBungee> {
 
     public BungeeSender(SyncBungee plugin, CommandSender sender) {
-        this.plugin = plugin;
-        this.sender = sender;
+        super(sender, plugin);
     }
 
     @Override
     public void sendMessage(String msg) {
-        SyncBungee.tell(sender, msg);
+        SyncBungee.tell(getSender(), msg);
     }
 
     @Override
     public boolean hasPermission(String node) {
-        return sender.hasPermission(node);
-    }
-
-    @Override
-    public boolean hasPermissionExplicit(String node) {
-        for (String perm : sender.getPermissions()) {
-            if (perm.equalsIgnoreCase(node)) {
-                return true;
-            }
-        }
-        return false;
+        return getSender().hasPermission(node);
     }
 
     @Override
     public void execute(String command) {
-        plugin.dispatchCommand(this, command);
+        getPlugin().dispatchCommand(this, command);
     }
 
     @Override
     public String getName() {
-        return sender.getName();
+        return getSender().getName();
     }
-
-    @Override
-    public Object getSender() {
-        return sender;
-    }
-
 }

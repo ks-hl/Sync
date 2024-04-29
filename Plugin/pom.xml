@@ -29,6 +29,19 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>templating-maven-plugin</artifactId>
+                <version>1.0.0</version>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <goals>
+                            <goal>filter-sources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.4.0</version>
@@ -60,18 +73,29 @@
                         <phase>package</phase>
                         <configuration>
                             <target>
+                                <!-- Test1 -->
                                 <delete dir="${testserver}/Test1/plugins" failonerror="false"
-                                        includes="${project.parent.artifactId}*.jar"/>
-                                <delete dir="${testserver}/Test2/plugins" failonerror="false"
-                                        includes="${project.parent.artifactId}*.jar"/>
-                                <delete dir="${testserver}/Proxy/plugins" failonerror="false"
                                         includes="${project.parent.artifactId}*.jar"/>
                                 <copy file="${basedir}/target/${build.finalName}.jar"
                                       todir="${testserver}/Test1/plugins"/>
+
+                                <!-- Test2 -->
+                                <delete dir="${testserver}/Test2/plugins" failonerror="false"
+                                        includes="${project.parent.artifactId}*.jar"/>
                                 <copy file="${basedir}/target/${build.finalName}.jar"
                                       todir="${testserver}/Test2/plugins"/>
+
+                                <!-- Bungee-->
+                                <delete dir="${testserver}/Proxy/plugins" failonerror="false"
+                                        includes="${project.parent.artifactId}*.jar"/>
                                 <copy file="${basedir}/target/${build.finalName}.jar"
                                       todir="${testserver}/Proxy/plugins"/>
+
+                                <!-- Velocity-->
+                                <delete dir="${testserver}/Velocity/plugins" failonerror="false"
+                                        includes="${project.parent.artifactId}*.jar"/>
+                                <copy file="${basedir}/target/${build.finalName}.jar"
+                                      todir="${testserver}/Velocity/plugins"/>
                             </target>
                         </configuration>
                         <goals>
@@ -112,12 +136,24 @@
             <id>essentials-releases</id>
             <url>https://repo.essentialsx.net/snapshots/</url>
         </repository>
+
+        <!--        Velocity-->
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
     </repositories>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>SyncCore</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.velocitypowered</groupId>
+            <artifactId>velocity-api</artifactId>
+            <version>3.3.0-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.spigotmc</groupId>

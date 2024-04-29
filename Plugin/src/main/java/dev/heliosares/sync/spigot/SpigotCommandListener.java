@@ -56,7 +56,7 @@ public class SpigotCommandListener implements CommandExecutor, TabCompleter {
                     return true;
                 } else if (args[0].equalsIgnoreCase("-list")) {
                     ComponentBuilder builder = new ComponentBuilder();
-                    plugin.getSync().getUserManager().makeFormattedString(builder::append, s -> builder.event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(s))));
+                    plugin.getSync().getUserManager().makeFormattedString(builder::append, (line, hover) -> builder.append(line).event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hover))));
                     sender.spigot().sendMessage(builder.create());
                     return true;
                 }

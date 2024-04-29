@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -154,7 +155,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
         return players.function(map -> map.values().stream().filter(predicate).findAny().orElse(null));
     }
 
-    public void makeFormattedString(Consumer<String> lineConsumer, Consumer<String> hoverConsumer) {
+    public void makeFormattedString(Consumer<String> lineConsumer, BiConsumer<String, String> hoverConsumer) {
         players.consume(players -> {
             if (players.isEmpty()) {
                 lineConsumer.accept("No servers");
@@ -177,8 +178,7 @@ public class UserManager implements NetEventHandler.PacketConsumer {
                 List<PlayerData> data = new ArrayList<>(entry.getValue().values());
                 for (int i = 0; i < data.size(); i++) {
                     PlayerData playerData = data.get(i);
-                    lineConsumer.accept("§7" + playerData.getName());
-                    hoverConsumer.accept(playerData.toFormattedString());
+                    hoverConsumer.accept("§7" + playerData.getName(), playerData.toFormattedString());
                     if (i < data.size() - 1) {
                         lineConsumer.accept(", ");
                     }

@@ -1,15 +1,27 @@
 package dev.heliosares.sync;
 
-public interface MySender {
-    void sendMessage(String msg);
+public abstract class MySender<S, P extends SyncCore> {
+    private final S sender;
+    private final P plugin;
 
-    boolean hasPermission(String node);
+    public MySender(S sender, P plugin) {
+        this.sender = sender;
+        this.plugin = plugin;
+    }
 
-    boolean hasPermissionExplicit(String node);
+    public abstract void sendMessage(String msg);
 
-    void execute(String command);
+    public abstract boolean hasPermission(String node);
 
-    String getName();
+    public abstract void execute(String command);
 
-    Object getSender();
+    public abstract String getName();
+
+    public final S getSender() {
+        return sender;
+    }
+
+    public final P getPlugin() {
+        return plugin;
+    }
 }
