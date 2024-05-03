@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net.packet;
 
 import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import org.json.JSONObject;
 
 public class ResetConnectionIDPacket extends Packet {
@@ -27,7 +29,7 @@ public class ResetConnectionIDPacket extends Packet {
         return createResponse(new JSONObject());
     }
 
-    public Param.ShortParam id() {
-        return new Param.ShortParam(getPayload(), "id");
+    public JSONParam<Short> id() {
+        return new JSONParam<>(getPayload(), "id", JSONMappers.SHORT);
     }
 }

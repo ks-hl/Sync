@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net.packet;
 
 import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -21,23 +23,23 @@ public class PlaySoundPacket extends Packet {
 
     public PlaySoundPacket(JSONObject json) {
         super(json);
-        if(!isResponse()) sound().requireNonnull();
+        if (!isResponse()) sound().requireNonnull();
     }
 
-    public Param.StringParam to() {
-        return new Param.StringParam(getPayload(), "to");
+    public JSONParam<String> to() {
+        return new JSONParam<>(getPayload(), "to", JSONMappers.STRING);
     }
 
-    public Param.StringParam sound() {
-        return new Param.StringParam(getPayload(), "sound");
+    public JSONParam<String> sound() {
+        return new JSONParam<>(getPayload(), "sound", JSONMappers.STRING);
     }
 
-    public Param.DoubleParam pitch() {
-        return new Param.DoubleParam(getPayload(), "pitch");
+    public JSONParam<Double> pitch() {
+        return new JSONParam<>(getPayload(), "pitch", JSONMappers.DOUBLE);
     }
 
-    public Param.DoubleParam volume() {
-        return new Param.DoubleParam(getPayload(), "volume");
+    public JSONParam<Double> volume() {
+        return new JSONParam<>(getPayload(), "volume", JSONMappers.DOUBLE);
     }
 
     /**

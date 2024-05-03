@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net.packet;
 
 import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -22,16 +24,16 @@ public class HasPermissionPacket extends Packet {
         super(json);
     }
 
-    public Param.StringParam player() {
-        return new Param.StringParam(getPayload(), "player");
+    public JSONParam<String> player() {
+        return new JSONParam<>(getPayload(), "player", JSONMappers.STRING);
     }
 
-    public Param.StringParam node() {
-        return new Param.StringParam(getPayload(), "node");
+    public JSONParam<String> node() {
+        return new JSONParam<>(getPayload(), "node", JSONMappers.STRING);
     }
 
-    public Param.BooleanParam result() {
-        return new Param.BooleanParam(getPayload(), "result");
+    public JSONParam<Boolean> result() {
+        return new JSONParam<>(getPayload(), "result", JSONMappers.BOOLEAN);
     }
 
     /**

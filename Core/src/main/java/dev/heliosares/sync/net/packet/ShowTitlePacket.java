@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net.packet;
 
 import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import org.json.JSONObject;
 
 import javax.annotation.Nullable;
@@ -23,28 +25,28 @@ public class ShowTitlePacket extends Packet {
         super(json);
     }
 
-    public Param.StringParam to() {
-        return new Param.StringParam(getPayload(), "to");
+    public JSONParam<String> to() {
+        return new JSONParam<>(getPayload(), "to", JSONMappers.STRING);
     }
 
-    public Param.StringParam title() {
-        return new Param.StringParam(getPayload(), "title");
+    public JSONParam<String> title() {
+        return new JSONParam<>(getPayload(), "title", JSONMappers.STRING);
     }
 
-    public Param.StringParam subtitle() {
-        return new Param.StringParam(getPayload(), "subtitle");
+    public JSONParam<String> subtitle() {
+        return new JSONParam<>(getPayload(), "subtitle", JSONMappers.STRING);
     }
 
-    public Param.IntParam fadeIn() {
-        return new Param.IntParam(getPayload(), "fadein");
+    public JSONParam<Integer> fadeIn() {
+        return new JSONParam<>(getPayload(), "fadein", JSONMappers.INTEGER);
     }
 
-    public Param.IntParam duration() {
-        return new Param.IntParam(getPayload(), "duration");
+    public JSONParam<Integer> duration() {
+        return new JSONParam<>(getPayload(), "duration", JSONMappers.INTEGER);
     }
 
-    public Param.IntParam fadeOut() {
-        return new Param.IntParam(getPayload(), "fadeout");
+    public JSONParam<Integer> fadeOut() {
+        return new JSONParam<>(getPayload(), "fadeout", JSONMappers.INTEGER);
     }
 
     /**

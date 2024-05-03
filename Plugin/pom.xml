@@ -52,14 +52,18 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.json</pattern>
+                                    <shadedPattern>dev.heliosares.sync.json</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <artifactSet>
                                 <includes>
                                     <include>org.json:json</include>
                                     <include>${project.groupId}:SyncCore</include>
-                                    <include>dev.kshl:KshLib</include>
                                 </includes>
                             </artifactSet>
-                            <minimizeJar>true</minimizeJar>
                         </configuration>
                     </execution>
                 </executions>

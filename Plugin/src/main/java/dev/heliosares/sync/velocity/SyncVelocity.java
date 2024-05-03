@@ -252,8 +252,8 @@ public class SyncVelocity implements SyncCoreProxy {
             }
         }
         try {
-            config = new YamlConfig();
-            config.load(new File(getDataFolder(), "config.yml"), getResourceAsStream("config.yml"));
+            config = new YamlConfig(new File(getDataFolder(), "config.yml"));
+            config.load(getResourceAsStream("config.yml"));
         } catch (IOException e) {
             print("Error while loading config.yml", e);
         }
@@ -361,7 +361,7 @@ public class SyncVelocity implements SyncCoreProxy {
 
     @Override
     public boolean hasWritePermission(String user) {
-        return config.getStringList("read-only").filter(list->list.contains(user)).isEmpty();
+        return config.getStringList("read-only").filter(list -> list.contains(user)).isEmpty();
     }
 
     @Override

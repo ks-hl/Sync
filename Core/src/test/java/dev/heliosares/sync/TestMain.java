@@ -7,6 +7,8 @@ import dev.heliosares.sync.net.SyncServer;
 import dev.heliosares.sync.net.packet.BlobPacket;
 import dev.heliosares.sync.net.packet.Packet;
 import dev.heliosares.sync.net.packet.PingPacket;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import dev.kshl.kshlib.encryption.EncryptionRSA;
 import org.json.JSONObject;
 import org.junit.Test;
@@ -14,8 +16,10 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -290,7 +294,7 @@ public class TestMain {
         TestServer server = createServer();
         TestClient client1 = createClient("client", server);
         TestClient client2 = createClient("client", server);
-        Thread.sleep(10);
+        Thread.sleep(100);
         client1.warning("Client1 servers: " + client1.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
         client1.warning("Client2 servers: " + client2.getSync().getServers().stream().reduce((a, b) -> a + "," + b).orElse(""));
 
@@ -411,5 +415,69 @@ public class TestMain {
             server.print("Ping: " + ((PingPacket) resp).getRTT() + "ms");
         });
         received2.get();
+    }
+
+    @Test
+    public void testParams() {
+        JSONObject handle = new JSONObject();
+
+        JSONParam<String> stringParam = new JSONParam<>(handle, "stringParam", JSONMappers.STRING);
+        test(stringParam, UUID.randomUUID().toString());
+
+        JSONParam<Integer> intParam = new JSONParam<>(handle, "intParam", JSONMappers.INTEGER);
+        test(intParam, 9985832);
+
+        JSONParam<Short> shortParam = new JSONParam<>(handle, "shortParam", JSONMappers.SHORT);
+        test(shortParam, (short) 9852);
+
+        JSONParam<Double> doubleParam = new JSONParam<>(handle, "doubleParam", JSONMappers.DOUBLE);
+        test(doubleParam, 9852D);
+
+        JSONParam<Boolean> booleanParam = new JSONParam<>(handle, "booleanParam", JSONMappers.BOOLEAN);
+        test(booleanParam, true);
+
+        JSONParam<Long> longParam = new JSONParam<>(handle, "longParam", JSONMappers.LONG);
+        test(longParam, 265432L);
+
+        JSONParam<UUID> uuidParam = new JSONParam<>(handle, "uuidParam", JSONMappers.UUID_MAPPER);
+        test(uuidParam, UUID.randomUUID());
+
+        JSONParam<HashMap<String, String>> hashMapParam = new JSONParam<>(handle, "hashMapParam", JSONMappers.STRING_MAP);
+        UUID u1 = UUID.randomUUID();
+        UUID u2 = UUID.randomUUID();
+        UUID u3 = UUID.randomUUID();
+        hashMapParam.set(new HashMap<>() {{
+            put("key1", u1.toString());
+            put("key2", u2.toString());
+            put("key3", u3.toString());
+            put("key4", null);
+        }});
+        assertEquals(u1.toString(), Objects.requireNonNull(hashMapParam.get()).get("key1"));
+        assertEquals(u2.toString(), Objects.requireNonNull(hashMapParam.get()).get("key2"));
+        assertEquals(u3.toString(), Objects.requireNonNull(hashMapParam.get()).get("key3"));
+
+        JSONParam<HashSet<UUID>> uuidSet = new JSONParam<>(handle, "uuidSet", JSONMappers.UUID_SET);
+        uuidSet.set(new HashSet<>(List.of(u1, u2, u3)) {{
+            add(null);
+        }});
+        assert Objects.requireNonNull(uuidSet.get()).contains(u1);
+        assert Objects.requireNonNull(uuidSet.get()).contains(u2);
+        assert Objects.requireNonNull(uuidSet.get()).contains(u3);
+
+        JSONParam<ArrayList<UUID>> uuidList = new JSONParam<>(handle, "uuidList", JSONMappers.UUID_LIST);
+        uuidList.set(new ArrayList<>(List.of(u1, u2, u3)) {{
+            add(null);
+        }});
+        assertEquals(u1, uuidList.get().get(0));
+        assertEquals(u2, uuidList.get().get(1));
+        assertEquals(u3, uuidList.get().get(2));
+
+
+        System.out.println(handle.toString(2));
+    }
+
+    private static <T> void test(JSONParam<T> param, T val) {
+        param.set(val);
+        assertEquals(val, param.get());
     }
 }

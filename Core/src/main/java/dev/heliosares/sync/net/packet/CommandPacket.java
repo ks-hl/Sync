@@ -1,6 +1,8 @@
 package dev.heliosares.sync.net.packet;
 
 import dev.heliosares.sync.net.PacketType;
+import dev.heliosares.sync.params.param.JSONParam;
+import dev.heliosares.sync.params.mapper.JSONMappers;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
@@ -20,8 +22,8 @@ public class CommandPacket extends Packet {
         }
     }
 
-    public Param.StringParam command() {
-        return new Param.StringParam(getPayload(), "command");
+    public JSONParam<String> command() {
+        return new JSONParam<>(getPayload(), "command", JSONMappers.STRING);
     }
 
     /**
