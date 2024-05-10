@@ -252,8 +252,8 @@ public class SyncVelocity implements SyncCoreProxy {
             }
         }
         try {
-            config = new YamlConfig(new File(getDataFolder(), "config.yml"));
-            config.load(getResourceAsStream("config.yml"));
+            config = new YamlConfig(new File(getDataFolder(), "config.yml"), () -> getResourceAsStream("config.yml"));
+            config.load();
         } catch (IOException e) {
             print("Error while loading config.yml", e);
         }
