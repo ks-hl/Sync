@@ -136,7 +136,7 @@ public class SyncServer implements SyncNetCore {
                         plugin.newThread(ch);
                     }
                 } catch (SocketException e1) {
-                    plugin.print("Server closed.");
+                    plugin.print("Server closed.", e1);
                     return;
                 } catch (Exception e1) {
                     plugin.print("Server crashed", e1);
